@@ -32,5 +32,5 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle
 
-      - name: Build & Test 실행
-        run: ./gradlew clean build --no-daemon
+      - name: Build & Test 실행 (Test Profile 활성화)
+        run: ./gradlew clean build -Dspring.profiles.active=test --no-daemon
