@@ -45,5 +45,4 @@ out/
 .vscode/
 
 ### YAML ###
-application-*.yml
 src/main/resources/application.yml
