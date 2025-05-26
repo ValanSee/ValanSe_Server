@@ -20,5 +20,5 @@ spring:
       mode: never
 
 jwt:
-  secret: dummy-secret-for-test
+  secret: ZHVtbXktc2VjcmV0LWZvci10ZXN0
   expiration: 3000

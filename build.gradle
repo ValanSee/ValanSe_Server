@@ -44,6 +44,8 @@ dependencies {
 	// Hibernate Validator 관련 경고 해결
 	implementation 'org.hibernate.validator:hibernate-validator'
 
+	// CI 테스트 DB 의존성 추가
+	testImplementation 'com.h2database:h2'
 }
 
 tasks.named('test') {
