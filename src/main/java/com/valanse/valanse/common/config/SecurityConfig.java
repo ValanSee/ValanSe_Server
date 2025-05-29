@@ -34,10 +34,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .authorizeHttpRequests(a -> a.requestMatchers(
-                        "/member/create",
-                        "/member/login",
-                        "/member/google/do-login",
-                        "/member/kakao/do-login",
+                        "/member/kakao/login",
                         "/health",
                         "/v3/api-docs/**",
                         "/swagger-ui/**",

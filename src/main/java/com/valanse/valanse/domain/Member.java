@@ -16,36 +16,24 @@ public class Member {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long id; // uuid
 
-    private String name;
-
-    private String nickname;
+    private String socialId; // kakao id
 
     @Column(nullable = false, unique = true)
-    private String email;
+    private String email; // 카카오 이메일
 
-    @Column(length = 128)
-    private String password;
+    private String name; // 카카오 이름
+
+
+    @Enumerated(EnumType.STRING) // 가독성 차원에서 문자열 그대로 저장하도록 하는 어노테이션
+    @Builder.Default // 디폴트값을 user로 설정함
+    private Role role = Role.USER;
+
 
     @Enumerated(EnumType.STRING)
     @Builder.Default
-    private Role role = Role.USER;
+    private SocialType socialType = SocialType.KAKAO;
 
-    @Enumerated(EnumType.STRING)
-    private SocialType socialType;
 
-    private String socialId;
-
-    @Enumerated(EnumType.STRING)
-    private Gender gender;
-
-    @Enumerated(EnumType.STRING)
-    private Age age;
-
-    @Enumerated(EnumType.STRING)
-    private MbtiIe mbtiIe;
-
-    @Enumerated(EnumType.STRING)
-    private MbtiTf mbtiTf;
 }

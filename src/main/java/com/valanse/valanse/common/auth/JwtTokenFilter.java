@@ -34,10 +34,8 @@ public class JwtTokenFilter extends GenericFilter {
 
         String uri = request.getRequestURI();
         System.out.println("uri = " + uri);
-        if (uri.equals("/member/create") ||
-                uri.equals("/member/login") ||
-                uri.equals("/member/google/do-login") ||
-                uri.equals("/member/kakao/do-login") ||
+        if (
+                uri.equals("/member/kakao/login") ||
                 uri.equals("/error") ||
                 uri.equals("/health") ||
                 uri.startsWith("/swagger-ui") ||

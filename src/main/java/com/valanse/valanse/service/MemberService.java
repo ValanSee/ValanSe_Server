@@ -1,44 +1,38 @@
 package com.valanse.valanse.service;
 
 import com.valanse.valanse.domain.Member;
-import com.valanse.valanse.dto.MemberCreateDto;
-import com.valanse.valanse.dto.MemberLoginDto;
+import com.valanse.valanse.domain.MemberProfile;
+import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberRepository;
 import jakarta.transaction.Transactional;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class MemberService {
     private final MemberRepository memberRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final MemberProfileRepository memberProfileRepository;
 
-    public MemberService(MemberRepository memberRepository, PasswordEncoder passwordEncoder) {
-        this.memberRepository = memberRepository;
-        this.passwordEncoder = passwordEncoder;
-    }
-
-    public Member create(MemberCreateDto memberCreateDto) {
-        Member member = Member.builder()
-                .email(memberCreateDto.getEmail())
-                .password(passwordEncoder.encode(memberCreateDto.getPassword()))
-                .build();
-        memberRepository.save(member);
+    public Member getMemberBySocialId(String socialId) {
+        Member member = memberRepository.findBySocialId(socialId).orElse(null);
         return member;
     }
 
-    public Member login(MemberLoginDto memberLoginDto) {
-        Optional<Member> optMember = memberRepository.findByEmail(memberLoginDto.getEmail());
-        if (!optMember.isPresent()) {
-            throw new IllegalArgumentException("이메일이 존재하지 않습니다.");
-        }
-        Member member = optMember.get();
-        if (!passwordEncoder.matches(memberLoginDto.getPassword(), member.getPassword())) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
-        }
+    public Member createOauth(String socialId, String email, String name, String profile_image_url) {
+        Member member = Member.builder()
+                .email(email)
+                .socialId(socialId)
+                .name(name)
+                .build();
+        memberRepository.save(member);
+        MemberProfile memberProfile = MemberProfile.builder()
+                .member(member)
+                .profile_image_url(profile_image_url)
+                .build();
+        memberProfileRepository.save(memberProfile);
         return member;
     }
 }
