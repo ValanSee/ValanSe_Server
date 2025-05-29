@@ -5,9 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-public class MemberLoginDto {
-    private String email;
-    private String password;
+@AllArgsConstructor
+public class RedirectDto {
+    private String code;
 }
