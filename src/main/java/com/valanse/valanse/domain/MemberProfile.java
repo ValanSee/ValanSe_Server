@@ -11,11 +11,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Builder
-@AllArgsConstructor // 해당 클래스 내의 모든 변수에 대하여 생성자를 만들어줌
-@NoArgsConstructor // 기본 생성자를 만들어줌
+@AllArgsConstructor
+@NoArgsConstructor
 @Getter
 @Entity
-public class MemberProfile {
+public class MemberProfile extends BaseEntity {
 
     @Id
     private Long id;
@@ -24,8 +24,6 @@ public class MemberProfile {
     @MapsId
     @JoinColumn(name = "member_id")
     private Member member;
-
-    private String profile_image_url; // 프로필 이미지
 
     private String nickname; // 추가 정보
 
