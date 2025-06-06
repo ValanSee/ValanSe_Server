@@ -8,6 +8,7 @@ public record MemberProfileResponse(
             String gender,
             String age,
             String mbtiIe,
-            String mbtiTf
+            String mbtiTf,
+            String mbti
     ) {}
 }
