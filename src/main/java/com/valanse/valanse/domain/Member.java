@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Getter
 @Entity
-public class Member {
+public class Member extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,6 +25,7 @@ public class Member {
 
     private String name; // 카카오 이름
 
+    private String profile_image_url; // 프로필 이미지
 
     @Enumerated(EnumType.STRING) // 가독성 차원에서 문자열 그대로 저장하도록 하는 어노테이션
     @Builder.Default // 디폴트값을 user로 설정함
