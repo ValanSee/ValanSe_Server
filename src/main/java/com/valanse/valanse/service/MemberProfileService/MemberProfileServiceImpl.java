@@ -2,6 +2,7 @@ package com.valanse.valanse.service.MemberProfileService;
 
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
+import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 import com.valanse.valanse.repository.MemberProfileRepository;
@@ -36,6 +37,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
                 .age(dto.age())
                 .mbtiIe(dto.mbtiIe())
                 .mbtiTf(dto.mbtiTf())
+                .mbti(dto.mbti())
                 .build();
 
         memberProfileRepository.save(profile);
@@ -57,9 +59,33 @@ public class MemberProfileServiceImpl implements MemberProfileService {
                 profile.getGender() != null ? profile.getGender().name() : null,
                 profile.getAge() != null ? profile.getAge().name() : null,
                 profile.getMbtiIe() != null ? profile.getMbtiIe().name() : null,
-                profile.getMbtiTf() != null ? profile.getMbtiTf().name() : null
+                profile.getMbtiTf() != null ? profile.getMbtiTf().name() : null,
+                profile.getMbti() != null ? profile.getMbti() : null
         );
 
         return new MemberProfileResponse(info);
+    }
+
+    @Override
+    public MemberMyPageResponse getMyProfile(){
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        MemberProfile profile = memberProfileRepository.findByMemberEmail(email)
+                .orElse(null);
+        Member member = memberRepository.findByEmail(email).orElse(null);
+        if (profile == null) {
+            return new MemberMyPageResponse(null);
+        }
+
+        MemberMyPageResponse.MyPageInfo info = new MemberMyPageResponse.MyPageInfo(
+                member.getProfile_image_url(),
+                member.getName(),
+                member.getEmail(),
+                profile.getNickname(),
+                profile.getGender() != null ? profile.getGender().name() : null,
+                profile.getAge() != null ? profile.getAge().name() : null,
+                profile.getMbti() != null ? profile.getMbti() : null
+        );
+        return new MemberMyPageResponse(info);
     }
 }

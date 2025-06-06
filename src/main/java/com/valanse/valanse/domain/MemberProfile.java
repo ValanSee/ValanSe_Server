@@ -38,4 +38,6 @@ public class MemberProfile extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     private MbtiTf mbtiTf; // 추가 정보
+
+    private String mbti;
 }
