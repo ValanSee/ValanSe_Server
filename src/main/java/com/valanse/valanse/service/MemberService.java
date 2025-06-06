@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class MemberService {
     private final MemberRepository memberRepository;
-    private final MemberProfileRepository memberProfileRepository;
 
     public Member getMemberBySocialId(String socialId) {
         Member member = memberRepository.findBySocialId(socialId).orElse(null);
@@ -26,13 +25,9 @@ public class MemberService {
                 .email(email)
                 .socialId(socialId)
                 .name(name)
-                .build();
-        memberRepository.save(member);
-        MemberProfile memberProfile = MemberProfile.builder()
-                .member(member)
                 .profile_image_url(profile_image_url)
                 .build();
-        memberProfileRepository.save(memberProfile);
+        memberRepository.save(member);
         return member;
     }
 }
