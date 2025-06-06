@@ -5,6 +5,7 @@ import com.valanse.valanse.common.auth.JwtTokenProvider;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.dto.Login.AccessTokenDto;
 import com.valanse.valanse.dto.Login.KakaoProfileDto;
+import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 import com.valanse.valanse.dto.Login.RedirectDto;
@@ -81,12 +82,22 @@ public class MemberController {
     }
 
     @Operation(
-            summary = "회원 프로필 정보 조회",
-            description = "현재 로그인한 회원의 프로필 정보를 조회합니다. 정보가 없으면 'profile: null' 형태로 반환됩니다."
+            summary = "회원 프로필 추가 정보 조회",
+            description = "현재 로그인한 회원의 추가 프로필 정보를 조회합니다. 정보가 없으면 'profile: null' 형태로 반환됩니다."
     )
     @GetMapping("/profile")
     public ResponseEntity<MemberProfileResponse> getProfile() {
         MemberProfileResponse response = memberProfileService.getProfile();
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "마이페이지 회원 프로필 정보 조회",
+            description = "현재 로그인한 회원의 프로필 정보를 조회합니다. 정보가 없으면 'profile: null' 형태로 반환합니다."
+    )
+    @GetMapping("/mypage")
+    public ResponseEntity<MemberMyPageResponse> getMyProfile() {
+        MemberMyPageResponse response = memberProfileService.getMyProfile();
         return ResponseEntity.ok(response);
     }
 }

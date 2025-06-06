@@ -10,5 +10,6 @@ public record MemberProfileRequest(
         Gender gender,
         Age age,
         MbtiIe mbtiIe,
-        MbtiTf mbtiTf
+        MbtiTf mbtiTf,
+        String mbti
 ) {}

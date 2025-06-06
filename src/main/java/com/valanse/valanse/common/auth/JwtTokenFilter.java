@@ -33,7 +33,7 @@ public class JwtTokenFilter extends GenericFilter {
         HttpServletResponse response = (HttpServletResponse) servletResponse;
 
         String uri = request.getRequestURI();
-        System.out.println("uri = " + uri);
+//        System.out.println("uri = " + uri);
         if (
                 uri.equals("/member/kakao/login") ||
                 uri.equals("/error") ||
