@@ -1,7 +1,7 @@
 package com.valanse.valanse.service;
 
-import com.valanse.valanse.dto.AccessTokenDto;
-import com.valanse.valanse.dto.KakaoProfileDto;
+import com.valanse.valanse.dto.Login.AccessTokenDto;
+import com.valanse.valanse.dto.Login.KakaoProfileDto;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;

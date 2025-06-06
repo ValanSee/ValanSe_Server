@@ -3,11 +3,13 @@ package com.valanse.valanse.controller;
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.common.auth.JwtTokenProvider;
 import com.valanse.valanse.domain.Member;
-import com.valanse.valanse.dto.AccessTokenDto;
-import com.valanse.valanse.dto.KakaoProfileDto;
-import com.valanse.valanse.dto.RedirectDto;
+import com.valanse.valanse.dto.Login.AccessTokenDto;
+import com.valanse.valanse.dto.Login.KakaoProfileDto;
+import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
+import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
+import com.valanse.valanse.dto.Login.RedirectDto;
 import com.valanse.valanse.service.KakaoService;
-import com.valanse.valanse.service.MemberProfileService;
+import com.valanse.valanse.service.MemberProfileService.MemberProfileService;
 import com.valanse.valanse.service.MemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -69,11 +71,22 @@ public class MemberController {
     }
 
     @Operation(
-            summary = "추가 프로필 정보 유무 확인",
-            description = "추가 정보 입력이 필요한지 확인하고, 그 결과를 boolean 값으로 JSON 형태로 반환합니다."
+            summary = "회원 프로필 정보 저장",
+            description = "닉네임, 성별, 나이, MBTI 정보를 저장하거나 수정합니다. 모든 필드가 채워진 경우에만 저장됩니다. 만약 아직 프로필 정보가 없는 경우 null 을 반환하니 식별에 사용하시면 됩니다."
     )
-    @GetMapping("/profile-check")
-    public boolean checkAdditionalInfo() {
-        return memberProfileService.hasProfileAdditionalInfo();
+    @PostMapping("/profile")
+    public ResponseEntity<Void> saveProfile(@RequestBody MemberProfileRequest dto) {
+        memberProfileService.saveOrUpdateProfile(dto);
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(
+            summary = "회원 프로필 정보 조회",
+            description = "현재 로그인한 회원의 프로필 정보를 조회합니다. 정보가 없으면 'profile: null' 형태로 반환됩니다."
+    )
+    @GetMapping("/profile")
+    public ResponseEntity<MemberProfileResponse> getProfile() {
+        MemberProfileResponse response = memberProfileService.getProfile();
+        return ResponseEntity.ok(response);
     }
 }
