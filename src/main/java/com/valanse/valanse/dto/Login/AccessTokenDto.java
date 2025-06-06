@@ -1,4 +1,4 @@
-package com.valanse.valanse.dto;
+package com.valanse.valanse.dto.Login;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
