@@ -15,5 +15,3 @@ public class AccessTokenDto {
     private String scope;
     private String id_token;
 }
-
-// 문제 텍스트 20자 제한
