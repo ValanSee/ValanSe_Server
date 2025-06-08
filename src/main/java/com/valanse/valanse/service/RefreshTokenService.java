@@ -12,6 +12,7 @@ public class RefreshTokenService {
 
     private final RedisTemplate<String, String> redisTemplate;
 
+    // key에서 email → userId로 명시
     public void saveRefreshToken(String userId, String refreshToken, long expirationMillis) {
         redisTemplate.opsForValue().set("RT:" + userId, refreshToken, expirationMillis, TimeUnit.MILLISECONDS);
     }

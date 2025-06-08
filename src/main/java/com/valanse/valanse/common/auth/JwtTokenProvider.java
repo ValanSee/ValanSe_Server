@@ -29,8 +29,9 @@ public class JwtTokenProvider {
     }
 
     // Access Token 생성
-    public String createAccessToken(String email, String role) {
-        Claims claims = Jwts.claims().setSubject(email);
+    public String createAccessToken(Long userId, String role) {
+//        Claims claims = Jwts.claims().setSubject(email);
+        Claims claims = Jwts.claims().setSubject(String.valueOf(userId));
         claims.put("role", role);
         Date now = new Date();
         return Jwts.builder()
@@ -51,12 +52,21 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    public Map<String, String> createTokenPair(String email, String role) {
-        String accessToken = createAccessToken(email, role);
+    public Map<String, String> createTokenPair(Long userId, String role) {
+        String accessToken = createAccessToken(userId, role);
         String refreshToken = createRefreshToken();
         return Map.of(
                 "accessToken", accessToken,
                 "refreshToken", refreshToken
         );
+    }
+
+    public String getSubject(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(SECRET_KEY)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+        return claims.getSubject();
     }
 }

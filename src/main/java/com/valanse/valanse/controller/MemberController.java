@@ -9,6 +9,7 @@ import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 import com.valanse.valanse.dto.Login.RedirectDto;
+import com.valanse.valanse.service.AuthService;
 import com.valanse.valanse.service.KakaoService;
 import com.valanse.valanse.service.MemberProfileService.MemberProfileService;
 import com.valanse.valanse.service.MemberService;
@@ -20,8 +21,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -36,6 +37,7 @@ public class MemberController {
     private final KakaoService kakaoService;
     private final MemberProfileService memberProfileService;
     private final RefreshTokenService refreshTokenService;
+    private final AuthService authService;
 
     @Value("${jwt.refresh-token-expiration}")
     private int refreshTokenExpirationMinutes;
@@ -74,10 +76,9 @@ public class MemberController {
         }
 
         Map<String, String> jwtToken = jwtTokenProvider.createTokenPair(
-                originalMember.getEmail(),
+                originalMember.getId(),
                 originalMember.getRole().toString()
         );
-
 
         // refresh token 저장
         refreshTokenService.saveRefreshToken(
@@ -85,13 +86,10 @@ public class MemberController {
                 jwtToken.get("refreshToken"),
                 refreshTokenExpirationMillis
         );
-
-
         Map<String, Object> loginInfo = new HashMap<>();
         loginInfo.put("id", originalMember.getId());
         loginInfo.put("accessToken", jwtToken.get("accessToken"));
         loginInfo.put("refreshToken", jwtToken.get("refreshToken"));
-
 
         return ResponseEntity.ok(loginInfo);
     }
@@ -124,5 +122,12 @@ public class MemberController {
     public ResponseEntity<MemberMyPageResponse> getMyProfile() {
         MemberMyPageResponse response = memberProfileService.getMyProfile();
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "로그아웃", description = "RefreshToken을 삭제하여 로그아웃 처리합니다.")
+    @PostMapping("/kakao/logout")
+    public ResponseEntity<Void> logout() {
+        authService.logout();
+        return ResponseEntity.ok().build();
     }
 }
