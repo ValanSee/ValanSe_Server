@@ -23,7 +23,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleUnexpectedException(Exception e) {
-        // TODO: message, type은 추후 배포 환경에서는 주석처리하기 (QA 테스트 및 API 연동 목적으로 작성함)
+        // TODO: message, type은 추후 배포 환경에서는 주석처리하기 (API 연동 목적으로 작성함)
         Map<String, Object> error = new HashMap<>();
         error.put("error", "서버 내부 오류가 발생했습니다.");
         error.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());

@@ -12,9 +12,12 @@ import com.valanse.valanse.dto.Login.RedirectDto;
 import com.valanse.valanse.service.KakaoService;
 import com.valanse.valanse.service.MemberProfileService.MemberProfileService;
 import com.valanse.valanse.service.MemberService;
+import com.valanse.valanse.service.RefreshTokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -32,6 +35,17 @@ public class MemberController {
     private final JwtTokenProvider jwtTokenProvider;
     private final KakaoService kakaoService;
     private final MemberProfileService memberProfileService;
+    private final RefreshTokenService refreshTokenService;
+
+    @Value("${jwt.refresh-token-expiration}")
+    private int refreshTokenExpirationMinutes;
+
+    private long refreshTokenExpirationMillis;
+
+    @PostConstruct
+    public void init() {
+        this.refreshTokenExpirationMillis = refreshTokenExpirationMinutes * 60L * 1000L;
+    }
 
     @Operation(
             summary = "카카오 로그인",
@@ -59,14 +73,25 @@ public class MemberController {
             );
         }
 
-        String jwtToken = jwtTokenProvider.createToken(
+        Map<String, String> jwtToken = jwtTokenProvider.createTokenPair(
                 originalMember.getEmail(),
                 originalMember.getRole().toString()
         );
 
+
+        // refresh token 저장
+        refreshTokenService.saveRefreshToken(
+                originalMember.getId().toString(),
+                jwtToken.get("refreshToken"),
+                refreshTokenExpirationMillis
+        );
+
+
         Map<String, Object> loginInfo = new HashMap<>();
         loginInfo.put("id", originalMember.getId());
-        loginInfo.put("token", jwtToken);
+        loginInfo.put("accessToken", jwtToken.get("accessToken"));
+        loginInfo.put("refreshToken", jwtToken.get("refreshToken"));
+
 
         return ResponseEntity.ok(loginInfo);
     }

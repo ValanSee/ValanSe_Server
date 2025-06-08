@@ -49,6 +49,4 @@ public class KakaoService {
         System.out.println("response.getBody() = " + response.getBody());
         return response.getBody();
     }
-
-
 }
