@@ -27,7 +27,7 @@ public class Member extends BaseEntity {
 
     private String profile_image_url; // 프로필 이미지
 
-    @Enumerated(EnumType.STRING) // 가독성 차원에서 문자열 그대로 저장하도록 하는 어노테이션
+    @Enumerated(EnumType.STRING)
     @Builder.Default // 디폴트값을 user로 설정함
     private Role role = Role.USER;
 
@@ -36,5 +36,7 @@ public class Member extends BaseEntity {
     @Builder.Default
     private SocialType socialType = SocialType.KAKAO;
 
+    private String kakaoAccessToken;
 
+    private String kakaoRefreshToken;
 }

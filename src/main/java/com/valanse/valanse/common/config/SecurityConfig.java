@@ -34,7 +34,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .authorizeHttpRequests(a -> a.requestMatchers(
-                        "/member/kakao/login",
+                        "/auth/kakao/login",
+                        "/auth/reissue",
                         "/health",
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
@@ -55,6 +56,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000"));
+        configuration.setAllowedOrigins(Arrays.asList("https://valanse-sooty.vercel.app/"));
         configuration.setAllowedMethods(Arrays.asList("*"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);

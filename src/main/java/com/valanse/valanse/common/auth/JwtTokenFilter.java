@@ -35,7 +35,8 @@ public class JwtTokenFilter extends GenericFilter {
         String uri = request.getRequestURI();
 //        System.out.println("uri = " + uri);
         if (
-                uri.equals("/member/kakao/login") ||
+                uri.equals("/auth/kakao/login") ||
+                uri.equals("/auth/reissue") ||
                 uri.equals("/error") ||
                 uri.equals("/health") ||
                 uri.startsWith("/swagger-ui") ||
@@ -66,7 +67,7 @@ public class JwtTokenFilter extends GenericFilter {
                 Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, jwtToken, userDetails.getAuthorities());
                 SecurityContextHolder.getContext().setAuthentication(auth);
 
-                // << 프로젝트 전역에서 가져다 사용하는 방법 >>
+                // << 프로젝트 전역에서 사용하는 방법 >>
                 // userDetails의 claims.getSubject() 꺼내기 (여기서는 이메일): SecurityContextHolder.getContext().getAuthentication().getName();
                 // jwtToken 꺼내기: SecurityContextHolder.getContext().getAuthentication().getCredentials();
                 // userDetails의 권한값(userDetails.getAuthorities()) 꺼내기: SecurityContextHolder.getContext().getAuthentication().getAuthorities();

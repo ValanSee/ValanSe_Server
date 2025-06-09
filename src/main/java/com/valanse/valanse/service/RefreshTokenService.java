@@ -1,0 +1,28 @@
+package com.valanse.valanse.service;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Service;
+
+import java.util.concurrent.TimeUnit;
+
+@Service
+@RequiredArgsConstructor
+public class RefreshTokenService {
+
+    private final RedisTemplate<String, String> redisTemplate;
+
+    // key에서 email → userId로 명시
+    public void saveRefreshToken(String userId, String refreshToken, long expirationMillis) {
+        redisTemplate.opsForValue().set("RT:" + userId, refreshToken, expirationMillis, TimeUnit.MILLISECONDS);
+    }
+
+    public String getRefreshToken(String userId) {
+        return redisTemplate.opsForValue().get("RT:" + userId);
+    }
+
+    public void deleteRefreshToken(String userId) {
+        redisTemplate.delete("RT:" + userId);
+    }
+}
+
