@@ -36,5 +36,7 @@ public class Member extends BaseEntity {
     @Builder.Default
     private SocialType socialType = SocialType.KAKAO;
 
+    private String kakaoAccessToken;
 
+    private String kakaoRefreshToken;
 }

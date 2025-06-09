@@ -55,6 +55,7 @@ public class AuthController {
     @PostMapping("/kakao/login")
     public ResponseEntity<?> kakaoLogin(@RequestBody RedirectDto redirectDto) {
         AccessTokenDto accessTokenDto = kakaoService.getAccessToken(redirectDto.getCode());
+
         if (accessTokenDto == null || accessTokenDto.getAccess_token() == null) {
             throw new ApiException("AccessToken 발급 실패", HttpStatus.UNAUTHORIZED);
         }
@@ -70,7 +71,9 @@ public class AuthController {
                     kakaoProfileDto.getId(),
                     kakaoProfileDto.getKakao_account().getEmail(),
                     kakaoProfileDto.getKakao_account().getProfile().getNickname(),
-                    kakaoProfileDto.getKakao_account().getProfile().getProfile_image_url()
+                    kakaoProfileDto.getKakao_account().getProfile().getProfile_image_url(),
+                    accessTokenDto.getAccess_token(),
+                    accessTokenDto.getRefresh_token()
             );
         }
 
@@ -79,12 +82,13 @@ public class AuthController {
                 originalMember.getRole().toString()
         );
 
-        // refresh token 저장
+        // jwt refresh token 저장
         refreshTokenService.saveRefreshToken(
                 originalMember.getId().toString(),
                 jwtToken.get("refreshToken"),
                 refreshTokenExpirationMillis
         );
+
         Map<String, Object> loginInfo = new HashMap<>();
         loginInfo.put("id", originalMember.getId());
         loginInfo.put("accessToken", jwtToken.get("accessToken"));
@@ -112,4 +116,15 @@ public class AuthController {
         return ResponseEntity.ok(tokenPair);
     }
 
+    @Operation(
+            summary = "회원 탈퇴 처리",
+            description = "refresh token을 redis로부터 삭제해서 토큰 재발급 방지, 카카오 로그인 연결끊기, 그리고 사용자 데이터베이스 삭제를 진행합니다. "
+    )
+    @PostMapping("/withdraw")
+    public ResponseEntity<Void> withdraw() {
+        kakaoService.unLink(); // 카카오 로그인 연결 끊기
+        authService.logout(); // refresh token을 redis로부터 삭제
+        memberService.deleteMemberById(); // 사용자 데이터베이스 내용 삭제
+        return ResponseEntity.ok().build();
+    }
 }
