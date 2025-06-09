@@ -34,7 +34,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .authorizeHttpRequests(a -> a.requestMatchers(
-                        "/member/kakao/login",
+                        "/auth/kakao/login",
+                        "/auth/reissue",
                         "/health",
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
