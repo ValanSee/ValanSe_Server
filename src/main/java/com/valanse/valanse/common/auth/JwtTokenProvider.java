@@ -43,9 +43,10 @@ public class JwtTokenProvider {
     }
 
     // Refresh Token 생성
-    public String createRefreshToken() {
+    public String createRefreshToken(Long userId) {
         Date now = new Date();
         return Jwts.builder()
+                .setSubject(String.valueOf(userId))
                 .setIssuedAt(now)
                 .setExpiration(new Date(now.getTime() + refreshTokenExpiration * 60 * 1000L))
                 .signWith(SECRET_KEY)
@@ -54,7 +55,7 @@ public class JwtTokenProvider {
 
     public Map<String, String> createTokenPair(Long userId, String role) {
         String accessToken = createAccessToken(userId, role);
-        String refreshToken = createRefreshToken();
+        String refreshToken = createRefreshToken(userId);  // 👈 수정된 버전 사용
         return Map.of(
                 "accessToken", accessToken,
                 "refreshToken", refreshToken
@@ -69,4 +70,17 @@ public class JwtTokenProvider {
                 .getBody();
         return claims.getSubject();
     }
+
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parserBuilder()
+                    .setSigningKey(SECRET_KEY)
+                    .build()
+                    .parseClaimsJws(token);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
 }
