@@ -15,4 +15,13 @@ public abstract class BaseEntity {
 
     @CreatedDate
     private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
+
+    private LocalDateTime deletedAt;
+
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
 }

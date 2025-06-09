@@ -1,11 +1,12 @@
 package com.valanse.valanse.service;
 
+import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.Member;
-import com.valanse.valanse.domain.MemberProfile;
-import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -15,19 +16,31 @@ public class MemberService {
     private final MemberRepository memberRepository;
 
     public Member getMemberBySocialId(String socialId) {
-        Member member = memberRepository.findBySocialId(socialId).orElse(null);
+        Member member = memberRepository.findBySocialIdAndDeletedAtIsNull(socialId).orElse(null);
         return member;
     }
 
-    public Member createOauth(String socialId, String email, String name, String profile_image_url) {
+    public Member createOauth(String socialId, String email, String name, String profile_image_url, String access_token, String refresh_token) {
         Member member = Member.builder()
                 .email(email)
                 .socialId(socialId)
                 .name(name)
                 .profile_image_url(profile_image_url)
+                .kakaoAccessToken(access_token)
+                .kakaoRefreshToken(refresh_token)
                 .build();
         memberRepository.save(member);
         return member;
     }
+
+    public Member deleteMemberById() {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new ApiException("사용자를 찾을 수 없습니다", HttpStatus.NOT_FOUND));
+
+        member.softDelete(); // Soft delete 처리
+        return memberRepository.save(member); // 삭제된 상태로 저장
+    }
+
 }
 

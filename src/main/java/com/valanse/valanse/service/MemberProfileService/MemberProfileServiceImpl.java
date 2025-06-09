@@ -22,12 +22,12 @@ public class MemberProfileServiceImpl implements MemberProfileService {
 
     @Override
     public void saveOrUpdateProfile(MemberProfileRequest dto) {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
 
-        Member member = memberRepository.findByEmail(email)
+        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
 
-        MemberProfile profile = memberProfileRepository.findByMemberEmail(email)
+        MemberProfile profile = memberProfileRepository.findByMemberId(userId)
                 .orElse(new MemberProfile());
 
         profile = MemberProfile.builder()
@@ -45,9 +45,9 @@ public class MemberProfileServiceImpl implements MemberProfileService {
 
     @Override
     public MemberProfileResponse getProfile() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
 
-        MemberProfile profile = memberProfileRepository.findByMemberEmail(email)
+        MemberProfile profile = memberProfileRepository.findByMemberId(userId)
                 .orElse(null);
 
         if (profile == null) {
@@ -67,12 +67,13 @@ public class MemberProfileServiceImpl implements MemberProfileService {
     }
 
     @Override
-    public MemberMyPageResponse getMyProfile(){
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+    public MemberMyPageResponse getMyProfile() {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
 
-        MemberProfile profile = memberProfileRepository.findByMemberEmail(email)
+        MemberProfile profile = memberProfileRepository.findByMemberId(userId)
                 .orElse(null);
-        Member member = memberRepository.findByEmail(email).orElse(null);
+        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId).orElse(null);
+
         if (profile == null) {
             return new MemberMyPageResponse(null);
         }
@@ -86,6 +87,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
                 profile.getAge() != null ? profile.getAge().name() : null,
                 profile.getMbti() != null ? profile.getMbti() : null
         );
+
         return new MemberMyPageResponse(info);
     }
 }
