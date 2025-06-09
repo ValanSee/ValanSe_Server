@@ -20,7 +20,7 @@ public class SwaggerConfig {
                         .title("Valanse API Docs")
                         .version("v1")
                         .description("OAuth 로그인 요청 URL:<br>" +
-                                "https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=dfb1600c00bc8120aee6d3abceeeac85&redirect_uri=http://localhost:3000/oauth/kakao/redirect<br><br>" +
+                                "https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=dfb1600c00bc8120aee6d3abceeeac85&redirect_uri=https://valanse-sooty.vercel.app/oauth/kakao/redirect<br><br>" +
                                 "🔑 Authorize 버튼에 토큰 입력 시 <strong>Bearer 없이</strong> 토큰 값만 넣어주시면 됩니다!")
                 )
                 .addSecurityItem(new SecurityRequirement().addList(jwtSchemeName))
