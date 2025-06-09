@@ -47,6 +47,4 @@ public class MemberController {
         MemberMyPageResponse response = memberProfileService.getMyProfile();
         return ResponseEntity.ok(response);
     }
-
-
 }
