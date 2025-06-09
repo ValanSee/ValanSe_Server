@@ -24,7 +24,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
     public void saveOrUpdateProfile(MemberProfileRequest dto) {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
 
-        Member member = memberRepository.findById(userId)
+        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
 
         MemberProfile profile = memberProfileRepository.findByMemberId(userId)
@@ -72,7 +72,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
 
         MemberProfile profile = memberProfileRepository.findByMemberId(userId)
                 .orElse(null);
-        Member member = memberRepository.findById(userId).orElse(null);
+        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId).orElse(null);
 
         if (profile == null) {
             return new MemberMyPageResponse(null);

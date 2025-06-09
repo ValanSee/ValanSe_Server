@@ -64,7 +64,7 @@ public class KakaoService {
 
     public void unLink() {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
-        Member member = memberRepository.findById(userId)
+        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new ApiException("회원 정보가 존재하지 않습니다.", HttpStatus.NOT_FOUND));
 
         String refreshToken = member.getKakaoRefreshToken();
