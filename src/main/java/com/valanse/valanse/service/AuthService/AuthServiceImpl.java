@@ -2,7 +2,7 @@ package com.valanse.valanse.service.AuthService;
 
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.common.auth.JwtTokenProvider;
-import com.valanse.valanse.service.RefreshTokenService;
+import com.valanse.valanse.service.RefreshTokenService.RefreshTokenServiceImpl;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,7 +18,7 @@ import java.util.Map;
 public class AuthServiceImpl implements AuthService {
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final RefreshTokenService refreshTokenService;
+    private final RefreshTokenServiceImpl refreshTokenService;
 
     public void logout() {
         // SecurityContext에서 현재 인증 정보(Authentication) 추출
