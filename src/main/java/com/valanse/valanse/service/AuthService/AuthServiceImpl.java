@@ -1,7 +1,9 @@
-package com.valanse.valanse.service;
+package com.valanse.valanse.service.AuthService;
 
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.common.auth.JwtTokenProvider;
+import com.valanse.valanse.service.RefreshTokenService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -12,8 +14,8 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
-public class AuthService {
-
+@Transactional
+public class AuthServiceImpl implements AuthService {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;

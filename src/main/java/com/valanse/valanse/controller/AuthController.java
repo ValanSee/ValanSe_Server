@@ -7,7 +7,7 @@ import com.valanse.valanse.dto.Login.AccessTokenDto;
 import com.valanse.valanse.dto.Login.KakaoProfileDto;
 import com.valanse.valanse.dto.Login.RedirectDto;
 import com.valanse.valanse.dto.Login.ReissueRequestDto;
-import com.valanse.valanse.service.AuthService;
+import com.valanse.valanse.service.AuthService.AuthServiceImpl;
 import com.valanse.valanse.service.KakaoService;
 import com.valanse.valanse.service.MemberService.MemberService;
 import com.valanse.valanse.service.RefreshTokenService;
@@ -33,7 +33,7 @@ import java.util.Map;
 public class AuthController {
 
     private final RefreshTokenService refreshTokenService;
-    private final AuthService authService;
+    private final AuthServiceImpl authService;
     private final MemberService memberService;
     private final JwtTokenProvider jwtTokenProvider;
     private final KakaoService kakaoService;
