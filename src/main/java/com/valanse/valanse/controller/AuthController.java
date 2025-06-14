@@ -10,7 +10,7 @@ import com.valanse.valanse.dto.Login.ReissueRequestDto;
 import com.valanse.valanse.service.AuthService.AuthServiceImpl;
 import com.valanse.valanse.service.KakaoService.KakaoServiceImpl;
 import com.valanse.valanse.service.MemberService.MemberService;
-import com.valanse.valanse.service.RefreshTokenService;
+import com.valanse.valanse.service.RefreshTokenService.RefreshTokenServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.PostConstruct;
@@ -32,7 +32,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final RefreshTokenService refreshTokenService;
+    private final RefreshTokenServiceImpl refreshTokenService;
     private final AuthServiceImpl authService;
     private final MemberService memberService;
     private final JwtTokenProvider jwtTokenProvider;
