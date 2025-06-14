@@ -8,7 +8,7 @@ import com.valanse.valanse.dto.Login.KakaoProfileDto;
 import com.valanse.valanse.dto.Login.RedirectDto;
 import com.valanse.valanse.dto.Login.ReissueRequestDto;
 import com.valanse.valanse.service.AuthService.AuthServiceImpl;
-import com.valanse.valanse.service.KakaoService;
+import com.valanse.valanse.service.KakaoService.KakaoServiceImpl;
 import com.valanse.valanse.service.MemberService.MemberService;
 import com.valanse.valanse.service.RefreshTokenService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,7 +36,7 @@ public class AuthController {
     private final AuthServiceImpl authService;
     private final MemberService memberService;
     private final JwtTokenProvider jwtTokenProvider;
-    private final KakaoService kakaoService;
+    private final KakaoServiceImpl kakaoService;
 
     @Value("${jwt.refresh-token-expiration}")
     private int refreshTokenExpirationMinutes;

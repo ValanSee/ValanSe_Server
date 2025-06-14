@@ -1,10 +1,12 @@
-package com.valanse.valanse.service;
+package com.valanse.valanse.service.KakaoService;
 
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.dto.Login.AccessTokenDto;
 import com.valanse.valanse.dto.Login.KakaoProfileDto;
 import com.valanse.valanse.repository.MemberRepository;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,17 +18,17 @@ import org.springframework.web.client.RestClient;
 
 
 @Service
-public class KakaoService {
+@RequiredArgsConstructor
+@Transactional
+public class KakaoServiceImpl implements KakaoService {
+
     private final MemberRepository memberRepository;
+
     @Value("${oauth.kakao.client-id}")
     private String kakaoClientId;
 
     @Value("${oauth.kakao.redirect-uri}")
     private String kakaoRedirectUri;
-
-    public KakaoService(MemberRepository memberRepository) {
-        this.memberRepository = memberRepository;
-    }
 
     public AccessTokenDto getAccessToken(String code) {
         RestClient restClient = RestClient.create();
@@ -97,7 +99,7 @@ public class KakaoService {
                 .uri("https://kapi.kakao.com/v1/user/unlink")
                 .header("Authorization", "Bearer " + tokenDto.getAccess_token())
                 .retrieve()
-                .toBodilessEntity();  // 응답 바디 없음
+                .toBodilessEntity();  // 응답 body 없음
     }
 
 }
