@@ -1,4 +1,4 @@
-package com.valanse.valanse.service;
+package com.valanse.valanse.service.MemberService;
 
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.Member;
@@ -12,14 +12,16 @@ import org.springframework.stereotype.Service;
 @Service
 @Transactional
 @RequiredArgsConstructor
-public class MemberService {
+public class MemberServiceImpl implements MemberService {
     private final MemberRepository memberRepository;
 
+    @Override
     public Member getMemberBySocialId(String socialId) {
         Member member = memberRepository.findBySocialIdAndDeletedAtIsNull(socialId).orElse(null);
         return member;
     }
 
+    @Override
     public Member createOauth(String socialId, String email, String name, String profile_image_url, String access_token, String refresh_token) {
         Member member = Member.builder()
                 .email(email)
@@ -33,6 +35,7 @@ public class MemberService {
         return member;
     }
 
+    @Override
     public Member deleteMemberById() {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
