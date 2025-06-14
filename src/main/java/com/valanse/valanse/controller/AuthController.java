@@ -9,7 +9,7 @@ import com.valanse.valanse.dto.Login.RedirectDto;
 import com.valanse.valanse.dto.Login.ReissueRequestDto;
 import com.valanse.valanse.service.AuthService;
 import com.valanse.valanse.service.KakaoService;
-import com.valanse.valanse.service.MemberService;
+import com.valanse.valanse.service.MemberService.MemberService;
 import com.valanse.valanse.service.RefreshTokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
