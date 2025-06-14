@@ -1,4 +1,4 @@
-package com.valanse.valanse.service;
+package com.valanse.valanse.service.RefreshTokenService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -8,11 +8,10 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
-public class RefreshTokenService {
+public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     private final RedisTemplate<String, String> redisTemplate;
 
-    // key에서 email → userId로 명시
     public void saveRefreshToken(String userId, String refreshToken, long expirationMillis) {
         redisTemplate.opsForValue().set("RT:" + userId, refreshToken, expirationMillis, TimeUnit.MILLISECONDS);
     }
