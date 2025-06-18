@@ -47,7 +47,7 @@ dependencies {
 	implementation 'org.hibernate.validator:hibernate-validator'
 
 	// CI 테스트 DB 의존성 추가
-	testImplementation 'com.h2database:h2'
+	implementation 'com.h2database:h2'
 
 	// redis 설정 추가
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
