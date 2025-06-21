@@ -13,6 +13,6 @@ public class QueryDSLConfig {
 
     @Bean
     public JPAQueryFactory jpaQueryFactory(){
-        return new JPAQueryFactory(entityManager);
+        return new JPAQueryFactory(entityManager);// 매서드체이닝을 통해 쿼리문 생성 가능
     }
 }
