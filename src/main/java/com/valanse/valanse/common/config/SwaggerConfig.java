@@ -7,7 +7,8 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.Components;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
+//Swagger(현재는 OpenAPI)는 API 문서를 자동으로 생성해주는 도구입니다. 이 설정 파일은 API 문서의 제목, 버전, 설명 등을 정의하고,
+//JWT 기반 인증을 위한 보안 스키마(bearerAuth)를 추가하여 Swagger UI에서 토큰을 쉽게 입력하고 테스트할 수 있도록 돕습니다.
 @Configuration
 public class SwaggerConfig {
 
