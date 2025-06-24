@@ -1,4 +1,4 @@
-package com.valanse.valanse.domain;
+package com.valanse.valanse.domain.common;
 
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;
