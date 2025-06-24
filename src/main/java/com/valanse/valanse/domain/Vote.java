@@ -35,5 +35,10 @@ public class Vote extends BaseEntity {
 
     @OneToOne(mappedBy = "vote", cascade = CascadeType.ALL)
     private CommentGroup commentGroup;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_id", nullable = false)
+    private Member member;
+
 }
 
