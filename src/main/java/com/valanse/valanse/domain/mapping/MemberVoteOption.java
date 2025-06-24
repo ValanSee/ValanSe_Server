@@ -3,6 +3,7 @@ package com.valanse.valanse.domain.mapping;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.VoteOption;
+import com.valanse.valanse.domain.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,9 +15,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class MemberVoteOption {
+public class MemberVoteOption extends BaseEntity {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne
