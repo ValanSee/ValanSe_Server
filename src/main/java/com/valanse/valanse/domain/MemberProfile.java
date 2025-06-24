@@ -1,5 +1,6 @@
 package com.valanse.valanse.domain;
 
+import com.valanse.valanse.domain.common.BaseEntity;
 import com.valanse.valanse.domain.enums.Age;
 import com.valanse.valanse.domain.enums.Gender;
 import com.valanse.valanse.domain.enums.MbtiIe;
