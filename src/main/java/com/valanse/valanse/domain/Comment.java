@@ -1,5 +1,6 @@
 package com.valanse.valanse.domain;
 
+import com.valanse.valanse.domain.common.BaseEntity;
 import com.valanse.valanse.domain.mapping.CommentLike;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -15,9 +16,10 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Comment {
+public class Comment extends BaseEntity {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(columnDefinition = "TEXT")

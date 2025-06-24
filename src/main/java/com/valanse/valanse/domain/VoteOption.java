@@ -1,5 +1,6 @@
 package com.valanse.valanse.domain;
 
+import com.valanse.valanse.domain.common.BaseEntity;
 import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import jakarta.persistence.*;
@@ -16,9 +17,10 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class VoteOption {
+public class VoteOption extends BaseEntity {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String content;

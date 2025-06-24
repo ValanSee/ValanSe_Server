@@ -1,5 +1,6 @@
 package com.valanse.valanse.domain;
 
+import com.valanse.valanse.domain.common.BaseEntity;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import jakarta.persistence.*;
@@ -16,13 +17,14 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Vote {
+public class Vote extends BaseEntity {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    private VoteCategory category; // 예: 연애, 정치, 음식, 기타
+    private VoteCategory category; // 예: 연애, 음식, 기타
 
     private String title;
 

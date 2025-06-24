@@ -112,3 +112,23 @@ configurations {
 compileQuerydsl {
 	options.annotationProcessorPath = configurations.querydsl
 }
+
+// QueryDSL 오류 방지를 위해 서버 실행 시 기존에 생성된 generated 폴더 삭제 로직 추가
+tasks.register("cleanGenerated") {
+	group = "build"
+	description = "Delete generated QueryDSL Q-classes"
+	doLast {
+		def generatedDir = file("build/generated/querydsl")
+		if (generatedDir.exists()) {
+			println "Deleting previously generated QueryDSL directory..."
+			generatedDir.deleteDir()
+		}
+	}
+}
+
+tasks.named("bootRun") {
+	dependsOn "cleanGenerated", "compileQuerydsl"
+}
+
+compileJava.dependsOn compileQuerydsl
+
