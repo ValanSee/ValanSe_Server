@@ -9,4 +9,6 @@ public interface MemberProfileService {
     void saveOrUpdateProfile(MemberProfileRequest dto);
     MemberProfileResponse getProfile();
     MemberMyPageResponse getMyProfile();
+    boolean isNicknameDuplicate(String nickname);
+
 }
