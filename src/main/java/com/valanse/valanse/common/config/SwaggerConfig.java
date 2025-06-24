@@ -21,7 +21,7 @@ public class SwaggerConfig {
                         .title("Valanse API Docs") // 문서 제목
                         .version("v1") // API 버전
                         .description("OAuth 로그인 요청 URL:<br>" +
-                                "https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=dfb1600c00bc8120aee6d3abceeeac85&redirect_uri=https://valanse-sooty.vercel.app/oauth/kakao/redirect<br><br>" +
+                                "https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=dfb1600c00bc8120aee6d3abceeeac85&redirect_uri=https://valan-se-web.vercel.app/oauth/kakao/redirect<br><br>" +
                                 "🔑 Authorize 버튼에 토큰 입력 시 <strong>Bearer 없이</strong> 토큰 값만 넣어주시면 됩니다!") // Swagger 문서 내 설명
                 )
                 // 전역 보안 설정: 모든 API 호출 시 JWT 토큰 필요하도록 설정
