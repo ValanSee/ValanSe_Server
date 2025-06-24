@@ -57,4 +57,6 @@ public class Member extends BaseEntity {
     @OneToOne(mappedBy = "member", cascade = CascadeType.ALL, optional = true)
     private MemberProfile profile;
 
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)
+    private List<Vote> votes = new ArrayList<>();
 }
