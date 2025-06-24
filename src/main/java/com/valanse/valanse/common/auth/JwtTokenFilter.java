@@ -25,7 +25,7 @@ import java.util.List;
 @Component
 public class JwtTokenFilter extends GenericFilter {
     @Value("${jwt.secret}")
-    private String secretKey;
+    private String secretKey; // application.yml에서 설정된 JWT 비밀 키를 주입받음
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
@@ -34,7 +34,8 @@ public class JwtTokenFilter extends GenericFilter {
         HttpServletResponse response = (HttpServletResponse) servletResponse;
 
         String uri = request.getRequestURI();
-//        System.out.println("uri = " + uri);
+        // System.out.println("uri = " + uri);
+        // 인증 없이 접근 가능한 URI 목록 (토큰 검사 생략)
         if (
                 uri.equals("/auth/kakao/login") ||
                 uri.equals("/auth/reissue") ||
@@ -46,26 +47,30 @@ public class JwtTokenFilter extends GenericFilter {
                 uri.startsWith("/swagger-resources") ||
                 uri.startsWith("/webjars"))
         {
-            filterChain.doFilter(request, response);
+            filterChain.doFilter(request, response); // 다음 필터로 넘김
             return;
         }
 
+        // Authorization 헤더에서 토큰 추출
         String token = request.getHeader("Authorization");
         try {
+            // Bearer로 시작하는 토큰인지 확인
             if (token != null && token.startsWith("Bearer ")) {
+                // "Bearer " 접두어 제거
                 String jwtToken = token.substring(7);
-
+                // 토큰 파싱 및 검증
                 Claims claims = Jwts.parserBuilder()
-                        .setSigningKey(secretKey)
+                        .setSigningKey(secretKey) // 비밀키 설정
                         .build()
-                        .parseClaimsJws(jwtToken)
-                        .getBody();
-
+                        .parseClaimsJws(jwtToken) // JWT 파싱
+                        .getBody(); // claim(페이로드) 부분 가져오기
+                // 권한 정보 생성 (예: ROLE_USER)
                 List<GrantedAuthority> authorities = new ArrayList<>();
                 authorities.add(new SimpleGrantedAuthority("ROLE_" + claims.get("role")));
-
+                // 인증 객체 생성
                 UserDetails userDetails = new User(claims.getSubject(), "", authorities);
                 Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, jwtToken, userDetails.getAuthorities());
+                // SecurityContext에 등록 → 이후 컨트롤러 등에서 인증 정보 사용 가능
                 SecurityContextHolder.getContext().setAuthentication(auth);
 
                 // << 프로젝트 전역에서 사용하는 방법 >>

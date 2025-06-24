@@ -1,5 +1,6 @@
 package com.valanse.valanse.domain;
 
+import com.valanse.valanse.domain.common.BaseEntity;
 import com.valanse.valanse.domain.enums.Age;
 import com.valanse.valanse.domain.enums.Gender;
 import com.valanse.valanse.domain.enums.MbtiIe;
@@ -18,6 +19,7 @@ import lombok.NoArgsConstructor;
 public class MemberProfile extends BaseEntity {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @OneToOne
