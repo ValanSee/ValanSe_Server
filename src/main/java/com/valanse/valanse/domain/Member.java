@@ -1,11 +1,17 @@
 package com.valanse.valanse.domain;
 
+import com.valanse.valanse.domain.common.BaseEntity;
 import com.valanse.valanse.domain.enums.*;
+import com.valanse.valanse.domain.mapping.CommentLike;
+import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Builder
 @AllArgsConstructor
@@ -31,7 +37,6 @@ public class Member extends BaseEntity {
     @Builder.Default // 디폴트값을 user로 설정함
     private Role role = Role.USER;
 
-
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private SocialType socialType = SocialType.KAKAO;
@@ -39,4 +44,17 @@ public class Member extends BaseEntity {
     private String kakaoAccessToken;
 
     private String kakaoRefreshToken;
+
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)
+    private List<Comment> comments = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<CommentLike> commentLikes = new ArrayList<>();
+
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)
+    private List<MemberVoteOption> memberVoteOptions = new ArrayList<>();
+
+    @OneToOne(mappedBy = "member", cascade = CascadeType.ALL, optional = true)
+    private MemberProfile profile;
+
 }
