@@ -20,6 +20,7 @@ import java.util.Arrays;
 public class SecurityConfig {
     private final JwtTokenFilter jwtTokenFilter;
 
+    //Spring Security 설정을 정의하는 파일입니다.
     public SecurityConfig(JwtTokenFilter jwtTokenFilter) {
         this.jwtTokenFilter = jwtTokenFilter;
     }
