@@ -31,6 +31,7 @@ public class Vote extends BaseEntity {
     private Integer totalVoteCount;
 
     @OneToMany(mappedBy = "vote", cascade = CascadeType.ALL)
+    @Builder.Default // ArrayList 초기화를 위해서 영서가 추가.
     private List<VoteOption> voteOptions = new ArrayList<>();
 
     @OneToOne(mappedBy = "vote", cascade = CascadeType.ALL)

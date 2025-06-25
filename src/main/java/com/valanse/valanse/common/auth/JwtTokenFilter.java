@@ -45,7 +45,8 @@ public class JwtTokenFilter extends GenericFilter {
                 uri.equals("/swagger-ui.html") ||
                 uri.startsWith("/v3/api-docs") ||
                 uri.startsWith("/swagger-resources") ||
-                uri.startsWith("/webjars"))
+                uri.startsWith("/webjars") ||
+                        uri.equals("/votes/best"))
         {
             filterChain.doFilter(request, response); // 다음 필터로 넘김
             return;
