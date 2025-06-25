@@ -49,5 +49,10 @@ public class Comment extends BaseEntity {
 
     @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
     private List<Comment> replies = new ArrayList<>();
+
+    public void updateReplyCount(int newCount) {
+        this.replyCount = newCount;
+    }
+
 }
 
