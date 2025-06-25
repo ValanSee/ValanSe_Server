@@ -29,5 +29,10 @@ public class CommentGroup extends BaseEntity {
 
     @OneToMany(mappedBy = "commentGroup", cascade = CascadeType.ALL)
     private List<Comment> comments = new ArrayList<>();
+
+    public void setTotalCommentCount(int count) {
+        this.totalCommentCount = count;
+    }
+
 }
 
