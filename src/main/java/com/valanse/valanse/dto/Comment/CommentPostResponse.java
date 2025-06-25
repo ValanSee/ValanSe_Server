@@ -5,6 +5,6 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public class CommentResponse {
+public class CommentPostResponse {
     private Long commentId;
 }
