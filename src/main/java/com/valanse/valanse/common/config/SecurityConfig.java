@@ -45,7 +45,8 @@ public class SecurityConfig {
                         "/swagger-ui/**",
                         "/swagger-ui.html",
                         "/swagger-resources/**",
-                        "/webjars/**"
+                        "/webjars/**",
+                        "/votes/best"
                 ).permitAll().anyRequest().authenticated()) // 위 경로들은 인증 없이 접근 허용, 나머지는 JWT 토큰 필요
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 // CORS 정책 적용 (프론트와 연동 허용)

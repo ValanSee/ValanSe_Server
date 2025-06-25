@@ -1,3 +1,4 @@
+// src/main/java/com/valanse/valanse/dto/Vote/HotIssueVoteOptionDto.java
 package com.valanse.valanse.dto.Vote;
 
 import lombok.AllArgsConstructor;
