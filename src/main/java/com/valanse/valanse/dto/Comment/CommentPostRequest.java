@@ -5,7 +5,7 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-public class CommentRequest {
+public class CommentPostRequest {
     private String content;
     private Long parentId; // null이면 최상위 댓글
 }

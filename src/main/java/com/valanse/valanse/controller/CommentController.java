@@ -1,7 +1,7 @@
 package com.valanse.valanse.controller;
 
-import com.valanse.valanse.dto.Comment.CommentRequest;
-import com.valanse.valanse.dto.Comment.CommentResponse;
+import com.valanse.valanse.dto.Comment.CommentPostRequest;
+import com.valanse.valanse.dto.Comment.CommentPostResponse;
 import com.valanse.valanse.service.CommentService.CommentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,13 +23,13 @@ public class CommentController {
             description = "댓글을 작성하는 API입니다."
     )
     @PostMapping
-    public ResponseEntity<CommentResponse> createComment(
+    public ResponseEntity<CommentPostResponse> createComment(
             @PathVariable("voteId") Long voteId,
-            @RequestBody CommentRequest request
+            @RequestBody CommentPostRequest request
     ) {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         Long commentId = commentService.createComment(voteId, userId, request);
-        return ResponseEntity.ok(new CommentResponse(commentId));
+        return ResponseEntity.ok(new CommentPostResponse(commentId));
     }
 }
 

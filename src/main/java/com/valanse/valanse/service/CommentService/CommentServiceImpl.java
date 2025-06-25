@@ -1,7 +1,7 @@
 package com.valanse.valanse.service.CommentService;
 
 import com.valanse.valanse.domain.*;
-import com.valanse.valanse.dto.Comment.CommentRequest;
+import com.valanse.valanse.dto.Comment.CommentPostRequest;
 import com.valanse.valanse.repository.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,7 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @Transactional
-    public Long createComment(Long voteId, Long userId, CommentRequest request) {
+    public Long createComment(Long voteId, Long userId, CommentPostRequest request) {
         Vote vote = voteRepository.findById(voteId)
                 .orElseThrow(() -> new IllegalArgumentException("Vote not found"));
         Member member = memberRepository.findById(userId)
