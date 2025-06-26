@@ -39,6 +39,7 @@ public class Comment extends BaseEntity {
     @JoinColumn(name = "comment_group_id")
     private CommentGroup commentGroup; // Comment : CommentGroup = N : 1
 
+    @Builder.Default
     @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL)
     private List<CommentLike> likes = new ArrayList<>(); // Comment : CommentLike = 1 : N
 
@@ -47,6 +48,7 @@ public class Comment extends BaseEntity {
     @JoinColumn(name = "parent_id")
     private Comment parent;
 
+    @Builder.Default
     @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
     private List<Comment> replies = new ArrayList<>();
 
