@@ -16,12 +16,19 @@ public class VoteService {
 
     private final VoteRepository voteRepository;
 
-    public List<VoteResponseDto> getMyVotes(Member member, String sort) {
+    public List<VoteResponseDto> getMyCreatedVotes(Member member, String sort) {
         List<Vote> votes = sort.equals("latest") ?
                 voteRepository.findAllByMemberOrderByCreatedAtDesc(member) :
                 voteRepository.findAllByMemberOrderByCreatedAtAsc(member);
 
         return votes.stream().map(VoteResponseDto::new).collect(Collectors.toList());
     }
-}
 
+    public List<VoteResponseDto> getMyVotedVotes(Member member, String sort) {
+        List<Vote> votes = sort.equals("latest") ?
+                voteRepository.findAllByMemberVotedOrderByCreatedAtDesc(member) :
+                voteRepository.findAllByMemberVotedOrderByCreatedAtAsc(member);
+
+        return votes.stream().map(VoteResponseDto::new).collect(Collectors.toList());
+    }
+}
