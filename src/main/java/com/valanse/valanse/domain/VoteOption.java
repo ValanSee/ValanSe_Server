@@ -34,6 +34,7 @@ public class VoteOption extends BaseEntity {
     @JoinColumn(name = "vote_id")
     private Vote vote;
 
+    @Builder.Default
     @OneToMany(mappedBy = "voteOption", cascade = CascadeType.ALL)
     private List<MemberVoteOption> memberVoteOptions = new ArrayList<>();
 }
