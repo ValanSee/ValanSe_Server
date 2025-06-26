@@ -3,6 +3,7 @@ package com.valanse.valanse.controller;
 import com.valanse.valanse.dto.Comment.CommentPostRequest;
 import com.valanse.valanse.dto.Comment.CommentPostResponse;
 import com.valanse.valanse.dto.Comment.CommentResponseDto;
+import com.valanse.valanse.dto.Comment.PagedCommentResponse;
 import com.valanse.valanse.service.CommentService.CommentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,7 +39,7 @@ public class CommentController {
     }
 
     @GetMapping
-    public List<CommentResponseDto> getComments(
+    public PagedCommentResponse getComments(
             @PathVariable("voteId") Long voteId,
             @RequestParam(name = "sort", defaultValue = "latest") String sort,
             @RequestParam(name = "page", defaultValue = "0") int page,
