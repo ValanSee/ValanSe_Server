@@ -2,7 +2,6 @@ package com.valanse.valanse.domain;
 
 import com.valanse.valanse.domain.common.BaseEntity;
 import com.valanse.valanse.domain.enums.VoteCategory;
-import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

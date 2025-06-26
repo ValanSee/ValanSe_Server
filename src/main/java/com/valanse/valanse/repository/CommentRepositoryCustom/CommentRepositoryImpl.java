@@ -9,6 +9,8 @@ import com.valanse.valanse.dto.Comment.CommentResponseDto;
 import com.valanse.valanse.dto.Comment.QCommentResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -20,13 +22,13 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<CommentResponseDto> findCommentsByVoteIdOrderBy(Long voteId, String sort, Pageable pageable) {
+    public Slice<CommentResponseDto> findCommentsByVoteIdSlice(Long voteId, String sort, Pageable pageable) {
         QComment comment = QComment.comment;
         QMember member = QMember.member;
         QVote vote = QVote.vote;
         QVoteOption voteOption = QVoteOption.voteOption;
 
-        return queryFactory
+        List<CommentResponseDto> result = queryFactory
                 .select(new QCommentResponseDto(
                         vote.id,
                         member.profile.nickname,
@@ -35,18 +37,23 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                         comment.likeCount,
                         comment.replyCount,
                         comment.isDeleted,
-                        voteOption.label.stringValue() // enum to String
+                        voteOption.label.stringValue()
                 ))
                 .from(comment)
                 .join(comment.member, member)
                 .join(comment.commentGroup.vote, vote)
                 .leftJoin(vote.voteOptions, voteOption)
-                .where(vote.id.eq(voteId), comment.parent.isNull()) // 부모 댓글만
-                .orderBy(
-                        sort.equals("latest") ? comment.createdAt.desc() : comment.likeCount.desc()
-                )
+                .where(vote.id.eq(voteId), comment.parent.isNull())
+                .orderBy(sort.equals("latest") ? comment.createdAt.desc() : comment.likeCount.desc())
                 .offset(pageable.getOffset())
-                .limit(pageable.getPageSize())
+                .limit(pageable.getPageSize() + 1) // 무한 스크롤용 limit + 1
                 .fetch();
+
+        boolean hasNext = result.size() > pageable.getPageSize();
+        if (hasNext) {
+            result.remove(result.size() - 1);
+        }
+
+        return new SliceImpl<>(result, pageable, hasNext);
     }
 }

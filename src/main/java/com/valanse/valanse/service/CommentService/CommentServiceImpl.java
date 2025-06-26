@@ -3,10 +3,12 @@ package com.valanse.valanse.service.CommentService;
 import com.valanse.valanse.domain.*;
 import com.valanse.valanse.dto.Comment.CommentPostRequest;
 import com.valanse.valanse.dto.Comment.CommentResponseDto;
+import com.valanse.valanse.dto.Comment.PagedCommentResponse;
 import com.valanse.valanse.repository.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -63,8 +65,14 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    public List<CommentResponseDto> getCommentsByVoteId(Long voteId, String sort, Pageable pageable) {
-        return commentRepository.findCommentsByVoteIdOrderBy(voteId, sort, pageable);
+    public PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable) {
+        Slice<CommentResponseDto> slice = commentRepository.findCommentsByVoteIdSlice(voteId, sort, pageable);
+        return PagedCommentResponse.builder()
+                .comments(slice.getContent())
+                .page(pageable.getPageNumber())
+                .size(pageable.getPageSize())
+                .hasNext(slice.hasNext())
+                .build();
     }
 }
 
