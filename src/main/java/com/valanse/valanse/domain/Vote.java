@@ -30,6 +30,7 @@ public class Vote extends BaseEntity {
 
     private Integer totalVoteCount;
 
+    @Builder.Default
     @OneToMany(mappedBy = "vote", cascade = CascadeType.ALL)
     private List<VoteOption> voteOptions = new ArrayList<>();
 
