@@ -16,26 +16,27 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/votes")
-@Tag(name = "Vote API", description = "투표 관련 API") // Swagger UI 상단 카테고리
 public class VoteController {
 
     private final VoteService voteService;
 
-    @GetMapping("/mine")
-    @Operation(
-            summary = "내가 생성한 투표 조회",
-            description = "type=created와 sort=latest 또는 oldest를 이용해 내가 생성한 투표를 조회합니다."
-    )
-    public ResponseEntity<List<VoteResponseDto>> getMyVotes(
+    @GetMapping("/mine/created")
+    @Operation(summary = "내가 생성한 투표 조회", description = "내가 만든 밸런스 게임을 최신순 또는 오래된 순으로 조회합니다.")
+    public ResponseEntity<List<VoteResponseDto>> getMyCreatedVotes(
             @AuthenticationPrincipal Member member,
-            @RequestParam(defaultValue = "created") String type,
             @RequestParam(defaultValue = "latest") String sort
     ) {
-        if (!type.equals("created")) {
-            throw new IllegalArgumentException("지원하지 않는 type입니다.");
-        }
+        List<VoteResponseDto> votes = voteService.getMyCreatedVotes(member, sort);
+        return ResponseEntity.ok(votes);
+    }
 
-        List<VoteResponseDto> votes = voteService.getMyVotes(member, sort);
+    @GetMapping("/mine/voted")
+    @Operation(summary = "내가 투표한 밸런스 게임 조회", description = "내가 참여한 밸런스 게임을 최신순 또는 오래된 순으로 조회합니다.")
+    public ResponseEntity<List<VoteResponseDto>> getMyVotedVotes(
+            @AuthenticationPrincipal Member member,
+            @RequestParam(defaultValue = "latest") String sort
+    ) {
+        List<VoteResponseDto> votes = voteService.getMyVotedVotes(member, sort);
         return ResponseEntity.ok(votes);
     }
 }
