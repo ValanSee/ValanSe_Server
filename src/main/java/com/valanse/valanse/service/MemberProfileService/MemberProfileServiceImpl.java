@@ -67,6 +67,11 @@ public class MemberProfileServiceImpl implements MemberProfileService {
     }
 
     @Override
+    public boolean isNicknameDuplicate(String nickname) {
+        return memberProfileRepository.existsByNickname(nickname);
+    }
+
+    @Override
     public MemberMyPageResponse getMyProfile() {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
 

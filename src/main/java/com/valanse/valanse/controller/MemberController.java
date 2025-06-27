@@ -10,6 +10,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Tag(name = "2. 회원 API", description = "프로필 조회 등 회원 정보 관련 기능")
 @RestController
 @RequestMapping("/member")
@@ -35,6 +38,20 @@ public class MemberController {
     @GetMapping("/profile")
     public ResponseEntity<MemberProfileResponse> getProfile() {
         MemberProfileResponse response = memberProfileService.getProfile();
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "회원 닉네임 중복 여부 검사",
+            description = "추가 정보 입력 단계에서 닉네임 중복 여부를 검사합니다. boolean 형태로 값을 반환합니다."
+    )
+    @GetMapping("/check-nickname")
+    public ResponseEntity<Map<String, Boolean>> checkNicknameDuplicate(@RequestParam(name = "nickname")  String nickname) {
+        boolean isDuplicate = memberProfileService.isNicknameDuplicate(nickname);
+
+        Map<String, Boolean> response = new HashMap<>();
+        response.put("isDuplicate", isDuplicate);
+
         return ResponseEntity.ok(response);
     }
 

@@ -1,8 +1,7 @@
 plugins {
 	id 'java'
-	id("org.springframework.boot") version "3.2.5"
-	id("io.spring.dependency-management") version "1.1.4"
-	//id "com.ewerk.gradle.plugins.querydsl" version "1.0.10" // queryDSL 설정
+	id 'org.springframework.boot' version '3.2.5'
+	id 'io.spring.dependency-management' version '1.1.4'
 }
 
 group = 'com.valanse'
@@ -14,121 +13,53 @@ java {
 	}
 }
 
-//configurations {
-//	compileOnly {
-//		extendsFrom annotationProcessor
-//	}
-//}
-
 repositories {
 	mavenCentral()
 }
 
 dependencies {
-	// 초기 설정들
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
-	implementation 'org.springframework.boot:spring-boot-starter-security'
+	// Spring Boot 설정
 	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
-	compileOnly 'org.projectlombok:lombok'
-	runtimeOnly 'com.mysql:mysql-connector-j'
-	annotationProcessor 'org.projectlombok:lombok'
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.springframework.security:spring-security-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
-	//	JWT 토큰 관련 라이브러리 추가
-	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
-	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
-	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
-
-	// Hibernate Validator 관련 경고 해결
-	implementation 'org.hibernate.validator:hibernate-validator'
-
-	// CI 테스트 DB 의존성 추가
-	implementation 'com.h2database:h2'
-
-	// redis 설정 추가
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
-	// QueryDSL 설정 추가
+	// Swagger 설정
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
+
+	// Jackson 설정
+	implementation 'com.fasterxml.jackson.core:jackson-databind'
+
+	// QueryDSL 설정
 	implementation 'com.querydsl:querydsl-jpa:5.0.0:jakarta'
-	annotationProcessor "com.querydsl:querydsl-apt:5.0.0:jakarta"
-	annotationProcessor "jakarta.annotation:jakarta.annotation-api"
-	annotationProcessor "jakarta.persistence:jakarta.persistence-api"
+	annotationProcessor 'com.querydsl:querydsl-apt:5.0.0:jakarta'
+	annotationProcessor 'jakarta.persistence:jakarta.persistence-api:3.1.0'
+	annotationProcessor 'jakarta.annotation:jakarta.annotation-api:2.1.1'
+
+	// Lombok 설정
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+	// JWT 설정
+	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+	runtimeOnly('io.jsonwebtoken:jjwt-jackson:0.11.5')
+
+	// MySQL 설정
+	implementation 'com.mysql:mysql-connector-j:8.0.33'
+
+	// Spring Test 설정
+	testImplementation 'org.springframework.security:spring-security-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-configurations.all {
-	resolutionStrategy {
-		force "com.querydsl:querydsl-apt:5.0.0:jakarta"
-	}
-}
-
-tasks.named('test') {
-	useJUnitPlatform()
-}
-
-// Querydsl 설정부
+// QueryDSL 설정
 def querydslDir = layout.buildDirectory.dir("generated/querydsl").get().asFile
 
-tasks.register("compileQuerydsl", JavaCompile) {
-	group = "build"
-	description = "Compile Querydsl Q-types"
-	source = sourceSets.main.java
-	classpath = configurations.annotationProcessor
-	destinationDirectory.set(file(querydslDir))
-	options.annotationProcessorPath = configurations.annotationProcessor
-	options.compilerArgs += [
-			"-Aquerydsl.generatedAnnotationClass=javax.annotation.Generated"
-	]
-}
-
 sourceSets {
-	main {
-		java {
-			srcDirs += querydslDir
-		}
-	}
+	main.java.srcDirs += querydslDir
 }
-
-
-tasks.withType(JavaCompile).configureEach {
-	doFirst {
-		file(querydslDir).mkdirs()
-	}
-}
-
-configurations {
-	compileOnly {
-		extendsFrom annotationProcessor
-	}
-	querydsl {
-		extendsFrom compileClasspath
-	}
-}
-
-
-compileQuerydsl {
-	options.annotationProcessorPath = configurations.querydsl
-}
-
-// QueryDSL 오류 방지를 위해 서버 실행 시 기존에 생성된 generated 폴더 삭제 로직 추가
-tasks.register("cleanGenerated") {
-	group = "build"
-	description = "Delete generated QueryDSL Q-classes"
-	doLast {
-		def generatedDir = file("build/generated/querydsl")
-		if (generatedDir.exists()) {
-			println "Deleting previously generated QueryDSL directory..."
-			generatedDir.deleteDir()
-		}
-	}
-}
-
-tasks.named("bootRun") {
-	dependsOn "cleanGenerated", "compileQuerydsl"
-}
-
-compileJava.dependsOn compileQuerydsl
-
