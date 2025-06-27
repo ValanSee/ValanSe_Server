@@ -3,6 +3,7 @@ package com.valanse.valanse.common.config;
 import com.valanse.valanse.common.auth.JwtTokenFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -47,7 +48,10 @@ public class SecurityConfig {
                         "/swagger-resources/**",
                         "/webjars/**",
                         "/votes/best"
-                ).permitAll().anyRequest().authenticated()) // 위 경로들은 인증 없이 접근 허용, 나머지는 JWT 토큰 필요
+                ).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/votes/*/comments").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/votes/*/comments").authenticated()
+                        .anyRequest().authenticated()) // 위 경로들은 인증 없이 접근 허용, 나머지는 JWT 토큰 필요
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 // CORS 정책 적용 (프론트와 연동 허용)
                 .csrf(AbstractHttpConfigurer::disable)

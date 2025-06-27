@@ -2,7 +2,6 @@ package com.valanse.valanse.domain;
 
 import com.valanse.valanse.domain.common.BaseEntity;
 import com.valanse.valanse.domain.enums.VoteCategory;
-import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -27,6 +26,7 @@ public class Vote extends BaseEntity {
 
     private Integer totalVoteCount;
 
+    @Builder.Default
     @OneToMany(mappedBy = "vote", cascade = CascadeType.ALL)
     @Builder.Default // ArrayList 초기화를 위해서 영서가 추가.
     private List<VoteOption> voteOptions = new ArrayList<>();

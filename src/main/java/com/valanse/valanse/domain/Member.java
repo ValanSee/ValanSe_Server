@@ -45,18 +45,22 @@ public class Member extends BaseEntity {
 
     private String kakaoRefreshToken;
 
+    @Builder.Default
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)
     private List<Comment> comments = new ArrayList<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private List<CommentLike> commentLikes = new ArrayList<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)
     private List<MemberVoteOption> memberVoteOptions = new ArrayList<>();
 
     @OneToOne(mappedBy = "member", cascade = CascadeType.ALL, optional = true)
     private MemberProfile profile;
 
+    @Builder.Default
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)
     private List<Vote> votes = new ArrayList<>();
 }
