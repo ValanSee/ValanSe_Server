@@ -37,8 +37,8 @@ public class VoteController {
     )
     @PostMapping("/{voteId}/vote-options/{voteOptionId}") // Path Variable 사용
     public ResponseEntity<VoteResponseDto> processVote(
-            @PathVariable Long voteId, // URL 경로에서 voteId를 추출
-            @PathVariable Long voteOptionId) { // URL 경로에서 voteOptionId를 추출
+            @PathVariable("voteId") Long voteId, // URL 경로에서 voteId를 추출
+            @PathVariable("voteOptionId") Long voteOptionId) { // URL 경로에서 voteOptionId를 추출
         // 현재 로그인한 사용자의 ID를 SecurityContextHolder에서 가져옵니다.
         // Spring Security를 통해 인증된 사용자의 ID는 String 형태로 저장되어 있으므로 Long으로 변환합니다.
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
