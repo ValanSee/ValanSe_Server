@@ -1,4 +1,9 @@
 package com.valanse.valanse.repository;
 
-public interface VoteOptionRepository {
+import com.valanse.valanse.domain.VoteOption;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface VoteOptionRepository extends JpaRepository<VoteOption, Long> {
 }
