@@ -4,10 +4,7 @@ import com.valanse.valanse.domain.common.BaseEntity;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +37,11 @@ public class Vote extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
+
+    // totalVoteCount에 대한 Setter 추가
+    public void setTotalVoteCount(Integer totalVoteCount) {
+        this.totalVoteCount = totalVoteCount;
+    }
 
 }
 

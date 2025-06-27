@@ -4,16 +4,14 @@ import com.valanse.valanse.domain.common.BaseEntity;
 import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
