@@ -49,4 +49,14 @@ public class VoteController {
         // 서비스의 처리 결과를 HTTP 200 OK 상태 코드와 함께 클라이언트에게 반환합니다.
         return ResponseEntity.ok(response);
     }
+
+    @Operation(
+            summary = "특정 투표 상세 정보 조회",
+            description = "ID를 통해 특정 투표의 상세 정보(제목, 옵션, 카테고리 등)를 조회합니다."
+    )
+    @GetMapping("/{voteId}")
+    public ResponseEntity<VoteDetailResponse> getVoteDetail(@PathVariable("voteId") Long voteId) {
+        VoteDetailResponse response = voteService.getVoteDetailById(voteId);
+        return ResponseEntity.ok(response);
+    }
 }

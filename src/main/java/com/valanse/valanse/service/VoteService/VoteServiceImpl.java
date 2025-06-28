@@ -8,6 +8,7 @@ import com.valanse.valanse.domain.VoteOption;
 import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import com.valanse.valanse.dto.Vote.HotIssueVoteOptionDto; // 기존 DTO 임포트
 import com.valanse.valanse.dto.Vote.HotIssueVoteResponse; // 기존 DTO 임포트
+import com.valanse.valanse.dto.Vote.VoteDetailResponse;
 import com.valanse.valanse.dto.Vote.VoteResponseDto; // 새로 추가된 DTO 임포트
 import com.valanse.valanse.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -168,6 +169,36 @@ public class VoteServiceImpl implements VoteService {
                 voteOptionId, // 현재 작업의 대상이 된 voteOptionId
                 updatedVoteOptionCount
         );
+    }
+    @Override
+    public VoteDetailResponse getVoteDetailById(Long voteId) {
+        Vote vote = voteRepository.findById(voteId)
+                .orElseThrow(() -> new ApiException("투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+
+        // MemberProfile의 nickname을 가져오도록 수정
+        String creatorNickname = null;
+        if (vote.getMember() != null && vote.getMember().getProfile() != null) {
+            creatorNickname = vote.getMember().getProfile().getNickname();
+        }
+
+        List<VoteDetailResponse.VoteOptionDto> optionDtos = vote.getVoteOptions().stream()
+                .map(option -> VoteDetailResponse.VoteOptionDto.builder()
+                        .optionId(option.getId())
+                        .content(option.getContent())
+                        .voteCount(option.getVoteCount())
+                        .label(option.getLabel().name())
+                        .build())
+                .collect(Collectors.toList());
+
+        return VoteDetailResponse.builder()
+                .voteId(vote.getId())
+                .title(vote.getTitle())
+                .category(vote.getCategory())
+                .totalVoteCount(vote.getTotalVoteCount())
+                .creatorNickname(creatorNickname) // 수정된 닉네임 사용
+                .createdAt(vote.getCreatedAt())
+                .options(optionDtos)
+                .build();
     }
 
     /*
