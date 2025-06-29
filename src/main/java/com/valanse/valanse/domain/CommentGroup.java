@@ -25,7 +25,8 @@ public class CommentGroup extends BaseEntity {
     @JoinColumn(name = "vote_id")
     private Vote vote;
 
-    private Integer totalCommentCount;
+    @Builder.Default
+    private Integer totalCommentCount = 0;
 
     @Builder.Default
     @OneToMany(mappedBy = "commentGroup", cascade = CascadeType.ALL)
