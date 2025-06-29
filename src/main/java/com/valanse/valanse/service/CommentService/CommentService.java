@@ -1,5 +1,6 @@
 package com.valanse.valanse.service.CommentService;
 
+import com.valanse.valanse.dto.Comment.BestCommentResponseDto;
 import com.valanse.valanse.dto.Comment.CommentPostRequest;
 import com.valanse.valanse.dto.Comment.CommentResponseDto;
 import com.valanse.valanse.dto.Comment.PagedCommentResponse;
@@ -12,4 +13,5 @@ public interface CommentService {
 
     PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable);
 
+    BestCommentResponseDto getBestCommentByVoteId(Long voteId);
 }
