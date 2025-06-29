@@ -67,7 +67,7 @@ public class CommentServiceImpl implements CommentService {
     @Override
     public PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable) {
         Slice<CommentResponseDto> slice = commentRepository.findCommentsByVoteIdSlice(voteId, sort, pageable);
-        return PagedCommentResponse.builder()
+        return PagedCommentResponse.builder() // 인덱스 , 쿼리
                 .comments(slice.getContent())
                 .page(pageable.getPageNumber())
                 .size(pageable.getPageSize())
