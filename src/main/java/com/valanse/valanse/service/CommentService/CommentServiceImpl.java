@@ -1,6 +1,7 @@
 package com.valanse.valanse.service.CommentService;
 
 import com.valanse.valanse.domain.*;
+import com.valanse.valanse.dto.Comment.BestCommentResponseDto;
 import com.valanse.valanse.dto.Comment.CommentPostRequest;
 import com.valanse.valanse.dto.Comment.CommentResponseDto;
 import com.valanse.valanse.dto.Comment.PagedCommentResponse;
@@ -73,6 +74,19 @@ public class CommentServiceImpl implements CommentService {
                 .size(pageable.getPageSize())
                 .hasNext(slice.hasNext())
                 .build();
+    }
+
+    @Override
+    public BestCommentResponseDto getBestCommentByVoteId(Long voteId) {
+        CommentGroup group = commentGroupRepository.findByVoteId(voteId)
+                .orElseThrow(() -> new IllegalArgumentException("comment group not found"));
+
+        return commentRepository.findMostLikedCommentByVoteId(voteId)
+                .map(comment -> BestCommentResponseDto.builder()
+                        .totalCommentCount(group.getTotalCommentCount())
+                        .content(comment.getContent())
+                        .build())
+                .orElseThrow(() -> new IllegalArgumentException("comment not found"));
     }
 }
 

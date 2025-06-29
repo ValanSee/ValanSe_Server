@@ -1,9 +1,6 @@
 package com.valanse.valanse.controller;
 
-import com.valanse.valanse.dto.Comment.CommentPostRequest;
-import com.valanse.valanse.dto.Comment.CommentPostResponse;
-import com.valanse.valanse.dto.Comment.CommentResponseDto;
-import com.valanse.valanse.dto.Comment.PagedCommentResponse;
+import com.valanse.valanse.dto.Comment.*;
 import com.valanse.valanse.service.CommentService.CommentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -47,6 +44,12 @@ public class CommentController {
     ) {
         Pageable pageable = PageRequest.of(page, size);
         return commentService.getCommentsByVoteId(voteId, sort, pageable);
+    }
+
+    @Operation(summary = "댓글 썸네일 조회", description = "해당 투표에 달린 댓글 중 좋아요 수가 가장 많은 댓글을 조회합니다.")
+    @GetMapping("/best")
+    public BestCommentResponseDto getBestComment(@PathVariable("voteId") Long voteId) {
+        return commentService.getBestCommentByVoteId(voteId);
     }
 }
 
