@@ -1,6 +1,7 @@
 package com.valanse.valanse.controller;
 
 import com.valanse.valanse.dto.Comment.*;
+import com.valanse.valanse.service.CommentLikeService.CommentLikeService;
 import com.valanse.valanse.service.CommentService.CommentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,6 +21,7 @@ import java.util.List;
 public class CommentController {
 
     private final CommentService commentService;
+    private final CommentLikeService commentLikeService;
 
     @Operation(
             summary = "댓글 작성",
@@ -50,6 +52,15 @@ public class CommentController {
     @GetMapping("/best")
     public BestCommentResponseDto getBestComment(@PathVariable("voteId") Long voteId) {
         return commentService.getBestCommentByVoteId(voteId);
+    }
+
+    @PatchMapping("/{commentId}/like")
+    public ResponseEntity<CommentLikeResponseDto> likeComment(
+            @PathVariable("voteId") Long voteId,
+            @PathVariable("commentId") Long commentId
+    ) {
+        CommentLikeResponseDto response = commentLikeService.likeComment(voteId, commentId);
+        return ResponseEntity.ok(response);
     }
 }
 
