@@ -31,7 +31,7 @@ WHERE m.email = 'test@example.com'
 -- Vote 테이블에 투표 삽입
 -- (가장 많이 참여한 투표가 되도록 total_vote_count를 높게 설정)
 INSERT INTO VOTE (category, title, total_vote_count, created_at, member_id, updated_at)
-VALUES ('FOOD', '오늘의 점심 메뉴 대결', 200, NOW(), (SELECT id FROM MEMBER WHERE email = 'test@example.com'), NOW())
+VALUES ('FOOD', '오늘의 점심 메뉴 대결', 200, '2025-05-30 10:00:00', (SELECT id FROM MEMBER WHERE email = 'test@example.com'), NOW())
     ON DUPLICATE KEY UPDATE total_vote_count = VALUES(total_vote_count), updated_at = NOW();
 
 -- 삽입된 Vote의 ID를 조회 (실제 Vote ID를 가져옴)

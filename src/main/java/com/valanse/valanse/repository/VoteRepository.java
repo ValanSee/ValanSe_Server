@@ -15,6 +15,6 @@ public interface VoteRepository extends JpaRepository<Vote, Long> {
     // 가장 많은 totalVoteCount를 가진 투표 중 가장 최근에 생성된 투표를 조회
     Optional<Vote> findTopByOrderByTotalVoteCountDescCreatedAtDesc(); //
 
-    // TODO: 추후 특정 기간 내에서 가장 많이 참여한 투표를 가져올 경우 사용
-    // Optional<Vote> findTopByCreatedAtAfterOrderByTotalVoteCountDescCreatedAtDesc(LocalDateTime createdAt);
+    // 추가: 특정 생성일시 이후의 투표 중 가장 많은 투표수를 가진 투표를 조회
+    Optional<Vote> findTopByCreatedAtAfterOrderByTotalVoteCountDescCreatedAtDesc(LocalDateTime createdAt);
 }
