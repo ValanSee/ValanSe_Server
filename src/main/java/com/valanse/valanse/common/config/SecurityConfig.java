@@ -69,13 +69,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:3000",
-                "http://localhost:8080",
-                "https://valanse-sooty.vercel.app",
-                "https://valan-se-web.vercel.app",
-                "https://valanse-server.com"
-        ));
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000"));
+        configuration.setAllowedOrigins(Arrays.asList("https://valanse-sooty.vercel.app/"));
+        configuration.setAllowedOrigins(Arrays.asList("https://valan-se-web.vercel.app/"));
         configuration.setAllowedMethods(Arrays.asList("*"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
