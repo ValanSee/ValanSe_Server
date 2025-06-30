@@ -1,10 +1,8 @@
 package com.valanse.valanse.service.CommentService;
 
 import com.valanse.valanse.domain.*;
-import com.valanse.valanse.dto.Comment.BestCommentResponseDto;
-import com.valanse.valanse.dto.Comment.CommentPostRequest;
-import com.valanse.valanse.dto.Comment.CommentResponseDto;
-import com.valanse.valanse.dto.Comment.PagedCommentResponse;
+import com.valanse.valanse.domain.enums.VoteLabel;
+import com.valanse.valanse.dto.Comment.*;
 import com.valanse.valanse.repository.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +11,7 @@ import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +21,7 @@ public class CommentServiceImpl implements CommentService {
     private final VoteRepository voteRepository;
     private final CommentGroupRepository commentGroupRepository;
     private final CommentRepository commentRepository;
+    private final MemberProfileRepository memberProfileRepository;
 
     @Override
     @Transactional
@@ -87,6 +87,40 @@ public class CommentServiceImpl implements CommentService {
                         .content(comment.getContent())
                         .build())
                 .orElseThrow(() -> new IllegalArgumentException("comment not found"));
+    }
+
+    @Override
+    public List<CommentReplyResponseDto> getReplies(Long voteId, Long parentCommentId) {
+        // 유효한 투표인지 확인
+        Vote vote = voteRepository.findById(voteId)
+                .orElseThrow(() -> new IllegalArgumentException("투표가 존재하지 않습니다."));
+
+        // 대댓글 조회
+        List<Comment> replies = commentRepository.findAllByParentId(parentCommentId);
+
+        return replies.stream()
+                .map(reply -> {
+                    MemberProfile profile = memberProfileRepository.findByMemberId(reply.getMember().getId())
+                            .orElseThrow(() -> new IllegalArgumentException("회원 프로필이 존재하지 않습니다."));
+
+                    VoteLabel label = reply.getMember().getMemberVoteOptions().stream()
+                            .filter(opt -> opt.getVoteOption().getVote().getId().equals(voteId))
+                            .map(opt -> opt.getVoteOption().getLabel())
+                            .findFirst()
+                            .orElse(null);
+
+                    return CommentReplyResponseDto.builder()
+                            .id(reply.getId())
+                            .nickname(profile.getNickname())
+                            .createdAt(reply.getCreatedAt())
+                            .content(reply.getContent())
+                            .likeCount(reply.getLikeCount())
+                            .replyCount(reply.getReplyCount())
+                            .isDeleted(reply.getIsDeleted())
+                            .label(label)
+                            .build();
+                })
+                .collect(Collectors.toList());
     }
 }
 
