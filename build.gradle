@@ -61,5 +61,13 @@ dependencies {
 def querydslDir = layout.buildDirectory.dir("generated/querydsl").get().asFile
 
 sourceSets {
-	main.java.srcDirs += querydslDir
+	main {
+		java {
+			srcDirs += querydslDir
+		}
+		resources {
+			srcDirs = ['src/main/resources']
+		}
+	}
 }
+
