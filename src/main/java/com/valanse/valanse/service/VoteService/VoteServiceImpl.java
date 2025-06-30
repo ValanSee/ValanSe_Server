@@ -33,42 +33,45 @@ public class VoteServiceImpl implements VoteService {
     private final MemberVoteOptionRepository memberVoteOptionRepository; // processVote 메서드에서 MemberVoteOption 조회를 위해 추가
 
     @Override
-    public HotIssueVoteResponse getHotIssueVote() {
-        // 1. 가장 많이 참여한 투표 조회 (totalVoteCount 기준, 동률일 경우 최신 생성일시 기준)
-        Vote hotIssueVote = voteRepository.findTopByOrderByTotalVoteCountDescCreatedAtDesc()
-                .orElseThrow(() -> new ApiException("핫이슈 투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+    public HotIssueVoteResponse getHotIssueVote() { // 파라미터 없음
+        // 현재 시간으로부터 7일 이전의 시간을 계산합니다. (하드코딩된 7일)
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+
+        // 1. 7일 이내에 생성된 투표 중, 가장 많이 참여한 투표 조회 (totalVoteCount 기준, 동률일 경우 최신 생성일시 기준)
+        Vote hotIssueVote = voteRepository.findTopByCreatedAtAfterOrderByTotalVoteCountDescCreatedAtDesc(sevenDaysAgo)
+                .orElseThrow(() -> new ApiException("7일 이내의 핫이슈 투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
 
         // 2. 투표 생성자 정보 조회 (닉네임)
         String createdByNickname = "익명"; // 기본값 설정
-        if (hotIssueVote.getMember() != null) {
-            Member creatorMember = hotIssueVote.getMember();
-            MemberProfile profile = memberProfileRepository.findByMemberId(creatorMember.getId()).orElse(null);
-            if (profile != null && profile.getNickname() != null) {
-                createdByNickname = profile.getNickname();
+        if (hotIssueVote.getMember() != null) { // Member가 null이 아닌 경우
+            Member creatorMember = hotIssueVote.getMember(); // 생성자 Member 객체 가져오기
+            MemberProfile profile = memberProfileRepository.findByMemberId(creatorMember.getId()).orElse(null); // MemberProfile 조회
+            if (profile != null && profile.getNickname() != null) { // 프로필이 있고 닉네임이 있는 경우
+                createdByNickname = profile.getNickname(); // 닉네임 설정
             } else {
                 // MemberProfile이 없거나 닉네임이 없는 경우, Member의 기본 이름 사용 (카카오 이름 등)
-                if (creatorMember.getName() != null) {
-                    createdByNickname = creatorMember.getName();
+                if (creatorMember.getName() != null) { // Member의 이름이 있는 경우
+                    createdByNickname = creatorMember.getName(); // 이름으로 닉네임 설정
                 }
             }
         }
 
         // 3. 투표 옵션 정보 DTO로 변환
         List<HotIssueVoteOptionDto> options = hotIssueVote.getVoteOptions().stream()
-                .map(option -> HotIssueVoteOptionDto.builder()
-                        .content(option.getContent())
-                        .vote_count(option.getVoteCount())
+                .map(option -> HotIssueVoteOptionDto.builder() // HotIssueVoteOptionDto 빌더 사용
+                        .content(option.getContent()) // 옵션 내용 설정
+                        .vote_count(option.getVoteCount()) // 투표 수 설정
                         .build())
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()); // 리스트로 수집
 
         // 4. HotIssueVoteResponse DTO 생성 및 반환
         return HotIssueVoteResponse.builder()
-                .voteId(hotIssueVote.getId())
-                .title(hotIssueVote.getTitle())
-                .category(hotIssueVote.getCategory() != null ? hotIssueVote.getCategory().name() : null)
-                .totalParticipants(hotIssueVote.getTotalVoteCount())
-                .createdBy(createdByNickname)
-                .options(options)
+                .voteId(hotIssueVote.getId()) // 투표 ID 설정
+                .title(hotIssueVote.getTitle()) // 제목 설정
+                .category(hotIssueVote.getCategory() != null ? hotIssueVote.getCategory().name() : null) // 카테고리 설정
+                .totalParticipants(hotIssueVote.getTotalVoteCount()) // 총 참여자 수 설정
+                .createdBy(createdByNickname) // 생성자 닉네임 설정
+                .options(options) // 옵션 리스트 설정
                 .build();
     }
 
