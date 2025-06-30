@@ -62,5 +62,14 @@ public class CommentController {
         CommentLikeResponseDto response = commentLikeService.likeComment(voteId, commentId);
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/{commentId}/replies")
+    public ResponseEntity<List<CommentReplyResponseDto>> getReplies(
+            @PathVariable("voteId") Long voteId,
+            @PathVariable("commentId") Long commentId
+    ) {
+        List<CommentReplyResponseDto> replies = commentService.getReplies(voteId, commentId);
+        return ResponseEntity.ok(replies);
+    }
 }
 
