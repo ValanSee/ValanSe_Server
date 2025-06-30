@@ -36,6 +36,9 @@ public class VoteController {
             @AuthenticationPrincipal Member member,
             @RequestParam(defaultValue = "latest") String sort
     ) {
+        // 로그인한 사용자 ID 확인용 로그 (나중에 삭제 해야 함)
+        System.out.println("🔍 현재 로그인된 사용자 ID: " + member.getId());
+
         List<VoteResponseDto> votes = voteService.getMyVotedVotes(member, sort);
         return ResponseEntity.ok(votes);
     }

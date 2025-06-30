@@ -49,5 +49,15 @@ public class Comment extends BaseEntity {
 
     @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
     private List<Comment> replies = new ArrayList<>();
+
+    public void deleteByAuthor(Member loginMember) {
+        if (!this.member.getId().equals(loginMember.getId())) {
+            throw new IllegalArgumentException("자신이 작성한 댓글만 삭제할 수 있습니다.");
+        }
+        this.isDeleted = true;
+    }
+    public void setIsDeleted(Boolean isDeleted) {
+        this.isDeleted = isDeleted;
+    }
 }
 
