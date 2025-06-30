@@ -1,7 +1,7 @@
 package com.valanse.valanse.controller;
 
 import com.valanse.valanse.domain.Member;
-import com.valanse.valanse.service.CommentService;
+import com.valanse.valanse.service.CommentService.CommentService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
