@@ -2,6 +2,7 @@
 package com.valanse.valanse.controller;
 
 import com.valanse.valanse.dto.Vote.HotIssueVoteResponse;
+import com.valanse.valanse.dto.Vote.VoteDetailResponse;
 import com.valanse.valanse.dto.Vote.VoteResponseDto;
 import com.valanse.valanse.service.VoteService.VoteService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,7 +21,7 @@ public class VoteController {
     private final VoteService voteService;
 
     @Operation(
-            summary = "오늘의 핫이슈 밸런스 게임 옵션 조회",
+            summary = "오늘의 핫이슈 밸런스 게임 선택지들 반환",
             description = "가장 많이 참여한 밸런스 게임 투표의 상세 정보와 옵션 목록을 조회합니다. " +
                     "총 참여자 수가 가장 많은 투표를 반환하며, 참여자 수가 동일한 경우 가장 최근에 생성된 투표를 우선합니다."
     )
@@ -51,7 +52,7 @@ public class VoteController {
     }
 
     @Operation(
-            summary = "특정 투표 상세 정보 조회",
+            summary = "밸런스 게임 클릭했을 때 화면 불러오기",
             description = "ID를 통해 특정 투표의 상세 정보(제목, 옵션, 카테고리 등)를 조회합니다."
     )
     @GetMapping("/{voteId}")
