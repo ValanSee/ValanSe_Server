@@ -44,6 +44,5 @@ public class MemberServiceImpl implements MemberService {
         member.softDelete(); // Soft delete 처리
         return memberRepository.save(member); // 삭제된 상태로 저장
     }
-
 }
 
