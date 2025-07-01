@@ -61,4 +61,4 @@ jobs:
             docker pull ${{ steps.login-ecr.outputs.registry }}/valanse-docker-images:latest
             echo "${{ secrets.DOCKER_COMPOSE_YML }}" > docker-compose.yml
             sed -i 's|valanse-docker-images|${{ steps.login-ecr.outputs.registry }}/valanse-docker-images:latest|' docker-compose.yml
-            docker-compose up -d
+            docker compose up -d
