@@ -20,12 +20,12 @@ public class SwaggerConfig {
 
     @Bean
     public OpenAPI openAPI() {
-        final String jwtSchemeName = "bearerAuth"; // 인증 방식 이름 지정
+        final String jwtSchemeName = "bearerAuth";
 
         return new OpenAPI()
                 // API 기본 정보 설정
                 .info(new Info()
-                        .title("Valanse API Docs") // 문서 제목
+                        .title("Valanse API Docs")
                         .version("v1") // API 버전
                         .description("OAuth 로그인은 <strong>프론트엔드에서 먼저 진행</strong>해 주세요.<br><br>" +
                                 "프론트에서 로그인 성공 시 발급받은 <strong>access token</strong>을 Swagger의 <strong>Authorize 버튼</strong>에 입력해주시면 됩니다!<br>" +
