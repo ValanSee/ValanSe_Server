@@ -54,9 +54,14 @@ jobs:
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script_stop: true
           script: |
+            mkdir -p ~/valanse-app
+            cd ~/valanse-app
             docker ps -q --filter "publish=8080" | xargs -r docker rm -f
-            docker stop valanse-docker-images || true
-            docker rm valanse-docker-images || true
+#            docker stop valanse-docker-images || true
+#            docker rm valanse-docker-images || true
+            docker-compose down || true
             docker pull ${{ steps.login-ecr.outputs.registry }}/valanse-docker-images:latest
-            docker run -d --name valanse-docker-images -p 8080:8080 ${{ steps.login-ecr.outputs.registry }}/valanse-docker-images:latest
-
+            echo "${{ secrets.DOCKER_COMPOSE_YML }}" > docker-compose.yml
+            sed -i 's|valanse-docker-images|${{ steps.login-ecr.outputs.registry }}/valanse-docker-images:latest|' docker-compose.yml
+#            docker run -d --name valanse-docker-images -p 8080:8080 ${{ steps.login-ecr.outputs.registry }}/valanse-docker-images:latest
+            docker-compose up -d
