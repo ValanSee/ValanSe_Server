@@ -9,6 +9,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.userdetails.UserDetails;
+import com.valanse.valanse.repository.MemberRepository;
+
 
 import java.util.List;
 
@@ -19,25 +22,29 @@ import java.util.List;
 public class VoteController {
 
     private final VoteService voteService;
+    private final MemberRepository memberRepository;  // 추가
 
     @GetMapping("/mine/created")
-    @Operation(summary = "내가 생성한 투표 조회", description = "내가 만든 밸런스 게임을 최신순 또는 오래된 순으로 조회합니다.")
     public ResponseEntity<List<VoteResponseDto>> getMyCreatedVotes(
-            @AuthenticationPrincipal Member member,
+            @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(defaultValue = "latest") String sort
     ) {
+        Long memberId = Long.parseLong(userDetails.getUsername());
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new RuntimeException("Member not found"));
+
         List<VoteResponseDto> votes = voteService.getMyCreatedVotes(member, sort);
         return ResponseEntity.ok(votes);
     }
 
     @GetMapping("/mine/voted")
-    @Operation(summary = "내가 투표한 밸런스 게임 조회", description = "내가 참여한 밸런스 게임을 최신순 또는 오래된 순으로 조회합니다.")
     public ResponseEntity<List<VoteResponseDto>> getMyVotedVotes(
-            @AuthenticationPrincipal Member member,
+            @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(defaultValue = "latest") String sort
     ) {
-        // 로그인한 사용자 ID 확인용 로그 (나중에 삭제 해야 함)
-        System.out.println("🔍 현재 로그인된 사용자 ID: " + member.getId());
+        Long memberId = Long.parseLong(userDetails.getUsername());
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new RuntimeException("Member not found"));
 
         List<VoteResponseDto> votes = voteService.getMyVotedVotes(member, sort);
         return ResponseEntity.ok(votes);
