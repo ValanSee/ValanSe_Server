@@ -55,11 +55,22 @@ dependencies {
 	// Spring Test 설정
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// OpenAPI 설정
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
 }
 
 // QueryDSL 설정
 def querydslDir = layout.buildDirectory.dir("generated/querydsl").get().asFile
 
 sourceSets {
-	main.java.srcDirs += querydslDir
+	main {
+		java {
+			srcDirs += querydslDir
+		}
+		resources {
+			srcDirs = ['src/main/resources']
+		}
+	}
 }
+
