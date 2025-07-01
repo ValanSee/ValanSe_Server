@@ -48,7 +48,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/votes/*/comments").authenticated()
                         .anyRequest().authenticated()
                 )
-                .cors(AbstractHttpConfigurer::disable) // CORS 완전히 비활성화
+                .cors(AbstractHttpConfigurer::disable) // CORS 비활성화
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
