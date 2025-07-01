@@ -46,7 +46,7 @@ jobs:
       - name: ECR에 Docker 이미지 Push하기
         run: docker push ${{ steps.login-ecr.outputs.registry }}/valanse-docker-images:latest
 
-      - name: SSH로 EC2에 접속하기
+      - name: SSH로 EC2에 접속 후 Docker 이미지 Pull 및 실행하기
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
