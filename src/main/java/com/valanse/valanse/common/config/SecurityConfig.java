@@ -95,6 +95,11 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
 
 @Configuration
 public class SecurityConfig {
@@ -112,8 +117,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-                // 1) URL별 접근 권한
-                .authorizeHttpRequests(a -> a
+                .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/auth/kakao/login",
                                 "/auth/reissue",
@@ -128,21 +132,31 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/votes/*/comments").authenticated()
                         .anyRequest().authenticated()
                 )
-                // 2) CORS 설정 제거 (NGINX에서 처리)
-                // .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
-                // 3) CSRF, Basic Auth 비활성화
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
-
-                // 4) 세션 사용하지 않음 (JWT Stateless)
-                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-                // 5) JWT 필터 등록
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtTokenFilter, UsernamePasswordAuthenticationFilter.class)
-
                 .build();
     }
 
-    // (CorsConfigurationSource 빈 삭제)
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        configuration.setAllowedOrigins(Arrays.asList(
+                "http://localhost:3000",
+                "https://test-front-security.netlify.app",
+                "https://valan-se-web.vercel.app",
+                "https://backendbase.site"
+        ));
+
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
+        configuration.setAllowCredentials(true); // 쿠키 및 JWT 등 인증 필요 시 true 설정
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
 }
