@@ -44,5 +44,11 @@ public class MemberServiceImpl implements MemberService {
         member.softDelete(); // Soft delete 처리
         return memberRepository.save(member); // 삭제된 상태로 저장
     }
-}
 
+    //  추가된 메서드
+    @Override
+    public Member findById(Long id) {
+        return memberRepository.findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ApiException("사용자를 찾을 수 없습니다", HttpStatus.NOT_FOUND));
+    }
+}
