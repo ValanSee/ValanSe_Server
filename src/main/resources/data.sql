@@ -12,7 +12,7 @@ DELETE FROM member;
 INSERT INTO MEMBER (created_at, email, name, role, social_type, social_id, updated_at)
 VALUES (
            NOW(),
-           'mjk5949@naver.com',
+           'test@naver.com',
            'TestUser',
            'USER',
            'KAKAO',
@@ -33,7 +33,7 @@ SELECT
     'T',
     'ENTJ'
 FROM MEMBER m
-WHERE m.email = 'mjk5949@naver.com'
+WHERE m.email = 'test@naver.com'
 ON DUPLICATE KEY UPDATE updated_at = NOW();
 
 -- 투표 1
@@ -47,7 +47,7 @@ SELECT
     '2025-06-30 14:01:00',
     false
 FROM MEMBER m
-WHERE m.email = 'mjk5949@naver.com'
+WHERE m.email = 'test@naver.com'
 ON DUPLICATE KEY UPDATE updated_at = NOW();
 
 -- 투표 옵션 1
@@ -78,7 +78,7 @@ SELECT
     '2025-06-30 14:05:00',
     false
 FROM MEMBER m
-WHERE m.email = 'mjk5949@naver.com'
+WHERE m.email = 'test@naver.com'
 ON DUPLICATE KEY UPDATE updated_at = NOW();
 
 -- 투표 옵션 2
@@ -109,7 +109,7 @@ SELECT
     '2025-06-30 14:10:00',
     false
 FROM MEMBER m
-WHERE m.email = 'mjk5949@naver.com'
+WHERE m.email = 'test@naver.com'
 ON DUPLICATE KEY UPDATE updated_at = NOW();
 
 -- 투표 옵션 3
@@ -135,7 +135,7 @@ SELECT m.id, v.id, vo.id, NOW(), NOW()
 FROM MEMBER m
          JOIN VOTE v ON v.title = '오늘 저녁 뭐 먹지?'
          JOIN VOTE_OPTION vo ON vo.vote_id = v.id AND vo.label = 'A'
-WHERE m.email = 'mjk5949@naver.com'
+WHERE m.email = 'test@naver.com'
   AND NOT EXISTS (
     SELECT 1 FROM member_vote_option WHERE member_id = m.id AND vote_id = v.id
 );
@@ -156,7 +156,7 @@ SELECT
 FROM MEMBER m
          JOIN VOTE v ON v.title = '오늘 저녁 뭐 먹지?'
          JOIN COMMENT_GROUP cg ON cg.vote_id = v.id
-WHERE m.email = 'mjk5949@naver.com'
+WHERE m.email = 'test@naver.com'
   AND NOT EXISTS (
     SELECT 1 FROM comment WHERE content = '삼겹살 최고죠!' AND member_id = m.id AND comment_group_id = cg.id
 );
@@ -169,7 +169,76 @@ FROM MEMBER m
          JOIN VOTE v ON v.title = '오늘 저녁 뭐 먹지?'
          JOIN COMMENT_GROUP cg ON cg.vote_id = v.id
          JOIN COMMENT c ON c.content = '삼겹살 최고죠!' AND c.comment_group_id = cg.id
-WHERE m.email = 'mjk5949@naver.com'
+WHERE m.email = 'test@naver.com'
   AND NOT EXISTS (
     SELECT 1 FROM comment WHERE content = '인정합니다 ㅋㅋ' AND parent_id = c.id
 );
+
+-- 투표 4: 점심 디저트 뭐 먹지?
+INSERT INTO VOTE (category, title, total_vote_count, created_at, member_id, updated_at, is_deleted)
+SELECT
+    'SNACK',
+    '점심 디저트 뭐 먹지?',
+    100,
+    '2025-06-30 14:03:00',
+    m.id,
+    '2025-06-30 14:03:00',
+    false
+FROM MEMBER m
+WHERE m.email = 'test@naver.com'
+ON DUPLICATE KEY UPDATE updated_at = NOW();
+
+-- 옵션 A
+INSERT INTO VOTE_OPTION (content, label, vote_count, created_at, vote_id, updated_at)
+SELECT '아이스크림', 'A', 55, '2025-06-30 14:03:00', v.id, '2025-06-30 14:03:00'
+FROM VOTE v
+WHERE v.title = '점심 디저트 뭐 먹지?'
+  AND NOT EXISTS (
+    SELECT 1 FROM VOTE_OPTION WHERE vote_id = v.id AND label = 'A'
+);
+
+-- 옵션 B
+INSERT INTO VOTE_OPTION (content, label, vote_count, created_at, vote_id, updated_at)
+SELECT '과일', 'B', 45, '2025-06-30 14:03:00', v.id, '2025-06-30 14:03:00'
+FROM VOTE v
+WHERE v.title = '점심 디저트 뭐 먹지?'
+  AND NOT EXISTS (
+    SELECT 1 FROM VOTE_OPTION WHERE vote_id = v.id AND label = 'B'
+);
+
+-- 투표 기록 추가 (label A)
+INSERT INTO member_vote_option (member_id, vote_id, vote_option_id, created_at, updated_at)
+SELECT m.id, v.id, vo.id, NOW(), NOW()
+FROM MEMBER m
+         JOIN VOTE v ON v.title = '점심 디저트 뭐 먹지?'
+         JOIN VOTE_OPTION vo ON vo.vote_id = v.id AND vo.label = 'A'
+WHERE m.email = 'test@naver.com'
+  AND NOT EXISTS (
+    SELECT 1 FROM member_vote_option WHERE member_id = m.id AND vote_id = v.id
+);
+
+-- 투표 기록 추가 (오늘 저녁 뭐 먹지? → 삼겹살 A 선택)
+INSERT INTO member_vote_option (member_id, vote_id, vote_option_id, created_at, updated_at)
+SELECT m.id, v.id, vo.id, NOW(), NOW()
+FROM MEMBER m
+         JOIN VOTE v ON v.title = '오늘 저녁 뭐 먹지?'
+         JOIN VOTE_OPTION vo ON vo.vote_id = v.id AND vo.label = 'A'
+WHERE m.email = 'test@naver.com'
+  AND NOT EXISTS (
+    SELECT 1 FROM member_vote_option WHERE member_id = m.id AND vote_id = v.id
+);
+
+-- 점심 디저트 뭐 먹지? 투표 기록 추가 (아이스크림 A 선택)
+INSERT INTO member_vote_option (member_id, vote_id, vote_option_id, created_at, updated_at)
+SELECT m.id, v.id, vo.id, NOW(), NOW()
+FROM MEMBER m
+         JOIN VOTE v ON v.title = '점심 디저트 뭐 먹지?'
+         JOIN VOTE_OPTION vo ON vo.vote_id = v.id AND vo.label = 'A'
+WHERE m.email = 'test@naver.com'
+  AND NOT EXISTS (
+    SELECT 1 FROM member_vote_option WHERE member_id = m.id AND vote_id = v.id
+);
+
+-- 나머지 투표도 원한다면 동일하게 label A로 넣기
+-- '내일 점심 뭐 먹지?', '최애 간식은?'
+
