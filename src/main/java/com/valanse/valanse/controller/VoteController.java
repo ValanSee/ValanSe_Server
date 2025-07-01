@@ -1,17 +1,13 @@
 package com.valanse.valanse.controller;
 
-import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.dto.Vote.VoteResponseDto;
 import com.valanse.valanse.service.VoteService.VoteService;
-import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.userdetails.UserDetails;
-import com.valanse.valanse.repository.MemberRepository;
-
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -22,7 +18,6 @@ import java.util.List;
 public class VoteController {
 
     private final VoteService voteService;
-    private final MemberRepository memberRepository;  // 추가
 
     @GetMapping("/mine/created")
     public ResponseEntity<List<VoteResponseDto>> getMyCreatedVotes(
@@ -30,10 +25,7 @@ public class VoteController {
             @RequestParam(defaultValue = "latest") String sort
     ) {
         Long memberId = Long.parseLong(userDetails.getUsername());
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new RuntimeException("Member not found"));
-
-        List<VoteResponseDto> votes = voteService.getMyCreatedVotes(member, sort);
+        List<VoteResponseDto> votes = voteService.getMyCreatedVotes(memberId, sort);
         return ResponseEntity.ok(votes);
     }
 
@@ -43,10 +35,7 @@ public class VoteController {
             @RequestParam(defaultValue = "latest") String sort
     ) {
         Long memberId = Long.parseLong(userDetails.getUsername());
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new RuntimeException("Member not found"));
-
-        List<VoteResponseDto> votes = voteService.getMyVotedVotes(member, sort);
+        List<VoteResponseDto> votes = voteService.getMyVotedVotes(memberId, sort);
         return ResponseEntity.ok(votes);
     }
 }
