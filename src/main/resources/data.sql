@@ -1,4 +1,4 @@
--- 삭제 순서 (자식 → 부모 순서 중요!)
+-- MEMBER 삭제 후 삽입 (ID = 1 보장)
 DELETE FROM member_vote_option;
 DELETE FROM comment WHERE parent_id IS NOT NULL;
 DELETE FROM comment WHERE parent_id IS NULL;
@@ -8,9 +8,9 @@ DELETE FROM vote;
 DELETE FROM member_profile;
 DELETE FROM member;
 
--- MEMBER 삽입
-INSERT INTO MEMBER (created_at, email, name, role, social_type, social_id, updated_at)
+INSERT INTO member (id, created_at, email, name, role, social_type, social_id, updated_at)
 VALUES (
+           1,
            NOW(),
            'test@naver.com',
            'TestUser',
@@ -18,227 +18,124 @@ VALUES (
            'KAKAO',
            '1234567890',
            NOW()
-       )
-ON DUPLICATE KEY UPDATE updated_at = NOW();
+       );
 
--- MEMBER_PROFILE 삽입
-INSERT INTO MEMBER_PROFILE (created_at, updated_at, member_id, nickname, gender, age, mbti_ie, mbti_tf, mbti)
-SELECT
-    NOW(), NOW(),
-    m.id,
-    '테스트닉네임',
-    'M',
-    'TWENTY',
-    'E',
-    'T',
-    'ENTJ'
-FROM MEMBER m
-WHERE m.email = 'test@naver.com'
-ON DUPLICATE KEY UPDATE updated_at = NOW();
+-- MEMBER_PROFILE
+INSERT INTO member_profile (created_at, updated_at, member_id, nickname, gender, age, mbti_ie, mbti_tf, mbti)
+VALUES (
+           NOW(), NOW(),
+           1,
+           '테스트닉',
+           'M',
+           'TWENTY',
+           'I',
+           'F',
+           'INFJ'
+       );
 
--- 투표 1
-INSERT INTO VOTE (category, title, total_vote_count, created_at, member_id, updated_at, is_deleted)
-SELECT
-    'FOOD',
-    '오늘 저녁 뭐 먹지?',
-    150,
-    '2025-06-30 14:01:00',
-    m.id,
-    '2025-06-30 14:01:00',
-    false
-FROM MEMBER m
-WHERE m.email = 'test@naver.com'
-ON DUPLICATE KEY UPDATE updated_at = NOW();
+-- 내가 만든 투표 1
+INSERT INTO vote (id, category, title, total_vote_count, created_at, updated_at, member_id, is_deleted)
+VALUES (
+           101, 'FOOD', '오늘 저녁 뭐 먹지?', 150,
+           '2025-07-01 12:00:00', '2025-07-01 12:00:00', 1, false
+       );
 
--- 투표 옵션 1
-INSERT INTO VOTE_OPTION (content, label, vote_count, created_at, vote_id, updated_at)
-SELECT '삼겹살', 'A', 90, '2025-06-30 14:01:00', v.id, '2025-06-30 14:01:00'
-FROM VOTE v
-WHERE v.title = '오늘 저녁 뭐 먹지?'
-  AND NOT EXISTS (
-    SELECT 1 FROM VOTE_OPTION WHERE vote_id = v.id AND label = 'A'
-);
+-- 옵션
+INSERT INTO vote_option (id, content, label, vote_count, vote_id, created_at, updated_at)
+VALUES
+    (201, '삼겹살', 'A', 90, 101, '2025-07-01 12:00:00', '2025-07-01 12:00:00'),
+    (202, '초밥', 'B', 60, 101, '2025-07-01 12:00:00', '2025-07-01 12:00:00');
 
-INSERT INTO VOTE_OPTION (content, label, vote_count, created_at, vote_id, updated_at)
-SELECT '초밥', 'B', 60, '2025-06-30 14:01:00', v.id, '2025-06-30 14:01:00'
-FROM VOTE v
-WHERE v.title = '오늘 저녁 뭐 먹지?'
-  AND NOT EXISTS (
-    SELECT 1 FROM VOTE_OPTION WHERE vote_id = v.id AND label = 'B'
-);
+-- 내가 만든 투표 2
+INSERT INTO vote (id, category, title, total_vote_count, created_at, updated_at, member_id, is_deleted)
+VALUES (
+           102, 'ETC', '점심 디저트 뭐 먹지?', 100,
+           '2025-07-01 14:00:00', '2025-07-01 14:00:00', 1, false
+       );
 
--- 투표 2
-INSERT INTO VOTE (category, title, total_vote_count, created_at, member_id, updated_at, is_deleted)
-SELECT
-    'FOOD',
-    '내일 점심 뭐 먹지?',
-    120,
-    '2025-06-30 14:05:00',
-    m.id,
-    '2025-06-30 14:05:00',
-    false
-FROM MEMBER m
-WHERE m.email = 'test@naver.com'
-ON DUPLICATE KEY UPDATE updated_at = NOW();
+INSERT INTO vote_option (id, content, label, vote_count, vote_id, created_at, updated_at)
+VALUES
+    (203, '아이스크림', 'A', 55, 102, '2025-07-01 14:00:00', '2025-07-01 14:00:00'),
+    (204, '과일', 'B', 45, 102, '2025-07-01 14:00:00', '2025-07-01 14:00:00');
 
--- 투표 옵션 2
-INSERT INTO VOTE_OPTION (content, label, vote_count, created_at, vote_id, updated_at)
-SELECT '제육볶음', 'A', 70, '2025-06-30 14:05:00', v.id, '2025-06-30 14:05:00'
-FROM VOTE v
-WHERE v.title = '내일 점심 뭐 먹지?'
-  AND NOT EXISTS (
-    SELECT 1 FROM VOTE_OPTION WHERE vote_id = v.id AND label = 'A'
-);
+-- 내가 참여한 다른 유저가 만든 투표
+INSERT INTO member (id, created_at, email, name, role, social_type, social_id, updated_at)
+VALUES (
+           2,
+           NOW(),
+           'other@naver.com',
+           'OtherUser',
+           'USER',
+           'KAKAO',
+           '999999999',
+           NOW()
+       );
 
-INSERT INTO VOTE_OPTION (content, label, vote_count, created_at, vote_id, updated_at)
-SELECT '된장찌개', 'B', 50, '2025-06-30 14:05:00', v.id, '2025-06-30 14:05:00'
-FROM VOTE v
-WHERE v.title = '내일 점심 뭐 먹지?'
-  AND NOT EXISTS (
-    SELECT 1 FROM VOTE_OPTION WHERE vote_id = v.id AND label = 'B'
-);
+INSERT INTO vote (id, category, title, total_vote_count, created_at, updated_at, member_id, is_deleted)
+VALUES (
+           103, 'LOVE', '연애 스타일은?', 80,
+           '2025-07-01 10:00:00', '2025-07-01 10:00:00', 2, false
+       );
 
--- 투표 3
-INSERT INTO VOTE (category, title, total_vote_count, created_at, member_id, updated_at, is_deleted)
-SELECT
-    'SNACK',
-    '최애 간식은?',
-    80,
-    '2025-06-30 14:10:00',
-    m.id,
-    '2025-06-30 14:10:00',
-    false
-FROM MEMBER m
-WHERE m.email = 'test@naver.com'
-ON DUPLICATE KEY UPDATE updated_at = NOW();
+INSERT INTO vote_option (id, content, label, vote_count, vote_id, created_at, updated_at)
+VALUES
+    (205, '직진형', 'A', 50, 103, '2025-07-01 10:00:00', '2025-07-01 10:00:00'),
+    (206, '츤데레', 'B', 30, 103, '2025-07-01 10:00:00', '2025-07-01 10:00:00');
 
--- 투표 옵션 3
-INSERT INTO VOTE_OPTION (content, label, vote_count, created_at, vote_id, updated_at)
-SELECT '떡볶이', 'A', 40, '2025-06-30 14:10:00', v.id, '2025-06-30 14:10:00'
-FROM VOTE v
-WHERE v.title = '최애 간식은?'
-  AND NOT EXISTS (
-    SELECT 1 FROM VOTE_OPTION WHERE vote_id = v.id AND label = 'A'
-);
-
-INSERT INTO VOTE_OPTION (content, label, vote_count, created_at, vote_id, updated_at)
-SELECT '붕어빵', 'B', 40, '2025-06-30 14:10:00', v.id, '2025-06-30 14:10:00'
-FROM VOTE v
-WHERE v.title = '최애 간식은?'
-  AND NOT EXISTS (
-    SELECT 1 FROM VOTE_OPTION WHERE vote_id = v.id AND label = 'B'
-);
-
--- member_vote_option
+-- 내가 참여한 기록 (투표 103에서 A 선택)
 INSERT INTO member_vote_option (member_id, vote_id, vote_option_id, created_at, updated_at)
-SELECT m.id, v.id, vo.id, NOW(), NOW()
-FROM MEMBER m
-         JOIN VOTE v ON v.title = '오늘 저녁 뭐 먹지?'
-         JOIN VOTE_OPTION vo ON vo.vote_id = v.id AND vo.label = 'A'
-WHERE m.email = 'test@naver.com'
-  AND NOT EXISTS (
-    SELECT 1 FROM member_vote_option WHERE member_id = m.id AND vote_id = v.id
-);
+VALUES (
+           1, 103, 205, NOW(), NOW()
+       );
 
--- 댓글 그룹
-INSERT INTO comment_group (vote_id, created_at, updated_at, total_comment_count)
-SELECT v.id, NOW(), NOW(), 2
-FROM VOTE v
-WHERE v.title = '오늘 저녁 뭐 먹지?'
-  AND NOT EXISTS (
-    SELECT 1 FROM comment_group WHERE vote_id = v.id
-);
+-- 오전 09:00 투표 (참여 O)
+INSERT INTO vote (id, category, title, total_vote_count, created_at, updated_at, member_id, is_deleted)
+VALUES (104, 'FOOD', '아침 뭐 먹지?', 100, '2025-07-01 09:00:00', '2025-07-01 09:00:00', 2, false);
 
--- 댓글
-INSERT INTO comment (content, like_count, reply_count, is_deleted, member_id, comment_group_id, created_at, updated_at, parent_id)
-SELECT
-    '삼겹살 최고죠!', 10, 1, false, m.id, cg.id, NOW(), NOW(), NULL
-FROM MEMBER m
-         JOIN VOTE v ON v.title = '오늘 저녁 뭐 먹지?'
-         JOIN COMMENT_GROUP cg ON cg.vote_id = v.id
-WHERE m.email = 'test@naver.com'
-  AND NOT EXISTS (
-    SELECT 1 FROM comment WHERE content = '삼겹살 최고죠!' AND member_id = m.id AND comment_group_id = cg.id
-);
+INSERT INTO vote_option (id, content, label, vote_count, vote_id, created_at, updated_at)
+VALUES
+    (207, '토스트', 'A', 60, 104, '2025-07-01 09:00:00', '2025-07-01 09:00:00'),
+    (208, '시리얼', 'B', 40, 104, '2025-07-01 09:00:00', '2025-07-01 09:00:00');
 
--- 대댓글
-INSERT INTO comment (content, like_count, reply_count, is_deleted, member_id, comment_group_id, created_at, updated_at, parent_id)
-SELECT
-    '인정합니다 ㅋㅋ', 3, 0, false, m.id, cg.id, NOW(), NOW(), c.id
-FROM MEMBER m
-         JOIN VOTE v ON v.title = '오늘 저녁 뭐 먹지?'
-         JOIN COMMENT_GROUP cg ON cg.vote_id = v.id
-         JOIN COMMENT c ON c.content = '삼겹살 최고죠!' AND c.comment_group_id = cg.id
-WHERE m.email = 'test@naver.com'
-  AND NOT EXISTS (
-    SELECT 1 FROM comment WHERE content = '인정합니다 ㅋㅋ' AND parent_id = c.id
-);
-
--- 투표 4: 점심 디저트 뭐 먹지?
-INSERT INTO VOTE (category, title, total_vote_count, created_at, member_id, updated_at, is_deleted)
-SELECT
-    'SNACK',
-    '점심 디저트 뭐 먹지?',
-    100,
-    '2025-06-30 14:03:00',
-    m.id,
-    '2025-06-30 14:03:00',
-    false
-FROM MEMBER m
-WHERE m.email = 'test@naver.com'
-ON DUPLICATE KEY UPDATE updated_at = NOW();
-
--- 옵션 A
-INSERT INTO VOTE_OPTION (content, label, vote_count, created_at, vote_id, updated_at)
-SELECT '아이스크림', 'A', 55, '2025-06-30 14:03:00', v.id, '2025-06-30 14:03:00'
-FROM VOTE v
-WHERE v.title = '점심 디저트 뭐 먹지?'
-  AND NOT EXISTS (
-    SELECT 1 FROM VOTE_OPTION WHERE vote_id = v.id AND label = 'A'
-);
-
--- 옵션 B
-INSERT INTO VOTE_OPTION (content, label, vote_count, created_at, vote_id, updated_at)
-SELECT '과일', 'B', 45, '2025-06-30 14:03:00', v.id, '2025-06-30 14:03:00'
-FROM VOTE v
-WHERE v.title = '점심 디저트 뭐 먹지?'
-  AND NOT EXISTS (
-    SELECT 1 FROM VOTE_OPTION WHERE vote_id = v.id AND label = 'B'
-);
-
--- 투표 기록 추가 (label A)
 INSERT INTO member_vote_option (member_id, vote_id, vote_option_id, created_at, updated_at)
-SELECT m.id, v.id, vo.id, NOW(), NOW()
-FROM MEMBER m
-         JOIN VOTE v ON v.title = '점심 디저트 뭐 먹지?'
-         JOIN VOTE_OPTION vo ON vo.vote_id = v.id AND vo.label = 'A'
-WHERE m.email = 'test@naver.com'
-  AND NOT EXISTS (
-    SELECT 1 FROM member_vote_option WHERE member_id = m.id AND vote_id = v.id
-);
+VALUES (1, 104, 207, NOW(), NOW());
 
--- 투표 기록 추가 (오늘 저녁 뭐 먹지? → 삼겹살 A 선택)
+-- 오전 11:30 투표 (참여 X)
+INSERT INTO vote (id, category, title, total_vote_count, created_at, updated_at, member_id, is_deleted)
+VALUES (105, 'ETC', '시험 끝나고 뭐 하지?', 50, '2025-07-01 11:30:00', '2025-07-01 11:30:00', 1, false);
+
+INSERT INTO vote_option (id, content, label, vote_count, vote_id, created_at, updated_at)
+VALUES
+    (209, '여행', 'A', 30, 105, '2025-07-01 11:30:00', '2025-07-01 11:30:00'),
+    (210, '집콕', 'B', 20, 105, '2025-07-01 11:30:00', '2025-07-01 11:30:00');
+
+-- 오후 13:00 투표 (참여 O)
+INSERT INTO vote (id, category, title, total_vote_count, created_at, updated_at, member_id, is_deleted)
+VALUES (106, 'LOVE', '데이트 장소 추천은?', 60, '2025-07-01 13:00:00', '2025-07-01 13:00:00', 2, false);
+
+INSERT INTO vote_option (id, content, label, vote_count, vote_id, created_at, updated_at)
+VALUES
+    (211, '놀이공원', 'A', 45, 106, '2025-07-01 13:00:00', '2025-07-01 13:00:00'),
+    (212, '카페', 'B', 15, 106, '2025-07-01 13:00:00', '2025-07-01 13:00:00');
+
 INSERT INTO member_vote_option (member_id, vote_id, vote_option_id, created_at, updated_at)
-SELECT m.id, v.id, vo.id, NOW(), NOW()
-FROM MEMBER m
-         JOIN VOTE v ON v.title = '오늘 저녁 뭐 먹지?'
-         JOIN VOTE_OPTION vo ON vo.vote_id = v.id AND vo.label = 'A'
-WHERE m.email = 'test@naver.com'
-  AND NOT EXISTS (
-    SELECT 1 FROM member_vote_option WHERE member_id = m.id AND vote_id = v.id
-);
+VALUES (1, 106, 211, NOW(), NOW());
 
--- 점심 디저트 뭐 먹지? 투표 기록 추가 (아이스크림 A 선택)
-INSERT INTO member_vote_option (member_id, vote_id, vote_option_id, created_at, updated_at)
-SELECT m.id, v.id, vo.id, NOW(), NOW()
-FROM MEMBER m
-         JOIN VOTE v ON v.title = '점심 디저트 뭐 먹지?'
-         JOIN VOTE_OPTION vo ON vo.vote_id = v.id AND vo.label = 'A'
-WHERE m.email = 'test@naver.com'
-  AND NOT EXISTS (
-    SELECT 1 FROM member_vote_option WHERE member_id = m.id AND vote_id = v.id
-);
+-- 오후 15:30 투표 (참여 X)
+INSERT INTO vote (id, category, title, total_vote_count, created_at, updated_at, member_id, is_deleted)
+VALUES (107, 'FOOD', '간식 뭐 먹을까?', 70, '2025-07-01 15:30:00', '2025-07-01 15:30:00', 1, false);
 
--- 나머지 투표도 원한다면 동일하게 label A로 넣기
--- '내일 점심 뭐 먹지?', '최애 간식은?'
+INSERT INTO vote_option (id, content, label, vote_count, vote_id, created_at, updated_at)
+VALUES
+    (213, '쿠키', 'A', 30, 107, '2025-07-01 15:30:00', '2025-07-01 15:30:00'),
+    (214, '케이크', 'B', 40, 107, '2025-07-01 15:30:00', '2025-07-01 15:30:00');
+
+-- 오후 18:00 투표 (참여 X)
+INSERT INTO vote (id, category, title, total_vote_count, created_at, updated_at, member_id, is_deleted)
+VALUES (108, 'ETC', '저녁에 뭐할까?', 90, '2025-07-01 18:00:00', '2025-07-01 18:00:00', 1, false);
+
+INSERT INTO vote_option (id, content, label, vote_count, vote_id, created_at, updated_at)
+VALUES
+    (215, '넷플릭스', 'A', 50, 108, '2025-07-01 18:00:00', '2025-07-01 18:00:00'),
+    (216, '산책', 'B', 40, 108, '2025-07-01 18:00:00', '2025-07-01 18:00:00');
 
