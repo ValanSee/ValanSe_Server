@@ -97,7 +97,7 @@ public class AuthController {
         return ResponseEntity.ok(loginInfo);
     }
 
-    @Operation(summary = "로그아웃", description = "refresh token을 삭제하여 로그아웃 처리합니다. 이후부터는 기존의 refresh token으로 reissue를 시도하여도 새로운 access token을 발급이 불가합니다.")
+    @Operation(summary = "로그아웃", description = "refresh token을 삭제하여 로그아웃 처리합니다. 이후부터는 기존의 refresh token으로 reissue를 시도하여도 새로운 access token 발급이 불가합니다.")
     @PostMapping("/logout")
     public ResponseEntity<Void> logout() {
         authService.logout();
