@@ -57,7 +57,7 @@ jobs:
             mkdir -p ~/valanse-app
             cd ~/valanse-app
             docker ps -q --filter "publish=8080" | xargs -r docker rm -f
-            docker-compose down || true
+            docker compose down || true
             docker pull ${{ steps.login-ecr.outputs.registry }}/valanse-docker-images:latest
             echo "${{ secrets.DOCKER_COMPOSE_YML }}" > docker-compose.yml
             sed -i 's|valanse-docker-images|${{ steps.login-ecr.outputs.registry }}/valanse-docker-images:latest|' docker-compose.yml
