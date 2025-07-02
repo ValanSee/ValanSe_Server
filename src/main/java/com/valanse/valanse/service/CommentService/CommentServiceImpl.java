@@ -1,10 +1,15 @@
 package com.valanse.valanse.service.CommentService;
 
+import com.valanse.valanse.domain.Comment;
 import com.valanse.valanse.domain.Member;
+import com.valanse.valanse.dto.Comment.CommentResponseDto;
 import com.valanse.valanse.repository.CommentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,5 +40,16 @@ public class CommentServiceImpl implements CommentService {
         }, () -> {
             System.out.println("❌ 삭제 실패: 해당 댓글 ID " + commentId + " 없음");
         });
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CommentResponseDto> getMyComments(Member member) {
+        Long memberId = member.getId();
+        List<Comment> comments = commentRepository.findByMemberIdAndIsDeletedFalse(memberId);
+
+        return comments.stream()
+                .map(CommentResponseDto::fromEntity)
+                .collect(Collectors.toList());
     }
 }
