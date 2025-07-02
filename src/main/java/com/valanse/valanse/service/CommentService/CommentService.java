@@ -7,5 +7,5 @@ import java.util.List;
 public interface CommentService {
     void deleteMyComment(Member member, Long commentId);
 
-    List<CommentResponseDto> getMyComments(Member member);
+    List<CommentResponseDto> getMyComments(Member member, String sort);
 }
