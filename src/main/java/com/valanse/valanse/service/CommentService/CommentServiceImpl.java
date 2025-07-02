@@ -44,9 +44,15 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<CommentResponseDto> getMyComments(Member member) {
+    public List<CommentResponseDto> getMyComments(Member member, String sort) {
         Long memberId = member.getId();
-        List<Comment> comments = commentRepository.findByMemberIdAndIsDeletedFalse(memberId);
+        List<Comment> comments;
+
+        if ("asc".equalsIgnoreCase(sort)) {
+            comments = commentRepository.findByMemberIdAndIsDeletedFalseOrderByCreatedAtAsc(memberId);
+        } else {
+            comments = commentRepository.findByMemberIdAndIsDeletedFalseOrderByCreatedAtDesc(memberId);
+        }
 
         return comments.stream()
                 .map(CommentResponseDto::fromEntity)

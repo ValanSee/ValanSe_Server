@@ -13,4 +13,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
 
     // 내가 작성한 댓글 목록 가져오기 (삭제되지 않은 것만)
     List<Comment> findByMemberIdAndIsDeletedFalse(Long memberId);
+    List<Comment> findByMemberIdAndIsDeletedFalseOrderByCreatedAtAsc(Long memberId);
+    List<Comment> findByMemberIdAndIsDeletedFalseOrderByCreatedAtDesc(Long memberId);
+
 }
