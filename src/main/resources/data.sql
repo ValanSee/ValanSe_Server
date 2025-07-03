@@ -1,12 +1,5 @@
+/*
 -- MEMBER 삭제 후 삽입 (ID = 1 보장)
-DELETE FROM member_vote_option;
-DELETE FROM comment WHERE parent_id IS NOT NULL;
-DELETE FROM comment_group;
-DELETE FROM vote_option;
-DELETE FROM vote;
-DELETE FROM member_profile;
-DELETE FROM member;
-
 INSERT INTO member (id, created_at, email, name, role, social_type, social_id, updated_at)
 VALUES (
            1,
@@ -138,3 +131,4 @@ VALUES
     (215, '넷플릭스', 'A', 50, 108, '2025-07-01 18:00:00', '2025-07-01 18:00:00'),
     (216, '산책', 'B', 40, 108, '2025-07-01 18:00:00', '2025-07-01 18:00:00');
 
+*/
