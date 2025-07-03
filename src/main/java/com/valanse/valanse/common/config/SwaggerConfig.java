@@ -1,5 +1,7 @@
 package com.valanse.valanse.common.config;
 
+import io.swagger.v3.oas.annotations.OpenAPIDefinition;
+import io.swagger.v3.oas.annotations.servers.Server;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
@@ -7,23 +9,31 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.Components;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
 //Swagger(현재는 OpenAPI)는 API 문서를 자동으로 생성해주는 도구입니다. 이 설정 파일은 API 문서의 제목, 버전, 설명 등을 정의하고,
 //JWT 기반 인증을 위한 보안 스키마(bearerAuth)를 추가하여 Swagger UI에서 토큰을 쉽게 입력하고 테스트할 수 있도록 돕습니다.
+
+@OpenAPIDefinition(
+        servers = {
+                @Server(url = "https://backendbase.site", description = "배포 서버")
+        }
+)
+
 @Configuration
 public class SwaggerConfig {
 
     @Bean
     public OpenAPI openAPI() {
-        final String jwtSchemeName = "bearerAuth"; // 인증 방식 이름 지정
+        final String jwtSchemeName = "bearerAuth";
 
         return new OpenAPI()
                 // API 기본 정보 설정
                 .info(new Info()
-                        .title("Valanse API Docs") // 문서 제목
+                        .title("Valanse API Docs")
                         .version("v1") // API 버전
-                        .description("OAuth 로그인 요청 URL:<br>" +
-                                "https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=dfb1600c00bc8120aee6d3abceeeac85&redirect_uri=https://valan-se-web.vercel.app/oauth/kakao/redirect<br><br>" +
-                                "🔑 Authorize 버튼에 토큰 입력 시 <strong>Bearer 없이</strong> 토큰 값만 넣어주시면 됩니다!") // Swagger 문서 내 설명
+                        .description("OAuth 로그인은 <strong>프론트엔드에서 먼저 진행</strong>해 주세요.<br><br>" +
+                                "프론트에서 로그인 성공 시 발급받은 <strong>access token</strong>을 Swagger의 <strong>Authorize 버튼</strong>에 입력해주시면 됩니다!<br>" +
+                                "이때, <strong>Bearer 없이</strong> 토큰 값만 입력해 주세요.<br><br>" )
                 )
                 // 전역 보안 설정: 모든 API 호출 시 JWT 토큰 필요하도록 설정
                 .addSecurityItem(new SecurityRequirement().addList(jwtSchemeName))

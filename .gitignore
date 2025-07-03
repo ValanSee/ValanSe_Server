@@ -51,3 +51,6 @@ src/main/resources/application.yml
 src/main/resources/data.sql
 # QueryDSL Q타입
 /src/main/generated/
+
+### pem key ###
+valanse.pem
