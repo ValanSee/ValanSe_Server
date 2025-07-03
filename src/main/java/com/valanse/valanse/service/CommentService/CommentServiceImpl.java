@@ -1,78 +1,63 @@
 package com.valanse.valanse.service.CommentService;
 
-import com.valanse.valanse.domain.*;
-import com.valanse.valanse.dto.Comment.CommentPostRequest;
+import com.valanse.valanse.domain.Comment;
+import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.dto.Comment.CommentResponseDto;
-import com.valanse.valanse.dto.Comment.PagedCommentResponse;
-import com.valanse.valanse.repository.*;
-import jakarta.transaction.Transactional;
+import com.valanse.valanse.repository.CommentRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import com.valanse.valanse.dto.Comment.MyCommentResponseDto;
+
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class CommentServiceImpl implements CommentService {
 
-    private final MemberRepository memberRepository;
-    private final VoteRepository voteRepository;
-    private final CommentGroupRepository commentGroupRepository;
     private final CommentRepository commentRepository;
 
     @Override
     @Transactional
-    public Long createComment(Long voteId, Long userId, CommentPostRequest request) {
-        Vote vote = voteRepository.findById(voteId)
-                .orElseThrow(() -> new IllegalArgumentException("Vote not found"));
-        Member member = memberRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Member not found"));
+    public void deleteMyComment(Member member, Long commentId) {
+        commentRepository.findById(commentId).ifPresentOrElse(comment -> {
+            Long writerId = comment.getMember().getId();
+            Long loginId = member.getId();
 
-        // 1. CommentGroup 찾기 (없으면 생성)
-        CommentGroup commentGroup = commentGroupRepository.findByVoteId(voteId)
-                .orElseGet(() -> {
-                    CommentGroup newGroup = CommentGroup.builder()
-                            .vote(vote)
-                            .totalCommentCount(0)
-                            .build();
-                    return commentGroupRepository.save(newGroup);
-                });
+            System.out.println("[삭제 시도] 댓글 ID: " + commentId);
+            System.out.println("작성자 ID: " + writerId + ", 요청자 ID: " + loginId);
 
-        // 2. 부모 댓글이 있을 경우 가져오기
-        Comment parent = null;
-        if (request.getParentId() != null) {
-            parent = commentRepository.findById(request.getParentId())
-                    .orElseThrow(() -> new IllegalArgumentException("Parent comment not found"));
-            parent.updateReplyCount(parent.getReplyCount() + 1); // replyCount 증가
-        }
+            if (!writerId.equals(loginId)) {
+                System.out.println("삭제 권한 없음: 요청자 ≠ 작성자");
+                throw new IllegalArgumentException("삭제 권한 없음");
+            }
 
-        // 3. 댓글 저장
-        Comment comment = Comment.builder()
-                .content(request.getContent())
-                .member(member)
-                .commentGroup(commentGroup)
-                .parent(parent)
-                .likeCount(0)
-                .replyCount(0)
-                .isDeleted(false)
-                .build();
-        commentGroup.setTotalCommentCount(commentGroup.getTotalCommentCount() + 1); // 총 댓글 수 증가
-        commentGroupRepository.save(commentGroup);
+            comment.setIsDeleted(true);
+            commentRepository.save(comment);
 
-        return commentRepository.save(comment).getId();
+            System.out.println("댓글 ID " + commentId + " → isDeleted=true 저장 완료");
+
+        }, () -> {
+            System.out.println("삭제 실패: 해당 댓글 ID " + commentId + " 없음");
+        });
     }
 
     @Override
-    public PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable) {
-        Slice<CommentResponseDto> slice = commentRepository.findCommentsByVoteIdSlice(voteId, sort, pageable);
-        return PagedCommentResponse.builder() // 인덱스 , 쿼리
-                .comments(slice.getContent())
-                .page(pageable.getPageNumber())
-                .size(pageable.getPageSize())
-                .hasNext(slice.hasNext())
-                .build();
+    @Transactional(readOnly = true)
+    public List<MyCommentResponseDto> getMyComments(Member member, String sort) {
+        Long memberId = member.getId();
+        List<Comment> comments;
+
+        if ("asc".equalsIgnoreCase(sort)) {
+            comments = commentRepository.findByMemberIdAndIsDeletedFalseOrderByCreatedAtAsc(memberId);
+        } else {
+            comments = commentRepository.findByMemberIdAndIsDeletedFalseOrderByCreatedAtDesc(memberId);
+        }
+
+        return comments.stream()
+                .map(MyCommentResponseDto::fromEntity)
+                .collect(Collectors.toList());
     }
 }
-

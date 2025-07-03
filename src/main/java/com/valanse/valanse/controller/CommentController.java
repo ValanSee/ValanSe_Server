@@ -1,10 +1,8 @@
 package com.valanse.valanse.controller;
 
-import com.valanse.valanse.dto.Comment.CommentPostRequest;
-import com.valanse.valanse.dto.Comment.CommentPostResponse;
-import com.valanse.valanse.dto.Comment.CommentResponseDto;
-import com.valanse.valanse.dto.Comment.PagedCommentResponse;
+import com.valanse.valanse.dto.Comment.*;
 import com.valanse.valanse.service.CommentService.CommentService;
+import com.valanse.valanse.service.MemberService.MemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -13,40 +11,41 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import com.valanse.valanse.dto.Comment.CommentResponseDto;
+
 
 import java.util.List;
 
 @Tag(name = "3. 댓글 API", description = "댓글 작성 및 조회, 수정 관련 기능")
 @RestController
-@RequestMapping("/votes/{voteId}/comments")
 @RequiredArgsConstructor
 public class CommentController {
 
     private final CommentService commentService;
+    private final MemberService memberService;
 
-    @Operation(
-            summary = "댓글 작성",
-            description = "댓글을 작성하는 API입니다."
-    )
-    @PostMapping
-    public ResponseEntity<CommentPostResponse> createComment(
-            @PathVariable("voteId") Long voteId,
-            @RequestBody CommentPostRequest request
-    ) {
-        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
-        Long commentId = commentService.createComment(voteId, userId, request);
-        return ResponseEntity.ok(new CommentPostResponse(commentId));
+    // 1. 투표글에 댓글 작성
+
+    // 2. 투표글의 댓글 목록 조회
+
+    // 3. 내가 쓴 댓글 삭제
+    @DeleteMapping("/comments/{commentId}")
+    @Operation(summary = "내가 쓴 댓글 삭제")
+    public ResponseEntity<Void> deleteMyComment(@PathVariable Long commentId) {
+        Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        var member = memberService.findById(loginId);
+        commentService.deleteMyComment(member, commentId);
+        return ResponseEntity.noContent().build();
     }
 
-    @GetMapping
-    public PagedCommentResponse getComments(
-            @PathVariable("voteId") Long voteId,
-            @RequestParam(name = "sort", defaultValue = "latest") String sort,
-            @RequestParam(name = "page", defaultValue = "0") int page,
-            @RequestParam(name = "size", defaultValue = "10") int size
-    ) {
-        Pageable pageable = PageRequest.of(page, size);
-        return commentService.getCommentsByVoteId(voteId, sort, pageable);
+    // 4. 내가 쓴 댓글 목록 조회
+    @GetMapping("/comments/my-comments")
+    @Operation(summary = "내가 쓴 댓글 목록 조회")
+    public ResponseEntity<List<MyCommentResponseDto>> getMyComments(
+            @RequestParam(defaultValue = "desc") String sort) {
+        Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        var member = memberService.findById(loginId);
+        List<MyCommentResponseDto> myComments = commentService.getMyComments(member, sort);
+        return ResponseEntity.ok(myComments);
     }
 }
-
