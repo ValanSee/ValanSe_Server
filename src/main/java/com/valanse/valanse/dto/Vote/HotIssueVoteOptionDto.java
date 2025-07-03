@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class HotIssueVoteOptionDto {
+    private Long optionId; // 선택지의 ID
     private String content; // 투표 옵션 내용
     private Integer vote_count; // 해당 옵션의 투표 수
 }

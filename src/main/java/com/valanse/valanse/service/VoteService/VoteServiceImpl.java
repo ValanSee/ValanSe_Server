@@ -1,16 +1,12 @@
 package com.valanse.valanse.service.VoteService;
 
 import com.valanse.valanse.common.api.ApiException;
-import com.valanse.valanse.domain.Member;
-import com.valanse.valanse.domain.MemberProfile;
-import com.valanse.valanse.domain.Vote;
-import com.valanse.valanse.domain.VoteOption;
+import com.valanse.valanse.domain.*;
+import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.domain.mapping.MemberVoteOption;
-import com.valanse.valanse.dto.Vote.HotIssueVoteOptionDto; // 기존 DTO 임포트
-import com.valanse.valanse.dto.Vote.HotIssueVoteResponse; // 기존 DTO 임포트
-import com.valanse.valanse.dto.Vote.VoteDetailResponse;
-import com.valanse.valanse.dto.Vote.VoteResponseDto; // 새로 추가된 DTO 임포트
+import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.repository.*;
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -23,7 +19,7 @@ import java.util.stream.Collectors; // 기존 코드에 있었으므로 유지
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true) // 클래스 레벨에서 기본적으로 읽기 전용 트랜잭션으로 설정
+@Transactional // 클래스 레벨에서 기본적으로 읽기 전용 트랜잭션으로 설정
 public class VoteServiceImpl implements VoteService {
 
     private final VoteRepository voteRepository;
@@ -31,6 +27,7 @@ public class VoteServiceImpl implements VoteService {
     private final MemberRepository memberRepository; // processVote 메서드에서 Member 조회를 위해 추가
     private final VoteOptionRepository voteOptionRepository; // processVote 메서드에서 VoteOption 조회를 위해 추가
     private final MemberVoteOptionRepository memberVoteOptionRepository; // processVote 메서드에서 MemberVoteOption 조회를 위해 추가
+    private final CommentGroupRepository commentGroupRepository;
 
     @Override
     public HotIssueVoteResponse getHotIssueVote() { // 파라미터 없음
@@ -59,6 +56,7 @@ public class VoteServiceImpl implements VoteService {
         // 3. 투표 옵션 정보 DTO로 변환
         List<HotIssueVoteOptionDto> options = hotIssueVote.getVoteOptions().stream()
                 .map(option -> HotIssueVoteOptionDto.builder() // HotIssueVoteOptionDto 빌더 사용
+                        .optionId(option.getId())  //option ID넣기
                         .content(option.getContent()) // 옵션 내용 설정
                         .vote_count(option.getVoteCount()) // 투표 수 설정
                         .build())
@@ -204,42 +202,49 @@ public class VoteServiceImpl implements VoteService {
                 .build();
     }
 
-    /*
-    // TODO: 추후 특정 기간 내의 핫이슈 투표를 가져올 필요가 있을 때 활용할 수 있는 메서드 (datetime 고려)
-    // 이 메서드를 활성화하려면 VoteRepository에 Optional<Vote> findTopByCreatedAtAfterOrderByTotalVoteCountDescCreatedAtDesc(LocalDateTime createdAt); 정의 필요
-    // 이 메서드는 조회 기능이므로 @Transactional(readOnly = true)를 유지합니다.
-    public HotIssueVoteResponse getHotIssueVoteWithinPeriod(LocalDateTime startDate) {
-        Vote hotIssueVote = voteRepository.findTopByCreatedAtAfterOrderByTotalVoteCountDescCreatedAtDesc(startDate)
-                .orElseThrow(() -> new ApiException("해당 기간의 핫이슈 투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
 
-        String createdByNickname = "익명";
-        if (hotIssueVote.getMember() != null) {
-            Member creatorMember = hotIssueVote.getMember();
-            MemberProfile profile = memberProfileRepository.findByMemberId(creatorMember.getId()).orElse(null);
-            if (profile != null && profile.getNickname() != null) {
-                createdByNickname = profile.getNickname();
-            } else {
-                if (creatorMember.getName() != null) {
-                    createdByNickname = creatorMember.getName();
-                }
-            }
+
+
+    @Override
+    public Long createVote(Long userId, VoteCreateRequest request) {
+        // 1. 회원 검증
+        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new ApiException("회원이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+
+        // 2. 투표 생성 (아직 데이터베이스에 저장되지 않은 비영속 상태)
+        Vote vote = Vote.builder()
+                .title(request.getTitle())
+                .category(request.getCategory())
+                .member(member)
+                .build();
+
+        // 3. 투표 옵션 생성 및 추가 (최대 4개 옵션 제한)
+        List<String> options = request.getOptions();
+        if (options == null || options.isEmpty() || options.size() > 4) {
+            throw new ApiException("투표 옵션은 1개 이상 4개 이하여야 합니다.", HttpStatus.BAD_REQUEST);
         }
 
-        List<HotIssueVoteOptionDto> options = hotIssueVote.getVoteOptions().stream()
-                .map(option -> HotIssueVoteOptionDto.builder()
-                        .content(option.getContent())
-                        .vote_count(option.getVoteCount())
-                        .build())
-                .collect(Collectors.toList());
+        VoteLabel[] labels = VoteLabel.values();
+        for (int i = 0; i < options.size(); i++) {
+            VoteOption voteOption = VoteOption.builder()
+                    .content(options.get(i))
+                    .label(labels[i])
+                    .build();
+            vote.addVoteOption(voteOption); // Vote 엔티티에 옵션 추가
+        }
 
-        return HotIssueVoteResponse.builder()
-                .voteId(hotIssueVote.getId())
-                .title(hotIssueVote.getTitle())
-                .category(hotIssueVote.getCategory() != null ? hotIssueVote.getCategory().name() : null)
-                .totalParticipants(hotIssueVote.getTotalVoteCount())
-                .createdBy(createdByNickname)
-                .options(options)
+        // **수정된 부분: Vote를 먼저 저장하여 ID를 할당받은 영속 상태의 객체를 얻음**
+        Vote savedVote = voteRepository.save(vote); // 투표를 저장하고, ID가 할당된 영속 객체를 반환받음
+
+        // 4. CommentGroup 생성 (Vote와 1:1 관계)
+        // CommentGroup을 빌드할 때, ID가 할당된 'savedVote' 객체를 사용
+        CommentGroup commentGroup = CommentGroup.builder()
+                .vote(savedVote) // 이제 'vote' 대신 'savedVote'를 사용하여 유효한 ID를 가진 Vote와 연결
+                .totalCommentCount(0)
                 .build();
+
+        commentGroupRepository.save(commentGroup); // CommentGroup 저장
+
+        return savedVote.getId(); // 저장된 투표의 ID를 반환
     }
-    */
 }

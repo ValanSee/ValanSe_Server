@@ -1,9 +1,7 @@
 // src/main/java/com/valanse/valanse/controller/VoteController.java
 package com.valanse.valanse.controller;
 
-import com.valanse.valanse.dto.Vote.HotIssueVoteResponse;
-import com.valanse.valanse.dto.Vote.VoteDetailResponse;
-import com.valanse.valanse.dto.Vote.VoteResponseDto;
+import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.service.VoteService.VoteService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -59,5 +57,19 @@ public class VoteController {
     public ResponseEntity<VoteDetailResponse> getVoteDetail(@PathVariable("voteId") Long voteId) {
         VoteDetailResponse response = voteService.getVoteDetailById(voteId);
         return ResponseEntity.ok(response);
+    }
+
+
+    @Operation(
+            summary = "투표 생성",
+            description = "새로운 투표와 해당 투표의 옵션을 생성합니다. 각 투표는 최대 4개의 옵션을 가질 수 있습니다."
+    )
+    @PostMapping
+    public ResponseEntity<VoteCreateResponse> createVote(
+            @RequestBody VoteCreateRequest request
+    ) {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        Long voteId = voteService.createVote(userId, request);
+        return ResponseEntity.ok(new VoteCreateResponse(voteId));
     }
 }
