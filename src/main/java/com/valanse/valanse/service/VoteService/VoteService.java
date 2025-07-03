@@ -2,6 +2,7 @@
 package com.valanse.valanse.service.VoteService;
 
 import com.valanse.valanse.dto.Vote.HotIssueVoteResponse;
+import com.valanse.valanse.dto.Vote.VoteCreateRequest;
 import com.valanse.valanse.dto.Vote.VoteDetailResponse;
 import com.valanse.valanse.dto.Vote.VoteResponseDto;
 
@@ -14,4 +15,6 @@ public interface VoteService {
     VoteResponseDto processVote(Long userId, Long voteId, Long voteOptionId);
 
     VoteDetailResponse getVoteDetailById(Long voteId);
+
+    Long createVote(Long userId, VoteCreateRequest request);
 }

@@ -24,7 +24,8 @@ public class Vote extends BaseEntity {
 
     private String title;
 
-    private Integer totalVoteCount;
+    @Builder.Default
+    private Integer totalVoteCount = 0; //Builder.Default 설정이 없으면 null값이 기본값이라 오류가 발생한다.
 
     @Builder.Default
     @OneToMany(mappedBy = "vote", cascade = CascadeType.ALL)
@@ -40,6 +41,12 @@ public class Vote extends BaseEntity {
     // totalVoteCount에 대한 Setter 추가
     public void setTotalVoteCount(Integer totalVoteCount) {
         this.totalVoteCount = totalVoteCount;
+    }
+
+    // 편의 메서드: VoteOption 추가
+    public void addVoteOption(VoteOption voteOption) {
+        this.voteOptions.add(voteOption);
+        voteOption.setVote(this);
     }
 
 }
