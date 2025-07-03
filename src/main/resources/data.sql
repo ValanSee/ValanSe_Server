@@ -1,7 +1,6 @@
 -- MEMBER 삭제 후 삽입 (ID = 1 보장)
 DELETE FROM member_vote_option;
 DELETE FROM comment WHERE parent_id IS NOT NULL;
-DELETE FROM comment WHERE parent_id IS NULL;
 DELETE FROM comment_group;
 DELETE FROM vote_option;
 DELETE FROM vote;
