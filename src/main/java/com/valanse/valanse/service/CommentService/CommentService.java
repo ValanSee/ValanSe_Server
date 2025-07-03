@@ -1,15 +1,13 @@
 package com.valanse.valanse.service.CommentService;
 
-import com.valanse.valanse.dto.Comment.CommentPostRequest;
 import com.valanse.valanse.dto.Comment.CommentResponseDto;
-import com.valanse.valanse.dto.Comment.PagedCommentResponse;
-import org.springframework.data.domain.Pageable;
-
+import com.valanse.valanse.domain.Member;
+import com.valanse.valanse.dto.Comment.MyCommentResponseDto;
 import java.util.List;
 
 public interface CommentService {
-    Long createComment(Long voteId, Long userId, CommentPostRequest request);
+    void deleteMyComment(Member member, Long commentId);
 
-    PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable);
+    List<MyCommentResponseDto> getMyComments(Member member, String sort);
 
 }
