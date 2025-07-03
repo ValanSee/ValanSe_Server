@@ -56,15 +56,5 @@ public class Comment extends BaseEntity {
         this.replyCount = newCount;
     }
 
-    public void setIsDeleted(boolean isDeleted) {
-        this.isDeleted = isDeleted;
-    }
-
-    public void deleteByAuthor(Member loginMember) {
-        if (!this.member.getId().equals(loginMember.getId())) {
-            throw new IllegalArgumentException("자신이 작성한 댓글만 삭제할 수 있습니다.");
-        }
-        this.isDeleted = true;
-    }
 }
 
