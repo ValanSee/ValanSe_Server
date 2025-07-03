@@ -7,6 +7,8 @@ import com.valanse.valanse.repository.CommentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.valanse.valanse.dto.Comment.MyCommentResponseDto;
+
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -44,7 +46,7 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<CommentResponseDto> getMyComments(Member member, String sort) {
+    public List<MyCommentResponseDto> getMyComments(Member member, String sort) {
         Long memberId = member.getId();
         List<Comment> comments;
 
@@ -55,7 +57,7 @@ public class CommentServiceImpl implements CommentService {
         }
 
         return comments.stream()
-                .map(CommentResponseDto::fromEntity)
+                .map(MyCommentResponseDto::fromEntity)
                 .collect(Collectors.toList());
     }
 }

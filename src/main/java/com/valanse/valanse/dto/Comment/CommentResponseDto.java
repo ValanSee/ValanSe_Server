@@ -1,30 +1,34 @@
 package com.valanse.valanse.dto.Comment;
 
-import com.valanse.valanse.domain.Comment;
 import lombok.Builder;
 import lombok.Getter;
+import com.querydsl.core.annotations.QueryProjection;
 
 import java.time.LocalDateTime;
 
 @Getter
 @Builder
 public class CommentResponseDto {
-
-    private Long id;
-    private String content;
-    private Long memberId;
-    private String memberName;
-    private boolean isReply;
+    private Long voteId;
+    private String nickname;
     private LocalDateTime createdAt;
+    private String content;
+    private Integer likeCount;
+    private Integer replyCount;
+    private Boolean isDeleted;
+    private String label;
 
-    public static CommentResponseDto fromEntity(Comment comment) {
-        return CommentResponseDto.builder()
-                .id(comment.getId())
-                .content(comment.getContent())
-                .memberId(comment.getMember().getId())
-                .memberName(comment.getMember().getName()) // 이름 대신 닉네임 쓰려면 수정 가능
-                .isReply(comment.getParent() != null)
-                .createdAt(comment.getCreatedAt())
-                .build();
+    @QueryProjection
+    public CommentResponseDto(Long voteId, String nickname, LocalDateTime createdAt,
+                              String content, Integer likeCount, Integer replyCount,
+                              Boolean isDeleted, String label) {
+        this.voteId = voteId;
+        this.nickname = nickname;
+        this.createdAt = createdAt;
+        this.content = content;
+        this.likeCount = likeCount;
+        this.replyCount = replyCount;
+        this.isDeleted = isDeleted;
+        this.label = label;
     }
 }
