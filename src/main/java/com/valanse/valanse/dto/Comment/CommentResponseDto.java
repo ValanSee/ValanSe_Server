@@ -2,9 +2,10 @@ package com.valanse.valanse.dto.Comment;
 
 import lombok.Builder;
 import lombok.Getter;
-import com.querydsl.core.annotations.QueryProjection;
 
 import java.time.LocalDateTime;
+import com.querydsl.core.annotations.QueryProjection;
+
 
 @Getter
 @Builder
@@ -32,3 +33,4 @@ public class CommentResponseDto {
         this.label = label;
     }
 }
+

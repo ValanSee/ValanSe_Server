@@ -37,16 +37,19 @@ public class JwtTokenFilter extends GenericFilter {
         // 인증 없이 접근 가능한 URI 목록 (토큰 검사 생략)
         if (
                 uri.equals("/auth/kakao/login") ||
-                uri.equals("/auth/reissue") ||
-                uri.equals("/error") ||
-                uri.equals("/health") ||
-                uri.startsWith("/swagger-ui") ||
-                uri.equals("/swagger-ui.html") ||
-                uri.startsWith("/v3/api-docs") ||
-                uri.startsWith("/swagger-resources") ||
-                uri.startsWith("/webjars"))
-        {
-            filterChain.doFilter(request, response); // 다음 필터로 넘김
+                        uri.equals("/auth/reissue") ||
+                        uri.equals("/error") ||
+                        uri.equals("/health") ||
+                        uri.startsWith("/swagger-ui") ||
+                        uri.equals("/swagger-ui.html") ||
+                        uri.startsWith("/v3/api-docs") ||
+                        uri.startsWith("/swagger-resources") ||
+                        uri.startsWith("/webjars") ||
+
+                        // GET /votes/{voteId}/comments 허용
+                        (uri.matches("^/votes/\\d+/comments$") && request.getMethod().equals("GET"))
+        ) {
+            filterChain.doFilter(request, response);
             return;
         }
 

@@ -27,7 +27,13 @@ public class CommentGroup extends BaseEntity {
 
     private Integer totalCommentCount;
 
+    @Builder.Default
     @OneToMany(mappedBy = "commentGroup", cascade = CascadeType.ALL)
     private List<Comment> comments = new ArrayList<>();
+
+    public void setTotalCommentCount(int count) {
+        this.totalCommentCount = count;
+    }
+
 }
 
