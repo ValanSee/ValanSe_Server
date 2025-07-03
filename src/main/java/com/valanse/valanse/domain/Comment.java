@@ -56,5 +56,7 @@ public class Comment extends BaseEntity {
         this.replyCount = newCount;
     }
 
-}
+    public void setIsDeleted(boolean isDeleted) {
+        this.isDeleted = isDeleted; }
+    }
 
