@@ -65,7 +65,7 @@ public class CommentController {
             summary = "댓글 좋아요 수정",
             description = "댓글의 좋아요를 누르거나 취소하는 API입니다."
     )
-    @PatchMapping("/{commentId}/like")
+    @PostMapping("/{commentId}/like")
     public ResponseEntity<CommentLikeResponseDto> likeComment(
             @PathVariable("voteId") Long voteId,
             @PathVariable("commentId") Long commentId
