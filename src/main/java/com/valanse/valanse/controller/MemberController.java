@@ -42,15 +42,13 @@ public class MemberController {
     }
 
     @Operation(
-            summary = "회원 닉네임 중복 여부 검사",
-            description = "추가 정보 입력 단계에서 닉네임 중복 여부를 검사합니다. boolean 형태로 값을 반환합니다."
+            summary = "회원 닉네임 유효성 검사",
+            description = "추가 정보 입력 단계에서 닉네임의 유효성을 검사합니다. 각 항목별로 boolean 형태로 값을 반환합니다."
     )
     @GetMapping("/check-nickname")
     public ResponseEntity<Map<String, Boolean>> checkNicknameDuplicate(@RequestParam(name = "nickname")  String nickname) {
         boolean isAvailable = memberProfileService.isAvailableNickname(nickname);
-
         boolean isMeaningful = memberProfileService.isMeaningfulNickname(nickname);
-
         boolean isClean = memberProfileService.isCleanNickname(nickname);
 
         Map<String, Boolean> response = new HashMap<>();
