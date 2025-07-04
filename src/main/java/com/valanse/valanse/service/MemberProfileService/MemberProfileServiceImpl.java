@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.Set;
+
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -67,8 +69,60 @@ public class MemberProfileServiceImpl implements MemberProfileService {
     }
 
     @Override
-    public boolean isNicknameDuplicate(String nickname) {
-        return memberProfileRepository.existsByNickname(nickname);
+    public boolean isAvailableNickname(String nickname) {
+        return !memberProfileRepository.existsByNickname(nickname);
+    }
+
+    @Override
+    public boolean isMeaningfulNickname(String nickname) {
+        if (nickname == null || nickname.isBlank()) {
+            return false;
+        }
+
+        // 1. 같은 문자 4회 이상 반복 (예: aaaa, ㅋㅋㅋㅋ, ㅏㅏㅏㅏ)
+        if (nickname.matches(".*(.)\\1{3,}.*")) {
+            return false;
+        }
+
+        // 2. 반복되는 문자열 패턴 감지 (예: ililil, ababab)
+        for (int i = 1; i <= nickname.length() / 2; i++) {
+            String pattern = nickname.substring(0, i);
+            StringBuilder repeated = new StringBuilder();
+            while (repeated.length() < nickname.length()) {
+                repeated.append(pattern);
+            }
+            if (repeated.toString().equals(nickname)) {
+                return false;
+            }
+        }
+
+        // 3. 중복 문자 제외하고 글자 수
+        if (nickname.codePoints().distinct().count() <= 1) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static final Set<String> BAD_WORDS = Set.of(
+            "시발", "씨발", "병신", "ㅅㅂ", "ㅂㅅ", "ㄱㅅㄲ", "개새끼"
+    );
+
+    @Override
+    public boolean isCleanNickname(String nickname) {
+        if (nickname == null || nickname.isBlank()) {
+            return false;
+        }
+
+        String lower = nickname.toLowerCase().replaceAll("[^가-힣a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ]", "");
+
+        for (String bad : BAD_WORDS) {
+            if (lower.contains(bad)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     @Override

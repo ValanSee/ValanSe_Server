@@ -47,10 +47,17 @@ public class MemberController {
     )
     @GetMapping("/check-nickname")
     public ResponseEntity<Map<String, Boolean>> checkNicknameDuplicate(@RequestParam(name = "nickname")  String nickname) {
-        boolean isDuplicate = memberProfileService.isNicknameDuplicate(nickname);
+        boolean isAvailable = memberProfileService.isAvailableNickname(nickname);
+
+        boolean isMeaningful = memberProfileService.isMeaningfulNickname(nickname);
+
+        boolean isClean = memberProfileService.isCleanNickname(nickname);
 
         Map<String, Boolean> response = new HashMap<>();
-        response.put("isDuplicate", isDuplicate);
+        // true = 사용 가능한 닉네임 (긍정) 으로 통일!
+        response.put("isAvailable", isAvailable);
+        response.put("isMeaningful", isMeaningful);
+        response.put("isClean", isClean);
 
         return ResponseEntity.ok(response);
     }
