@@ -21,70 +21,36 @@ public class CommentLikeServiceImpl implements CommentLikeService {
     private final CommentLikeRepository commentLikeRepository;
     private final MemberRepository memberRepository;
 
-//    @Override
-//    @Transactional
-//    public CommentLikeResponseDto likeComment(Long voteId, Long commentId) {
-//        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
-//
-//        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-//                .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
-//
-//        Comment comment = commentRepository.findById(commentId)
-//                .orElseThrow(() -> new IllegalArgumentException("댓글이 존재하지 않습니다."));
-//
-//        boolean alreadyLiked = commentLikeRepository.findByUserIdAndCommentId(userId, commentId).isPresent();
-//        if (alreadyLiked) { // 이 부분에서, 이미 좋아요 한 댓글이면 좋아요 내역을 다시 0으로 초기화하는 방식으로 좋아요를 취소해줭
-//            return CommentLikeResponseDto.builder()
-//                    .commentId(commentId)
-//                    .likeCount(comment.getLikeCount())
-//                    .message("이미 좋아요한 댓글입니다.")
-//                    .build();
-//        }
-//
-//        CommentLike commentLike = CommentLike.builder()
-//                .user(member)
-//                .comment(comment)
-//                .build();
-//        commentLikeRepository.save(commentLike);
-//
-//        comment.setLikeCount(comment.getLikeCount() + 1);
-//
-//        return CommentLikeResponseDto.builder()
-//                .commentId(commentId)
-//                .likeCount(comment.getLikeCount())
-//                .message("좋아요 성공")
-//                .build();
-//    }
-@Override
-@Transactional
-public CommentLikeResponseDto likeComment(Long voteId, Long commentId) {
-    Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+    @Override
+    @Transactional
+    public CommentLikeResponseDto likeComment(Long voteId, Long commentId) {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
 
-    Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-            .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
+        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
 
-    Comment comment = commentRepository.findById(commentId)
-            .orElseThrow(() -> new IllegalArgumentException("댓글이 존재하지 않습니다."));
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new IllegalArgumentException("댓글이 존재하지 않습니다."));
 
-    // 이미 좋아요한 경우 → 좋아요 취소
-    commentLikeRepository.findByUserIdAndCommentId(userId, commentId).ifPresentOrElse(existingLike -> {
-        commentLikeRepository.delete(existingLike);
-        comment.setLikeCount(comment.getLikeCount() - 1);
-    }, () -> {
-        // 좋아요하지 않은 경우 → 좋아요 추가
-        CommentLike commentLike = CommentLike.builder()
-                .user(member)
-                .comment(comment)
+        // 이미 좋아요한 경우 → 좋아요 취소
+        commentLikeRepository.findByUserIdAndCommentId(userId, commentId).ifPresentOrElse(existingLike -> {
+            commentLikeRepository.delete(existingLike);
+            comment.setLikeCount(comment.getLikeCount() - 1);
+        }, () -> {
+            // 좋아요하지 않은 경우 → 좋아요 추가
+            CommentLike commentLike = CommentLike.builder()
+                    .user(member)
+                    .comment(comment)
+                    .build();
+            commentLikeRepository.save(commentLike);
+            comment.setLikeCount(comment.getLikeCount() + 1);
+        });
+
+        return CommentLikeResponseDto.builder()
+                .commentId(commentId)
+                .likeCount(comment.getLikeCount())
+                .message(commentLikeRepository.findByUserIdAndCommentId(userId, commentId).isPresent() ? "좋아요 성공" : "좋아요 취소")
                 .build();
-        commentLikeRepository.save(commentLike);
-        comment.setLikeCount(comment.getLikeCount() + 1);
-    });
-
-    return CommentLikeResponseDto.builder()
-            .commentId(commentId)
-            .likeCount(comment.getLikeCount())
-            .message(commentLikeRepository.findByUserIdAndCommentId(userId, commentId).isPresent() ? "좋아요 성공" : "좋아요 취소")
-            .build();
-}
+    }
 
 }

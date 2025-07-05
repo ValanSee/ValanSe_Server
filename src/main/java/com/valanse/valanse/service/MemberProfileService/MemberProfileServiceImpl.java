@@ -23,28 +23,6 @@ public class MemberProfileServiceImpl implements MemberProfileService {
     private final MemberRepository memberRepository;
     private final MemberProfileRepository memberProfileRepository;
 
-//    @Override
-//    public void saveOrUpdateProfile(MemberProfileRequest dto) {
-//        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
-//
-//        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-//                .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
-//
-//        MemberProfile profile = memberProfileRepository.findByMemberId(userId)
-//                .orElse(new MemberProfile());
-//
-//        profile = MemberProfile.builder()
-//                .member(member)
-//                .nickname(dto.nickname())
-//                .gender(dto.gender())
-//                .age(dto.age())
-//                .mbtiIe(dto.mbtiIe())
-//                .mbtiTf(dto.mbtiTf())
-//                .mbti(dto.mbti())
-//                .build();
-//
-//        memberProfileRepository.save(profile);
-//    }
     @Override
     public void saveOrUpdateProfile(MemberProfileRequest dto) {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
