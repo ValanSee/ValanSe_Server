@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -22,6 +23,28 @@ public class MemberProfileServiceImpl implements MemberProfileService {
     private final MemberRepository memberRepository;
     private final MemberProfileRepository memberProfileRepository;
 
+//    @Override
+//    public void saveOrUpdateProfile(MemberProfileRequest dto) {
+//        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+//
+//        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
+//                .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
+//
+//        MemberProfile profile = memberProfileRepository.findByMemberId(userId)
+//                .orElse(new MemberProfile());
+//
+//        profile = MemberProfile.builder()
+//                .member(member)
+//                .nickname(dto.nickname())
+//                .gender(dto.gender())
+//                .age(dto.age())
+//                .mbtiIe(dto.mbtiIe())
+//                .mbtiTf(dto.mbtiTf())
+//                .mbti(dto.mbti())
+//                .build();
+//
+//        memberProfileRepository.save(profile);
+//    }
     @Override
     public void saveOrUpdateProfile(MemberProfileRequest dto) {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
@@ -29,20 +52,30 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
 
-        MemberProfile profile = memberProfileRepository.findByMemberId(userId)
-                .orElse(new MemberProfile());
+        // 기존 프로필 조회
+        Optional<MemberProfile> existingProfileOpt = memberProfileRepository.findByMemberId(userId);
 
-        profile = MemberProfile.builder()
-                .member(member)
-                .nickname(dto.nickname())
-                .gender(dto.gender())
-                .age(dto.age())
-                .mbtiIe(dto.mbtiIe())
-                .mbtiTf(dto.mbtiTf())
-                .mbti(dto.mbti())
-                .build();
+        if (existingProfileOpt.isPresent()) {
+            // 기존 객체에 값만 덮어쓰기
+            MemberProfile profile = existingProfileOpt.get();
+            profile.update(dto.nickname(), dto.gender(), dto.age(), dto.mbtiIe(), dto.mbtiTf(), dto.mbti());
 
-        memberProfileRepository.save(profile);
+            // 수정된 객체 저장 (영속성 때문에 이 부분은 생략도 가능)
+            memberProfileRepository.save(profile);
+        } else {
+            // 새 객체 생성 후 저장
+            MemberProfile newProfile = MemberProfile.builder()
+                    .member(member)
+                    .nickname(dto.nickname())
+                    .gender(dto.gender())
+                    .age(dto.age())
+                    .mbtiIe(dto.mbtiIe())
+                    .mbtiTf(dto.mbtiTf())
+                    .mbti(dto.mbti())
+                    .build();
+
+            memberProfileRepository.save(newProfile);
+        }
     }
 
     @Override
@@ -100,7 +133,6 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         if (nickname.codePoints().distinct().count() <= 1) {
             return false;
         }
-
         return true;
     }
 
