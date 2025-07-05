@@ -47,11 +47,18 @@ public class JwtTokenFilter extends GenericFilter {
                         uri.startsWith("/webjars") ||
 
                         // GET /votes/{voteId}/comments 허용
-                        (uri.matches("^/votes/\\d+/comments$") && request.getMethod().equals("GET"))
+                        (uri.matches("^/votes/\\d+/comments$") && request.getMethod().equals("GET")) ||
+
+                        // GET /votes/{voteId}/comments/{commentId}/replies 허용
+                        (uri.matches("^/votes/\\d+/comments/\\d+/replies$") && request.getMethod().equals("GET")) ||
+
+                        // GET /votes/{voteId}/comments/best 허용
+                        (uri.matches("^/votes/\\d+/comments/best$") && request.getMethod().equals("GET"))
         ) {
             filterChain.doFilter(request, response);
             return;
         }
+
 
         // Authorization 헤더에서 토큰 추출
         String token = request.getHeader("Authorization");
