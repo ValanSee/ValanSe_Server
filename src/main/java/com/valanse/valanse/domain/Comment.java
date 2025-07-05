@@ -58,5 +58,7 @@ public class Comment extends BaseEntity {
 
     public void setLikeCount(int count) { this.likeCount = count; }
 
-}
+    public void setIsDeleted(boolean isDeleted) {
+        this.isDeleted = isDeleted; }
+    }
 
