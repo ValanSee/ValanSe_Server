@@ -42,4 +42,14 @@ public class MemberProfile extends BaseEntity {
     private MbtiTf mbtiTf; // 추가 정보
 
     private String mbti;
+
+    public void update(String nickname, Gender gender, Age age, MbtiIe mbtiIe, MbtiTf mbtiTf, String mbti) {
+        this.nickname = nickname;
+        this.gender = gender;
+        this.age = age;
+        this.mbtiIe = mbtiIe;
+        this.mbtiTf = mbtiTf;
+        this.mbti = mbti;
+    }
+
 }
