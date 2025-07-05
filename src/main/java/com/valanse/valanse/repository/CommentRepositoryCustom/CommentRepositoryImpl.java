@@ -1,10 +1,7 @@
 package com.valanse.valanse.repository.CommentRepositoryCustom;
 
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import com.valanse.valanse.domain.QComment;
-import com.valanse.valanse.domain.QMember;
-import com.valanse.valanse.domain.QVote;
-import com.valanse.valanse.domain.QVoteOption;
+import com.valanse.valanse.domain.*;
 import com.valanse.valanse.dto.Comment.CommentResponseDto;
 import com.valanse.valanse.dto.Comment.QCommentResponseDto;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +11,7 @@ import org.springframework.data.domain.SliceImpl;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
@@ -55,5 +53,20 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
         }
 
         return new SliceImpl<>(result, pageable, hasNext);
+    }
+
+    @Override
+    public Optional<Comment> findMostLikedCommentByVoteId(Long voteId) {
+        QComment comment = QComment.comment;
+        QCommentGroup group = QCommentGroup.commentGroup;
+
+        return Optional.ofNullable(
+                queryFactory
+                        .selectFrom(comment)
+                        .join(comment.commentGroup, group)
+                        .where(group.vote.id.eq(voteId))
+                        .orderBy(comment.likeCount.desc())
+                        .fetchFirst()
+        );
     }
 }
