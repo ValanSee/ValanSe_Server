@@ -55,6 +55,9 @@ dependencies {
     // Spring Test 설정
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // jdbc
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
 }
 
 // QueryDSL 설정
