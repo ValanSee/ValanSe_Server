@@ -74,7 +74,7 @@ public class VoteControllerTest {
         MemberProfile profile1 = MemberProfile.builder() //
                 .member(member1)
                 .nickname("테스터1닉네임")
-                .gender(Gender.M) //
+                .gender(Gender.MALE) //
                 .age(Age.TWENTY) //
                 .mbti("ENFP")
                 .build();
@@ -120,7 +120,7 @@ public class VoteControllerTest {
         MemberProfile profile2 = MemberProfile.builder() //
                 .member(member2)
                 .nickname("테스터2닉네임")
-                .gender(Gender.F) //
+                .gender(Gender.FEMALE) //
                 .age(Age.THIRTY) //
                 .mbti("ISTJ")
                 .build();
@@ -187,8 +187,8 @@ public class VoteControllerTest {
         MemberProfile profile3 = MemberProfile.builder() //
                 .member(member3)
                 .nickname("테스터3닉네임")
-                .gender(Gender.M) //
-                .age(Age.FORTY) //
+                .gender(Gender.MALE) //
+                .age(Age.OVER_FORTY) //
                 .mbti("INTP")
                 .build();
         memberProfileRepository.save(profile3); //
