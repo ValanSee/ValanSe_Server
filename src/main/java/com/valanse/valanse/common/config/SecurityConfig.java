@@ -47,6 +47,7 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/swagger-resources/**",
                                 "/webjars/**",
+                                "/votes/best",
                                 "/votes/*/comments/*/replies",
                                 "/votes/*/comments/best"
                         ).permitAll()
@@ -73,7 +74,6 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000"));
         configuration.setAllowedOrigins(Arrays.asList("https://valanse-sooty.vercel.app/"));
-        configuration.setAllowedOrigins(Arrays.asList("https://valan-se-web.vercel.app/"));
         configuration.setAllowedMethods(Arrays.asList("*"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
