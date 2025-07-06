@@ -1,10 +1,8 @@
 // src/main/java/com/valanse/valanse/service/VoteService/VoteService.java
 package com.valanse.valanse.service.VoteService;
 
-import com.valanse.valanse.dto.Vote.HotIssueVoteResponse;
-import com.valanse.valanse.dto.Vote.VoteCreateRequest;
-import com.valanse.valanse.dto.Vote.VoteDetailResponse;
-import com.valanse.valanse.dto.Vote.VoteResponseDto;
+import com.valanse.valanse.dto.Vote.*;
+import org.springframework.data.domain.Pageable;
 
 public interface VoteService {
     HotIssueVoteResponse getHotIssueVote();
@@ -17,4 +15,6 @@ public interface VoteService {
     VoteDetailResponse getVoteDetailById(Long voteId);
 
     Long createVote(Long userId, VoteCreateRequest request);
+
+    VoteListResponse getVotesByCategoryAndSort(String category, String sort, Pageable pageable);
 }
