@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "0. 서버 확인 API", description = "서버가 실행 중인지를 테스트하는 용도입니다.")
+@Tag(name = "서버 확인 API", description = "서버가 실행 중인지를 테스트하는 용도입니다.")
 @RestController
 @RequestMapping("/health")
 public class HealthCheckController {

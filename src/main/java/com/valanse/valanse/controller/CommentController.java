@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "3. 댓글 API", description = "댓글 작성 및 조회, 수정 관련 기능")
+@Tag(name = "댓글 API", description = "댓글 작성 및 조회, 수정 관련 기능")
 @RestController
 @RequestMapping("/votes/{voteId}/comments")
 @RequiredArgsConstructor

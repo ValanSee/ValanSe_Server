@@ -42,22 +42,17 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
 
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
     // JWT 설정
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
-    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+    runtimeOnly('io.jsonwebtoken:jjwt-jackson:0.11.5')
 
     // MySQL 설정
     implementation 'com.mysql:mysql-connector-j:8.0.33'
 
-    // Hibernate Validator 관련 경고 해결
-    implementation 'org.hibernate.validator:hibernate-validator'
-
-    // CI 테스트 DB
-    implementation 'com.h2database:h2'
-
-    // 테스트
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    // Spring Test 설정
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
@@ -66,64 +61,5 @@ dependencies {
 def querydslDir = layout.buildDirectory.dir("generated/querydsl").get().asFile
 
 sourceSets {
-    main {
-        java {
-            srcDirs += querydslDir
-        }
-    }
-}
-
-configurations {
-    compileOnly {
-        extendsFrom annotationProcessor
-    }
-    querydsl {
-        extendsFrom compileClasspath
-    }
-}
-
-tasks.register("compileQuerydsl", JavaCompile) {
-    group = "build"
-    description = "Compile Querydsl Q-types"
-    source = sourceSets.main.java
-    classpath = configurations.annotationProcessor
-    destinationDirectory.set(file(querydslDir))
-    options.annotationProcessorPath = configurations.querydsl
-    options.compilerArgs += [
-            "-Aquerydsl.generatedAnnotationClass=javax.annotation.Generated"
-    ]
-}
-
-tasks.named("test") {
-    useJUnitPlatform()
-}
-
-tasks.withType(JavaCompile).configureEach {
-    doFirst {
-        file(querydslDir).mkdirs()
-    }
-}
-
-// 서버 실행 전 Q클래스 클린 → 재생성
-tasks.register("cleanGenerated") {
-    group = "build"
-    description = "Delete generated QueryDSL Q-classes"
-    doLast {
-        def generatedDir = file("build/generated/querydsl")
-        if (generatedDir.exists()) {
-            println "Deleting previously generated QueryDSL directory..."
-            generatedDir.deleteDir()
-        }
-    }
-}
-
-tasks.named("bootRun") {
-    dependsOn "cleanGenerated", "compileQuerydsl"
-}
-
-compileJava.dependsOn compileQuerydsl
-
-// QueryDSL 컴파일 끌 수도 있음 (필요 시)
-tasks.named("compileQuerydsl") {
-    enabled = false
+    main.java.srcDirs += querydslDir
 }

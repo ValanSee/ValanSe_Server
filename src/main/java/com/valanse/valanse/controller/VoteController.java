@@ -12,7 +12,7 @@ import com.valanse.valanse.domain.enums.VoteCategory;
 
 import java.util.List;
 
-@Tag(name = "3. Vote API", description = "투표 관련 API")
+@Tag(name = "투표 API", description = "투표 관련 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/votes")

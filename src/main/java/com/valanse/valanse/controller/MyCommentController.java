@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "4. 내 댓글 API", description = "내가 작성한 댓글 조회 및 삭제 기능")
+@Tag(name = "내 댓글 API", description = "내가 작성한 댓글 조회 및 삭제 기능")
 @RestController
 @RequiredArgsConstructor
 public class MyCommentController {

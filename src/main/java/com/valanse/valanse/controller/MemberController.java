@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.Map;
 
-@Tag(name = "2. 회원 API", description = "프로필 조회 등 회원 정보 관련 기능")
+@Tag(name = "회원 정보 API", description = "프로필 조회 등 회원 정보 관련 기능")
 @RestController
 @RequestMapping("/member")
 @RequiredArgsConstructor
