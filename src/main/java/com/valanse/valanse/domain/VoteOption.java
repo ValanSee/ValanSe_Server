@@ -4,16 +4,14 @@ import com.valanse.valanse.domain.common.BaseEntity;
 import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -25,7 +23,8 @@ public class VoteOption extends BaseEntity {
 
     private String content;
 
-    private Integer voteCount;
+    @Builder.Default // voteCount 초기값 0 설정
+    private Integer voteCount = 0;
 
     @Enumerated(EnumType.STRING)
     private VoteLabel label; // A, B, C, D
@@ -37,5 +36,10 @@ public class VoteOption extends BaseEntity {
     @Builder.Default
     @OneToMany(mappedBy = "voteOption", cascade = CascadeType.ALL)
     private List<MemberVoteOption> memberVoteOptions = new ArrayList<>();
+
+    // 편의 메서드: Vote 설정 (양방향 관계를 위해 필요)
+    public void setVote(Vote vote) {
+        this.vote = vote;
+    }
 }
 
