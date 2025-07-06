@@ -1,15 +1,23 @@
 package com.valanse.valanse.dto.Vote;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.valanse.valanse.domain.Vote;
+import lombok.Getter;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+@Getter
 public class VoteResponseDto {
-    private boolean isVoted; // 투표를 취소한 요청인지 투표를 추가한 요청인지 구분
-    private Integer totalVoteCount; // POST 요청 후 업데이트 된 총 투표 수
-    private Long voteOptionId; // POST 요청 후 업데이트 된 선택지의 id
-    private Integer voteOptionCount; // POST 요청 후 업데이트 된 선택지 별 투표 수
+    private Long voteId;
+    private String title;
+    private String category;
+    private int totalVoteCount;
+    private String createdAt;
+    private boolean isDeleted;
+
+    public VoteResponseDto(Vote vote) {
+        this.voteId = vote.getId();
+        this.title = vote.getTitle();
+        this.category = vote.getCategory().name(); // enum to string
+        this.totalVoteCount = vote.getTotalVoteCount();
+        this.createdAt = vote.getCreatedAt().toString();
+        this.isDeleted = vote.isDeleted();
+    }
 }

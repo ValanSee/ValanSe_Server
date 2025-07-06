@@ -1,20 +1,51 @@
 // src/main/java/com/valanse/valanse/repository/VoteRepository.java
 package com.valanse.valanse.repository;
 
+import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.Vote; //
 import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.time.LocalDateTime;
 
 @Repository
 public interface VoteRepository extends JpaRepository<Vote, Long> {
 
+    // 내가 생성한 투표
+    List<Vote> findAllByMemberOrderByCreatedAtDesc(Member member);
+    List<Vote> findAllByMemberOrderByCreatedAtAsc(Member member);
+
+    @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member AND v.category = :category ORDER BY v.createdAt DESC")
+    List<Vote> findAllByMemberVotedAndCategoryOrderByCreatedAtDesc(@Param("member") Member member, @Param("category") VoteCategory category);
+
+    @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member AND v.category = :category ORDER BY v.createdAt ASC")
+    List<Vote> findAllByMemberVotedAndCategoryOrderByCreatedAtAsc(@Param("member") Member member, @Param("category") VoteCategory category);
+
+    List<Vote> findAllByMemberAndCategoryOrderByCreatedAtDesc(Member member, VoteCategory category);
+
+    List<Vote> findAllByMemberAndCategoryOrderByCreatedAtAsc(Member member, VoteCategory category);
+
+    @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member AND v.category = :category ORDER BY v.createdAt DESC")
+    List<Vote> findAllByMemberVotedAndCategoryOrderByCreatedAtDesc(@Param("member") Member member, @Param("category") String category);
+
+    @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member AND v.category = :category ORDER BY v.createdAt ASC")
+    List<Vote> findAllByMemberVotedAndCategoryOrderByCreatedAtAsc(@Param("member") Member member, @Param("category") String category);
+
+    @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member ORDER BY v.createdAt DESC")
+    List<Vote> findAllByMemberVotedOrderByCreatedAtDesc(@Param("member") Member member);
+
+    @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member ORDER BY v.createdAt ASC")
+    List<Vote> findAllByMemberVotedOrderByCreatedAtAsc(@Param("member") Member member);
+
+    //여기서 부터 영서 부분
     // 가장 많은 totalVoteCount를 가진 투표 중 가장 최근에 생성된 투표를 조회
     Optional<Vote> findTopByOrderByTotalVoteCountDescCreatedAtDesc(); //
 

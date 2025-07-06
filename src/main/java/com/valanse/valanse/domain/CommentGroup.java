@@ -22,7 +22,7 @@ public class CommentGroup extends BaseEntity {
     private Long id;
 
     @OneToOne
-    @JoinColumn(name = "vote_id")
+    @JoinColumn(name = "vote_id", unique = true)
     private Vote vote;
 
     @Builder.Default

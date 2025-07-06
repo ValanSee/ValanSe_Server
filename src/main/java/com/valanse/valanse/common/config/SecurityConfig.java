@@ -39,16 +39,18 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .authorizeHttpRequests(a -> a.requestMatchers(
-                        "/auth/kakao/login",
-                        "/auth/reissue",
-                        "/health",
-                        "/v3/api-docs/**",
-                        "/swagger-ui/**",
-                        "/swagger-ui.html",
-                        "/swagger-resources/**",
-                        "/webjars/**",
-                        "/votes/best"
-                ).permitAll()
+                                "/auth/kakao/login",
+                                "/auth/reissue",
+                                "/health",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/swagger-resources/**",
+                                "/webjars/**",
+                                "/votes/best",
+                                "/votes/*/comments/*/replies",
+                                "/votes/*/comments/best"
+                        ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/votes/*/comments").permitAll()
                         .requestMatchers(HttpMethod.POST, "/votes/*/comments").authenticated()
                         .anyRequest().authenticated()) // 위 경로들은 인증 없이 접근 허용, 나머지는 JWT 토큰 필요

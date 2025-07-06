@@ -38,6 +38,8 @@ public class Vote extends BaseEntity {
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
 
+    @Column(name = "is_deleted")
+    private boolean isDeleted;
     // totalVoteCount에 대한 Setter 추가
     public void setTotalVoteCount(Integer totalVoteCount) {
         this.totalVoteCount = totalVoteCount;
