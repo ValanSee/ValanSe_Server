@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.HashMap;
 import java.util.Map;
 
-@Tag(name = "1. 로그인 API", description = "카카오 로그인, 로그아웃, 토큰 재발급 관련 API")
+@Tag(name = "로그인 API", description = "카카오 로그인, 로그아웃, 토큰 재발급 관련 API")
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
