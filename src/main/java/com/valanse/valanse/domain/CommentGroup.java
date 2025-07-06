@@ -26,7 +26,7 @@ public class CommentGroup extends BaseEntity {
     private Vote vote;
 
     @Builder.Default
-    private Integer totalCommentCount = 0;
+    private Integer totalCommentCount = 0; // 기본값을 0으로 설정
 
     @Builder.Default
     @OneToMany(mappedBy = "commentGroup", cascade = CascadeType.ALL)
