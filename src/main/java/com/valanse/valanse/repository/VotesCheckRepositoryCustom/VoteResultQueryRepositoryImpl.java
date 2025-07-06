@@ -34,6 +34,10 @@ public class VoteResultQueryRepositoryImpl implements VoteResultQueryRepository 
     @Override
     public VoteGenderResultResponseDto findVoteResultByGender(Long voteId, String gender) {
 
+        // gender 값 전처리
+        if ("F".equalsIgnoreCase(gender)) gender = "FEMALE";
+        else if ("M".equalsIgnoreCase(gender)) gender = "MALE";
+
         // 1. 전체 성별 유저 투표 수
         Long totalCount = queryFactory
                 .select(mvo.count())

@@ -4,10 +4,12 @@ import com.valanse.valanse.dto.VotesCheck.VoteAgeResultResponseDto;
 import com.valanse.valanse.dto.VotesCheck.VoteGenderResultResponseDto;
 import com.valanse.valanse.dto.VotesCheck.VoteMbtiResultResponseDto;
 import com.valanse.valanse.service.VotesCheckService.VotesCheckService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@Tag(name = "6. 투표 결과 조회 API", description = "사용자의 특징 별 투표 결과 확인 기능")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/votes")
