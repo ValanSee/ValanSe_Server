@@ -42,7 +42,10 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/swagger-resources/**",
-                                "/webjars/**"
+                                "/webjars/**",
+                                "/votes/best",
+                                "/votes/*/comments/*/replies",
+                                "/votes/*/comments/best"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/votes/*/comments").permitAll()
                         .requestMatchers(HttpMethod.POST, "/votes/*/comments").authenticated()

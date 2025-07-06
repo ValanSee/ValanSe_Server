@@ -7,7 +7,7 @@ import org.springframework.http.HttpStatus;
 
 import java.util.HashMap;
 import java.util.Map;
-
+//예상치 못한 오류를 다룸.
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 

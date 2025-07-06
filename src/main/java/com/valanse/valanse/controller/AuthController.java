@@ -18,15 +18,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
 
-@Tag(name = "1. 로그인 API", description = "카카오 로그인, 로그아웃, 토큰 재발급 관련 API")
+@Tag(name = "로그인 API", description = "카카오 로그인, 로그아웃, 토큰 재발급 관련 API")
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
@@ -127,4 +124,5 @@ public class AuthController {
         memberService.deleteMemberById(); // 사용자 데이터베이스 내용 삭제
         return ResponseEntity.ok().build();
     }
+
 }

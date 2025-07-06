@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+//HTTP 요청이 컨트롤러에 도착하기전에 JWT 유효성을 검사하는 필터.
 @Component
 public class JwtTokenFilter extends GenericFilter {
     @Value("${jwt.secret}")
@@ -45,13 +46,21 @@ public class JwtTokenFilter extends GenericFilter {
                         uri.startsWith("/v3/api-docs") ||
                         uri.startsWith("/swagger-resources") ||
                         uri.startsWith("/webjars") ||
+                        uri.equals("/votes/best") ||
 
                         // GET /votes/{voteId}/comments 허용
-                        (uri.matches("^/votes/\\d+/comments$") && request.getMethod().equals("GET"))
+                        (uri.matches("^/votes/\\d+/comments$") && request.getMethod().equals("GET")) ||
+
+                        // GET /votes/{voteId}/comments/{commentId}/replies 허용
+                        (uri.matches("^/votes/\\d+/comments/\\d+/replies$") && request.getMethod().equals("GET")) ||
+
+                        // GET /votes/{voteId}/comments/best 허용
+                        (uri.matches("^/votes/\\d+/comments/best$") && request.getMethod().equals("GET"))
         ) {
             filterChain.doFilter(request, response);
             return;
         }
+
 
         // Authorization 헤더에서 토큰 추출
         String token = request.getHeader("Authorization");
