@@ -1,17 +1,18 @@
 package com.valanse.valanse.service.CommentService;
 
 import com.valanse.valanse.domain.*;
-import com.valanse.valanse.dto.Comment.CommentPostRequest;
-import com.valanse.valanse.dto.Comment.CommentResponseDto;
-import com.valanse.valanse.dto.Comment.PagedCommentResponse;
+import com.valanse.valanse.domain.enums.VoteLabel;
+import com.valanse.valanse.dto.Comment.*;
 import com.valanse.valanse.repository.*;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +22,49 @@ public class CommentServiceImpl implements CommentService {
     private final VoteRepository voteRepository;
     private final CommentGroupRepository commentGroupRepository;
     private final CommentRepository commentRepository;
+    private final MemberProfileRepository memberProfileRepository;
+
+    @Override
+    @Transactional
+    public void deleteMyComment(Member member, Long commentId) {
+        commentRepository.findById(commentId).ifPresentOrElse(comment -> {
+            Long writerId = comment.getMember().getId();
+            Long loginId = member.getId();
+
+            System.out.println("[삭제 시도] 댓글 ID: " + commentId);
+            System.out.println("작성자 ID: " + writerId + ", 요청자 ID: " + loginId);
+
+            if (!writerId.equals(loginId)) {
+                System.out.println("삭제 권한 없음: 요청자 ≠ 작성자");
+                throw new IllegalArgumentException("삭제 권한 없음");
+            }
+
+            comment.setIsDeleted(true);
+            commentRepository.save(comment);
+
+            System.out.println("댓글 ID " + commentId + " → isDeleted=true 저장 완료");
+
+        }, () -> {
+            System.out.println("삭제 실패: 해당 댓글 ID " + commentId + " 없음");
+        });
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MyCommentResponseDto> getMyComments(Member member, String sort) {
+        Long memberId = member.getId();
+        List<Comment> comments;
+
+        if ("asc".equalsIgnoreCase(sort)) {
+            comments = commentRepository.findByMemberIdAndIsDeletedFalseOrderByCreatedAtAsc(memberId);
+        } else {
+            comments = commentRepository.findByMemberIdAndIsDeletedFalseOrderByCreatedAtDesc(memberId);
+        }
+
+        return comments.stream()
+                .map(MyCommentResponseDto::fromEntity)
+                .collect(Collectors.toList());
+    }
 
     @Override
     @Transactional
@@ -74,5 +118,51 @@ public class CommentServiceImpl implements CommentService {
                 .hasNext(slice.hasNext())
                 .build();
     }
-}
 
+    @Override
+    public BestCommentResponseDto getBestCommentByVoteId(Long voteId) {
+        CommentGroup group = commentGroupRepository.findByVoteId(voteId)
+                .orElseThrow(() -> new IllegalArgumentException("comment group not found"));
+
+        return commentRepository.findMostLikedCommentByVoteId(voteId)
+                .map(comment -> BestCommentResponseDto.builder()
+                        .totalCommentCount(group.getTotalCommentCount())
+                        .content(comment.getContent())
+                        .build())
+                .orElseThrow(() -> new IllegalArgumentException("comment not found"));
+    }
+
+    @Override
+    public List<CommentReplyResponseDto> getReplies(Long voteId, Long parentCommentId) {
+        // 유효한 투표인지 확인
+        Vote vote = voteRepository.findById(voteId)
+                .orElseThrow(() -> new IllegalArgumentException("투표가 존재하지 않습니다."));
+
+        // 대댓글 조회
+        List<Comment> replies = commentRepository.findAllByParentId(parentCommentId);
+
+        return replies.stream()
+                .map(reply -> {
+                    MemberProfile profile = memberProfileRepository.findByMemberId(reply.getMember().getId())
+                            .orElseThrow(() -> new IllegalArgumentException("회원 프로필이 존재하지 않습니다."));
+
+                    VoteLabel label = reply.getMember().getMemberVoteOptions().stream()
+                            .filter(opt -> opt.getVoteOption().getVote().getId().equals(voteId))
+                            .map(opt -> opt.getVoteOption().getLabel())
+                            .findFirst()
+                            .orElse(null);
+
+                    return CommentReplyResponseDto.builder()
+                            .id(reply.getId())
+                            .nickname(profile.getNickname())
+                            .createdAt(reply.getCreatedAt())
+                            .content(reply.getContent())
+                            .likeCount(reply.getLikeCount())
+                            .replyCount(reply.getReplyCount())
+                            .isDeleted(reply.getIsDeleted())
+                            .label(label)
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+}

@@ -3,10 +3,7 @@ package com.valanse.valanse.domain;
 import com.valanse.valanse.domain.common.BaseEntity;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +24,8 @@ public class Vote extends BaseEntity {
 
     private String title;
 
-    private Integer totalVoteCount;
+    @Builder.Default
+    private Integer totalVoteCount = 0; //Builder.Default 설정이 없으면 null값이 기본값이라 오류가 발생한다.
 
     @Builder.Default
     @OneToMany(mappedBy = "vote", cascade = CascadeType.ALL)
@@ -39,6 +37,19 @@ public class Vote extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
+
+    @Column(name = "is_deleted")
+    private boolean isDeleted;
+    // totalVoteCount에 대한 Setter 추가
+    public void setTotalVoteCount(Integer totalVoteCount) {
+        this.totalVoteCount = totalVoteCount;
+    }
+
+    // 편의 메서드: VoteOption 추가
+    public void addVoteOption(VoteOption voteOption) {
+        this.voteOptions.add(voteOption);
+        voteOption.setVote(this);
+    }
 
 }
 
