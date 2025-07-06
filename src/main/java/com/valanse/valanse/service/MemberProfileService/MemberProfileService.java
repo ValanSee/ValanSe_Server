@@ -9,6 +9,9 @@ public interface MemberProfileService {
     void saveOrUpdateProfile(MemberProfileRequest dto);
     MemberProfileResponse getProfile();
     MemberMyPageResponse getMyProfile();
-    boolean isNicknameDuplicate(String nickname);
 
+    boolean isAvailableNickname(String nickname);      // 중복 아님 → true
+    boolean isMeaningfulNickname(String nickname);     // 무의미하지 않음 → true
+    boolean isCleanNickname(String nickname);          // 비속어 아님 → true
 }
+

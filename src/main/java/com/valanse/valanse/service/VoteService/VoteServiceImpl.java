@@ -34,6 +34,45 @@ public class VoteServiceImpl implements VoteService {
     private final MemberVoteOptionRepository memberVoteOptionRepository; // processVote 메서드에서 MemberVoteOption 조회를 위해 추가
     private final CommentGroupRepository commentGroupRepository;
 
+   //작은 민지가 구현한 것
+    @Override
+    public List<VoteResponseDto> getMyCreatedVotes(Long memberId, String sort, VoteCategory category) {
+        Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException("회원이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+
+        List<Vote> votes;
+        if (category != null) {
+            votes = sort.equals("latest") ?
+                    voteRepository.findAllByMemberAndCategoryOrderByCreatedAtDesc(member, category) :
+                    voteRepository.findAllByMemberAndCategoryOrderByCreatedAtAsc(member, category);
+        } else {
+            votes = sort.equals("latest") ?
+                    voteRepository.findAllByMemberOrderByCreatedAtDesc(member) :
+                    voteRepository.findAllByMemberOrderByCreatedAtAsc(member);
+        }
+
+        return votes.stream().map(VoteResponseDto::new).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<VoteResponseDto> getMyVotedVotes(Long memberId, String sort, VoteCategory category) {
+        Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException("회원이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+
+        List<Vote> votes;
+        if (category != null) {
+            votes = sort.equals("latest") ?
+                    voteRepository.findAllByMemberVotedAndCategoryOrderByCreatedAtDesc(member, category) :
+                    voteRepository.findAllByMemberVotedAndCategoryOrderByCreatedAtAsc(member, category);
+        } else {
+            votes = sort.equals("latest") ?
+                    voteRepository.findAllByMemberVotedOrderByCreatedAtDesc(member) :
+                    voteRepository.findAllByMemberVotedOrderByCreatedAtAsc(member);
+        }
+
+        return votes.stream().map(VoteResponseDto::new).collect(Collectors.toList());
+    }
+    //여기서부터 영서 코드
     @Override
     public HotIssueVoteResponse getHotIssueVote() { // 파라미터 없음
         // 현재 시간으로부터 7일 이전의 시간을 계산합니다. (하드코딩된 7일)
@@ -80,7 +119,7 @@ public class VoteServiceImpl implements VoteService {
 
     @Override
     @Transactional // 이 메서드는 데이터를 변경하므로 읽기/쓰기 트랜잭션이 필요합니다. (클래스 레벨의 readOnly = true를 오버라이드)
-    public VoteResponseDto processVote(Long userId, Long voteId, Long voteOptionId) {
+    public VoteCancleResponseDto processVote(Long userId, Long voteId, Long voteOptionId) {
         // 1. 필수 엔티티들을 조회합니다. (없으면 예외 발생)
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new ApiException("회원이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
@@ -169,7 +208,7 @@ public class VoteServiceImpl implements VoteService {
         }
 
         // 6. 결과 DTO를 구성하여 반환합니다.
-        return new VoteResponseDto(
+        return new VoteCancleResponseDto(
                 isVoted,
                 updatedTotalVoteCount,
                 voteOptionId, // 현재 작업의 대상이 된 voteOptionId
