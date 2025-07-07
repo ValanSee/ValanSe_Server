@@ -257,9 +257,10 @@ public class VoteServiceImpl implements VoteService {
                 .orElseThrow(() -> new ApiException("회원이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
 
 
-        // **추가된 부분: 제목 길이 검증**
-        if (request.getTitle() == null || request.getTitle().length() > 25) {
-            throw new ApiException("투표 제목은 1자 이상 25자 이하여야 합니다.", HttpStatus.BAD_REQUEST);
+        // **수정된 부분: 제목 길이 검증 시 .trim() 추가**
+        String trimmedTitle = request.getTitle() != null ? request.getTitle().trim() : null;
+        if (trimmedTitle == null || trimmedTitle.isEmpty() || trimmedTitle.length() > 25) {
+            throw new ApiException("투표 제목은 1자 이상 25자 이하여야 합니다 (공백 제외).", HttpStatus.BAD_REQUEST);
         }
 
         // 2. 투표 생성 (아직 데이터베이스에 저장되지 않은 비영속 상태)
