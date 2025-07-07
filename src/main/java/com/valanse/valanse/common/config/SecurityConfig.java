@@ -47,6 +47,9 @@ public class SecurityConfig {
                                 "/votes/*/comments/*/replies",
                                 "/votes/*/comments/best"
                         ).permitAll()
+                        // 추가된 부분: GET /votes 경로를 permitAll 허용
+                        .requestMatchers(HttpMethod.GET, "/votes").permitAll() //
+                        .requestMatchers(HttpMethod.GET, "/votes/{voteId}").permitAll() // 새롭게 추가된 부분
                         .requestMatchers(HttpMethod.GET, "/votes/*/comments").permitAll()
                         .requestMatchers(HttpMethod.POST, "/votes/*/comments").authenticated()
                         .anyRequest().authenticated()
