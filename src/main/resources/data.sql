@@ -172,56 +172,56 @@ INSERT INTO comment_like (id, user_id, comment_id, created_at, updated_at, delet
 -- vote_option의 vote_count 업데이트
 UPDATE vote_option vo
     LEFT JOIN (
-        SELECT mvo.vote_option_id AS option_id_val, COUNT(*) AS count_val
-        FROM member_vote_option mvo
-        GROUP BY mvo.vote_option_id
+    SELECT mvo.vote_option_id AS option_id_val, COUNT(*) AS count_val
+    FROM member_vote_option mvo
+    GROUP BY mvo.vote_option_id
     ) AS counted_votes
-    ON vo.id = counted_votes.option_id_val
-SET vo.vote_count = COALESCE(counted_votes.count_val, 0);
+ON vo.id = counted_votes.option_id_val
+    SET vo.vote_count = COALESCE(counted_votes.count_val, 0);
 
 
 -- vote의 total_vote_count 업데이트
 UPDATE vote v
     LEFT JOIN (
-        SELECT vo.vote_id AS vote_id_val, SUM(vo.vote_count) AS total_sum
-        FROM vote_option vo
-        GROUP BY vo.vote_id
+    SELECT vo.vote_id AS vote_id_val, SUM(vo.vote_count) AS total_sum
+    FROM vote_option vo
+    GROUP BY vo.vote_id
     ) AS summed_options
-    ON v.id = summed_options.vote_id_val
-SET v.total_vote_count = COALESCE(summed_options.total_sum, 0);
+ON v.id = summed_options.vote_id_val
+    SET v.total_vote_count = COALESCE(summed_options.total_sum, 0);
 
 
 -- comment의 like_count 업데이트
 UPDATE comment c
     LEFT JOIN (
-        SELECT cl.comment_id AS comment_id_val, COUNT(*) AS like_count_val
-        FROM comment_like cl
-        GROUP BY cl.comment_id
+    SELECT cl.comment_id AS comment_id_val, COUNT(*) AS like_count_val
+    FROM comment_like cl
+    GROUP BY cl.comment_id
     ) AS counted_likes
-    ON c.id = counted_likes.comment_id_val
-SET c.like_count = COALESCE(counted_likes.like_count_val, 0);
+ON c.id = counted_likes.comment_id_val
+    SET c.like_count = COALESCE(counted_likes.like_count_val, 0);
 
 
 -- comment의 reply_count 업데이트
 UPDATE comment c_parent
     LEFT JOIN (
-        SELECT c_child.parent_id AS parent_id_val, COUNT(*) AS reply_count_val
-        FROM comment c_child
-        WHERE c_child.parent_id IS NOT NULL AND c_child.is_deleted = FALSE
-        GROUP BY c_child.parent_id
+    SELECT c_child.parent_id AS parent_id_val, COUNT(*) AS reply_count_val
+    FROM comment c_child
+    WHERE c_child.parent_id IS NOT NULL AND c_child.is_deleted = FALSE
+    GROUP BY c_child.parent_id
     ) AS count_replies
-    ON c_parent.id = count_replies.parent_id_val
-SET c_parent.reply_count = COALESCE(count_replies.reply_count_val, 0)
+ON c_parent.id = count_replies.parent_id_val
+    SET c_parent.reply_count = COALESCE(count_replies.reply_count_val, 0)
 WHERE c_parent.parent_id IS NULL; -- 최상위 댓글만 업데이트
 
 
 -- comment_group의 total_comment_count 업데이트
 UPDATE comment_group cg
     LEFT JOIN (
-        SELECT c.comment_group_id AS group_id_val, COUNT(*) AS comment_count_val
-        FROM comment c
-        WHERE c.is_deleted = FALSE
-        GROUP BY c.comment_group_id
+    SELECT c.comment_group_id AS group_id_val, COUNT(*) AS comment_count_val
+    FROM comment c
+    WHERE c.is_deleted = FALSE
+    GROUP BY c.comment_group_id
     ) AS total_count
-    ON cg.id = total_count.group_id_val
-SET cg.total_comment_count = COALESCE(total_count.comment_count_val, 0);
+ON cg.id = total_count.group_id_val
+    SET cg.total_comment_count = COALESCE(total_count.comment_count_val, 0);
