@@ -113,6 +113,7 @@ public class VoteServiceImpl implements VoteService {
                 .category(hotIssueVote.getCategory() != null ? hotIssueVote.getCategory().name() : null) // 카테고리 설정
                 .totalParticipants(hotIssueVote.getTotalVoteCount()) // 총 참여자 수 설정
                 .createdBy(createdByNickname) // 생성자 닉네임 설정
+                .createdAt(hotIssueVote.getCreatedAt()) // 추가된 부분: createdAt 설정
                 .options(options) // 옵션 리스트 설정
                 .build();
     }
@@ -254,6 +255,12 @@ public class VoteServiceImpl implements VoteService {
         // 1. 회원 검증
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new ApiException("회원이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+
+
+        // **추가된 부분: 제목 길이 검증**
+        if (request.getTitle() == null || request.getTitle().length() > 25) {
+            throw new ApiException("투표 제목은 1자 이상 25자 이하여야 합니다.", HttpStatus.BAD_REQUEST);
+        }
 
         // 2. 투표 생성 (아직 데이터베이스에 저장되지 않은 비영속 상태)
         Vote vote = Vote.builder()
