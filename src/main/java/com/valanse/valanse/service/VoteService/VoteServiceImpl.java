@@ -113,6 +113,7 @@ public class VoteServiceImpl implements VoteService {
                 .category(hotIssueVote.getCategory() != null ? hotIssueVote.getCategory().name() : null) // 카테고리 설정
                 .totalParticipants(hotIssueVote.getTotalVoteCount()) // 총 참여자 수 설정
                 .createdBy(createdByNickname) // 생성자 닉네임 설정
+                .createdAt(hotIssueVote.getCreatedAt()) // 추가된 부분: createdAt 설정
                 .options(options) // 옵션 리스트 설정
                 .build();
     }
