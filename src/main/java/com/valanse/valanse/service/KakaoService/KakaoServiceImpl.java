@@ -43,7 +43,7 @@ public class KakaoServiceImpl implements KakaoService {
 
         ResponseEntity<AccessTokenDto> response = restClient.post()
                 .uri("https://kauth.kakao.com/oauth/token")
-                .header("Content-Type", "application/x-www-form-urlencoded")
+                .header("Content-Type", "application/x-www-form-urlencoded;charset=utf-8")
                 .body(params)
                 .retrieve()
                 .toEntity(AccessTokenDto.class);
@@ -57,9 +57,10 @@ public class KakaoServiceImpl implements KakaoService {
         RestClient restClient = RestClient.create();
 
         ResponseEntity<KakaoProfileDto> response = restClient.get()
-                .uri("https://kapi.kakao.com/v2/user/me") // 고정된 값임. 항상 이렇게 입력하기
+                .uri("https://kapi.kakao.com/v2/user/me") // 고정된 값
                 .header("Authorization", "Bearer " + token)
-                .retrieve() // 응답의 body 값만을 추출하는 메소드
+                .header("Content-Type", "application/x-www-form-urlencoded;charset=utf-8") // 추가
+                .retrieve() // 응답의 body 값만을 추출
                 .toEntity(KakaoProfileDto.class);
 
         System.out.println("response.getBody() = " + response.getBody());
