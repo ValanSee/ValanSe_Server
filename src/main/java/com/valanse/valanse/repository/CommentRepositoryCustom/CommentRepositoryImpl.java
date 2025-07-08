@@ -1,7 +1,10 @@
 package com.valanse.valanse.repository.CommentRepositoryCustom;
 
+//import com.querydsl.core.types.dsl.CaseBuilder;
+//import static com.querydsl.core.types.dsl.Expressions.constant;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.valanse.valanse.domain.*;
+import com.valanse.valanse.domain.mapping.QMemberVoteOption;
 import com.valanse.valanse.dto.Comment.CommentResponseDto;
 import com.valanse.valanse.dto.Comment.QCommentResponseDto;
 import lombok.RequiredArgsConstructor;
@@ -9,7 +12,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
 import org.springframework.stereotype.Repository;
-
 import java.util.List;
 import java.util.Optional;
 
@@ -24,6 +26,7 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
         QComment comment = QComment.comment;
         QMember member = QMember.member;
         QVote vote = QVote.vote;
+        QMemberVoteOption mvo = QMemberVoteOption.memberVoteOption;
         QVoteOption voteOption = QVoteOption.voteOption;
 
         List<CommentResponseDto> result = queryFactory
@@ -36,15 +39,20 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                         comment.replyCount,
                         comment.isDeleted,
                         voteOption.label.stringValue()
+//                        new CaseBuilder()
+//                                .when(voteOption.isNotNull())
+//                                .then(voteOption.label.stringValue())
+//                                .otherwise(constant("NONE"))
                 ))
                 .from(comment)
                 .join(comment.member, member)
                 .join(comment.commentGroup.vote, vote)
-                .leftJoin(vote.voteOptions, voteOption)
+                .leftJoin(mvo).on(mvo.member.eq(member).and(mvo.vote.eq(vote)))
+                .leftJoin(mvo.voteOption, voteOption)
                 .where(vote.id.eq(voteId), comment.parent.isNull())
                 .orderBy(sort.equals("latest") ? comment.createdAt.desc() : comment.likeCount.desc())
                 .offset(pageable.getOffset())
-                .limit(pageable.getPageSize() + 1) // 무한 스크롤용 limit + 1
+                .limit(pageable.getPageSize() + 1)
                 .fetch();
 
         boolean hasNext = result.size() > pageable.getPageSize();
