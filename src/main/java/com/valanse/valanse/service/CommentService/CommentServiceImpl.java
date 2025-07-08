@@ -84,11 +84,11 @@ public class CommentServiceImpl implements CommentService {
                     return commentGroupRepository.save(newGroup);
                 });
 
-        // 2. 부모 댓글이 있을 경우 가져오기
+        // 2. 부모 댓글이 있을 경우 replyCount 증가
         Comment parent = null;
         if (request.getParentId() != null) {
             parent = commentRepository.findById(request.getParentId())
-                    .orElseThrow(() -> new IllegalArgumentException("Parent comment not found"));
+                    .orElseThrow(() -> new IllegalArgumentException("해당 id에 해당하는 부모 댓글이 존재하지 않습니다."));
             parent.updateReplyCount(parent.getReplyCount() + 1); // replyCount 증가
         }
 
