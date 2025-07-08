@@ -75,7 +75,14 @@ public class VoteController {
     @Operation(
             summary = "오늘의 핫이슈 밸런스 게임 선택지들 반환",
             description = "가장 많이 참여한 밸런스 게임 투표의 상세 정보와 옵션 목록을 조회합니다. " +
-                    "총 참여자 수가 가장 많은 투표를 반환하며, 참여자 수가 동일한 경우 가장 최근에 생성된 투표를 우선합니다."
+                    "총 참여자 수가 가장 많은 투표를 반환하며, 참여자 수가 동일한 경우 가장 최근에 생성된 투표를 우선합니다. \n" +
+                    "  voteId -> 가장 투표 참여 횟수가 많은 투표의 id\n" +
+                    "  title -> 가장 투표 참여 횟수가 많은 투표의 제목\n" +
+                    "  category -> 가장 투표 참여 횟수가 많은 투표의 카테고리\n" +
+                    "  totalParticipants -> 가장 투표 참여 횟수가 많은 투표의 총 투표 수\n" +
+                    "  createdBy -> 가장 투표 참여 횟수가 많은 투표를 생성한 사람의 닉네임\n" +
+                    "  createdAt -> 투표 생성 날짜\n" +
+                    "  options -> 투표 옵션 리스트 (content, vote_count)"
     )
     @GetMapping("/best") // 새로운 엔드포인트: /votes/best (GET 메서드)
     public ResponseEntity<HotIssueVoteResponse> getHotIssueVote() {
@@ -86,7 +93,11 @@ public class VoteController {
 
     @Operation(
             summary = "투표 선택, 취소, 재선택",
-            description = "사용자가 투표 선택지를 클릭했을 때 호출됩니다. URL 경로에 있는 {voteId}와 {voteOptionId}를 통해 어떤 투표의 어떤 선택지를 조작하는지 명확히 전달합니다. 이미 투표한 선택지를 다시 클릭하면 투표가 취소되고, 다른 선택지를 클릭하면 기존 투표를 취소하고 새로운 선택지에 투표합니다."
+            description = "사용자가 투표 선택지를 클릭했을 때 호출됩니다. URL 경로에 있는 {voteId}와 {voteOptionId}를 통해 어떤 투표의 어떤 선택지를 조작하는지 명확히 전달합니다. 이미 투표한 선택지를 다시 클릭하면 투표가 취소되고, 다른 선택지를 클릭하면 기존 투표를 취소하고 새로운 선택지에 투표합니다." +
+                        "  isVoted -> 투표를 취소한 요청인지 투표를 추가한 요청인지 구분\n" +
+                    " totalVoteCount -> POST 요청 후 업데이트 된 총 투표 수\n" +
+                    " voteOptionId -> POST 요청 후 업데이트 된 선택지의 id\n" +
+                    " voteOptionCount -> POST 요청 후 업데이트 된 선택지 별 투표 수"
     )
     @PostMapping("/{voteId}/vote-options/{voteOptionId}") // Path Variable 사용
     public ResponseEntity<VoteCancleResponseDto> processVote(
@@ -105,7 +116,7 @@ public class VoteController {
 
     @Operation(
             summary = "밸런스 게임 클릭했을 때 화면 불러오기",
-            description = "ID를 통해 특정 투표의 상세 정보(제목, 옵션, 카테고리 등)를 조회합니다."
+            description = "ID를 통해 특정 투표의 상세 정보(제목, 옵션, 카테고리 등)를 조회합니다. 카테고리는 ENUM타입으로 LOVE, FOOD, ETC 만 존재합니다."
     )
     @GetMapping("/{voteId}")
     public ResponseEntity<VoteDetailResponse> getVoteDetail(@PathVariable("voteId") Long voteId) {
@@ -116,7 +127,8 @@ public class VoteController {
 
     @Operation(
             summary = "투표 생성",
-            description = "새로운 투표와 해당 투표의 옵션을 생성합니다. 각 투표는 최대 4개의 옵션을 가질 수 있습니다."
+            description = "새로운 투표와 해당 투표의 옵션을 생성합니다. 각 투표는 최대 4개의 옵션을 가질 수 있습니다. \n" +
+                    " Category에는 ETC ,FOOD , LOVE 이 3가지만 올 수 있습니다. 내부에서 ENUM으로 처리됩니다."
     )
     @PostMapping
     public ResponseEntity<VoteCreateResponse> createVote(
@@ -142,8 +154,8 @@ public class VoteController {
 //    }
 @Operation(
         summary = "카테고리별/정렬 방식별 투표 목록 조회",
-        description = "카테고리와 정렬 기준에 따라 투표 목록을 조회합니다. 'category' 파라미터는 'ETC', 'FOOD', 'LOVE', 'ALL' 중 하나를 받을 수 있으며, 'sort' 파라미터는 'popular' (인기순) 또는 'latest' (최신순) 중 하나를 받습니다. 페이징을 지원합니다." +
-                " ALL은 대소문자 구분없이 String으로 내부에서 처리합니다. LOVE ,FOOD ,ETC는 enum 타입으로 내부에서 처리됩니다. 만약에 category와 sort 파라미터가 없다면 모두 기본값인 ALL 과 latest로 자동 처리됩니다." +
+        description = "카테고리와 정렬 기준에 따라 투표 목록을 조회합니다. 'category' 파라미터는 'ETC', 'FOOD', 'LOVE', 'ALL' 중 하나를 받을 수 있으며, 'sort' 파라미터는 'popular' (인기순) 또는 'latest' (최신순) 중 하나를 받습니다. 페이징을 지원합니다. \n" +
+                " ALL은 대소문자 구분없이 String으로 내부에서 처리합니다. LOVE ,FOOD ,ETC는 enum 타입으로 내부에서 처리됩니다. 만약에 category와 sort 파라미터가 없다면 모두 기본값인 ALL 과 latest로 자동 처리됩니다.\n" +
                 " 그러나 category = , sort= 와 같이 =뒤에 비어있는 경우는 불가능합니다. 아예 존재하지 않을 경우만 기본값으로 설정됩니다."
 )
 @GetMapping
