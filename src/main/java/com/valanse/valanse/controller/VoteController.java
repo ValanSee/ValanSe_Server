@@ -4,9 +4,13 @@ import com.valanse.valanse.service.VoteService.VoteService;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.dto.Vote.VoteResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -123,18 +127,47 @@ public class VoteController {
         return ResponseEntity.ok(new VoteCreateResponse(voteId));
     }
 
-    @Operation(
-            summary = "카테고리별/정렬 방식별 투표 목록 조회",
-            description = "카테고리와 정렬 기준에 따라 투표 목록을 조회합니다. 'category' 파라미터는 'ETC', 'FOOD', 'LOVE', 'ALL' 중 하나를 받을 수 있으며, 'sort' 파라미터는 'popular' (인기순) 또는 'latest' (최신순) 중 하나를 받습니다. 페이징을 지원합니다."
-    )
-    @GetMapping // 새로운 엔드포인트: /votes?category={category}&sort={sort}
-    public ResponseEntity<VoteListResponse> getVotes(
-            @RequestParam(value = "category", required = false, defaultValue = "ALL") String category, // 카테고리 (ALL 포함)
-            @RequestParam(value = "sort", required = false, defaultValue = "latest") String sort, // 정렬 기준 (popular, latest)
-            @PageableDefault(size = 10, page = 0) Pageable pageable // 페이징 정보 (기본 10개, 0페이지)
-    ) {
-        VoteListResponse response = voteService.getVotesByCategoryAndSort(category, sort, pageable);
-        return ResponseEntity.ok(response);
+//    @Operation(
+//            summary = "카테고리별/정렬 방식별 투표 목록 조회",
+//            description = "카테고리와 정렬 기준에 따라 투표 목록을 조회합니다. 'category' 파라미터는 'ETC', 'FOOD', 'LOVE', 'ALL' 중 하나를 받을 수 있으며, 'sort' 파라미터는 'popular' (인기순) 또는 'latest' (최신순) 중 하나를 받습니다. 페이징을 지원합니다."
+//    )
+//    @GetMapping // 새로운 엔드포인트: /votes?category={category}&sort={sort}
+//    public ResponseEntity<VoteListResponse> getVotes(
+//            @RequestParam(value = "category", required = false, defaultValue = "ALL") String category, // 카테고리 (ALL 포함)
+//            @RequestParam(value = "sort", required = false, defaultValue = "latest") String sort, // 정렬 기준 (popular, latest)
+//            @PageableDefault(size = 10, page = 0) Pageable pageable // 페이징 정보 (기본 10개, 0페이지)
+//    ) {
+//        VoteListResponse response = voteService.getVotesByCategoryAndSort(category, sort, pageable);
+//        return ResponseEntity.ok(response);
+//    }
+@Operation(
+        summary = "카테고리별/정렬 방식별 투표 목록 조회",
+        description = "카테고리와 정렬 기준에 따라 투표 목록을 조회합니다. 'category' 파라미터는 'ETC', 'FOOD', 'LOVE', 'ALL' 중 하나를 받을 수 있으며, 'sort' 파라미터는 'popular' (인기순) 또는 'latest' (최신순) 중 하나를 받습니다. 페이징을 지원합니다." +
+                " ALL은 대소문자 구분없이 String으로 내부에서 처리합니다. LOVE ,FOOD ,ETC는 enum 타입으로 내부에서 처리됩니다. 만약에 category와 sort 파라미터가 없다면 모두 기본값인 ALL 과 latest로 자동 처리됩니다." +
+                " 그러나 category = , sort= 와 같이 =뒤에 비어있는 경우는 불가능합니다. 아예 존재하지 않을 경우만 기본값으로 설정됩니다."
+)
+@GetMapping
+public ResponseEntity<VoteListResponse> getVotes(
+        @RequestParam(value = "category", required = false, defaultValue = "ALL") String category,
+        @RequestParam(value = "sort", required = false, defaultValue = "latest") String sort,
+        @Parameter(in = ParameterIn.QUERY, description = "페이지 번호 (0부터 시작)", required = false, example = "0")
+        @RequestParam(value = "page", defaultValue = "0") int page,
+        @Parameter(in = ParameterIn.QUERY, description = "페이지당 항목 수", required = false, example = "10")
+        @RequestParam(value = "size", defaultValue = "10") int size
+) {
+    // Pageable 객체를 수동으로 생성하여 서비스 계층에 전달
+    Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, getSortProperty(sort)));
+
+    VoteListResponse response = voteService.getVotesByCategoryAndSort(category, sort, pageable);
+    return ResponseEntity.ok(response);
+}
+
+    // sort 문자열에 따라 실제 정렬 속성을 반환하는 헬퍼 메서드 (필요시 VoteServiceImpl에서 가져올 수 있음)
+    private String getSortProperty(String sort) {
+        if ("popular".equalsIgnoreCase(sort)) {
+            return "totalVoteCount"; // 또는 "totalVoteCount,createdAt" 등으로 복합 정렬 지정
+        }
+        return "createdAt"; // 기본은 최신순
     }
 
 }
