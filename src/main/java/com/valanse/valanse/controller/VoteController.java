@@ -30,6 +30,10 @@ public class VoteController {
     private final VoteService voteService;
 
     @GetMapping("/mine/created")
+    @Operation(
+            summary = "내가 만든 밸런스게임 목록 가져오기",
+            description = "내가 만든 밸런스게임 목록을 시간순(latest/oldest)으로 반환합니다."
+    )
     public ResponseEntity<List<VoteResponseDto>> getMyCreatedVotes(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(required = false) String category,       // 추가
@@ -47,6 +51,10 @@ public class VoteController {
     }
 
     @GetMapping("/mine/voted")
+    @Operation(
+            summary = "내가 투표한 밸런스게임 목록 가져오기",
+            description = "내가 투표한 밸런스게임 목록을 시간순(latest/oldest)으로 반환합니다."
+    )
     public ResponseEntity<List<VoteResponseDto>> getMyVotedVotes(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(required = false) String category,       // 추가
