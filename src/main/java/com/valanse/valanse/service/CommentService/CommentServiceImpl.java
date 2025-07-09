@@ -55,10 +55,12 @@ public class CommentServiceImpl implements CommentService {
         Long memberId = member.getId();
         List<Comment> comments;
 
-        if ("asc".equalsIgnoreCase(sort)) {
+        if ("oldest".equalsIgnoreCase(sort)) {
             comments = commentRepository.findByMemberIdAndIsDeletedFalseOrderByCreatedAtAsc(memberId);
-        } else {
+        } else if ("latest".equalsIgnoreCase(sort)) {
             comments = commentRepository.findByMemberIdAndIsDeletedFalseOrderByCreatedAtDesc(memberId);
+        } else {
+            throw new IllegalArgumentException("sort 파라미터는 'latest' 또는 'oldest'만 허용됩니다.");
         }
 
         return comments.stream()

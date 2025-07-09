@@ -32,13 +32,16 @@ public class MyCommentController {
     }
 
     // 4. 내가 쓴 댓글 목록 조회
-    @GetMapping("/comments/my-comments")
+    @GetMapping("/comments/mine")
     @Operation(summary = "내가 쓴 댓글 목록 조회")
     public ResponseEntity<List<MyCommentResponseDto>> getMyComments(
-            @RequestParam(defaultValue = "desc") String sort) {
+            @RequestParam(defaultValue = "latest") String sort) {
+
         Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         var member = memberService.findById(loginId);
+
         List<MyCommentResponseDto> myComments = commentService.getMyComments(member, sort);
+
         return ResponseEntity.ok(myComments);
     }
 
