@@ -35,24 +35,30 @@ public class VoteServiceImpl implements VoteService {
     private final CommentGroupRepository commentGroupRepository;
 
    //작은 민지가 구현한 것
-    @Override
-    public List<VoteResponseDto> getMyCreatedVotes(Long memberId, String sort, VoteCategory category) {
-        Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
-                .orElseThrow(() -> new ApiException("회원이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+   @Override
+   public List<VoteResponseDto> getMyCreatedVotes(Long memberId, String sort, VoteCategory category) {
+       Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
+               .orElseThrow(() -> new ApiException("회원이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
 
-        List<Vote> votes;
-        if (category != null) {
-            votes = sort.equals("latest") ?
-                    voteRepository.findAllByMemberAndCategoryOrderByCreatedAtDesc(member, category) :
-                    voteRepository.findAllByMemberAndCategoryOrderByCreatedAtAsc(member, category);
-        } else {
-            votes = sort.equals("latest") ?
-                    voteRepository.findAllByMemberOrderByCreatedAtDesc(member) :
-                    voteRepository.findAllByMemberOrderByCreatedAtAsc(member);
-        }
+       List<Vote> votes;
 
-        return votes.stream().map(VoteResponseDto::new).collect(Collectors.toList());
-    }
+       boolean isAllCategory = category == VoteCategory.ALL;
+
+       if (isAllCategory) {
+           votes = sort.equals("latest") ?
+                   voteRepository.findAllByMemberOrderByCreatedAtDesc(member) :
+                   voteRepository.findAllByMemberOrderByCreatedAtAsc(member);
+       } else {
+           if (category == null)
+               throw new ApiException("카테고리를 입력해주세요.", HttpStatus.BAD_REQUEST);
+
+           votes = sort.equals("latest") ?
+                   voteRepository.findAllByMemberAndCategoryOrderByCreatedAtDesc(member, category) :
+                   voteRepository.findAllByMemberAndCategoryOrderByCreatedAtAsc(member, category);
+       }
+
+       return votes.stream().map(VoteResponseDto::new).collect(Collectors.toList());
+   }
 
     @Override
     public List<VoteResponseDto> getMyVotedVotes(Long memberId, String sort, VoteCategory category) {
@@ -60,18 +66,25 @@ public class VoteServiceImpl implements VoteService {
                 .orElseThrow(() -> new ApiException("회원이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
 
         List<Vote> votes;
-        if (category != null) {
-            votes = sort.equals("latest") ?
-                    voteRepository.findAllByMemberVotedAndCategoryOrderByCreatedAtDesc(member, category) :
-                    voteRepository.findAllByMemberVotedAndCategoryOrderByCreatedAtAsc(member, category);
-        } else {
+
+        boolean isAllCategory = category == VoteCategory.ALL;
+
+        if (isAllCategory) {
             votes = sort.equals("latest") ?
                     voteRepository.findAllByMemberVotedOrderByCreatedAtDesc(member) :
                     voteRepository.findAllByMemberVotedOrderByCreatedAtAsc(member);
+        } else {
+            if (category == null)
+                throw new ApiException("카테고리를 입력해주세요.", HttpStatus.BAD_REQUEST);
+
+            votes = sort.equals("latest") ?
+                    voteRepository.findAllByMemberVotedAndCategoryOrderByCreatedAtDesc(member, category) :
+                    voteRepository.findAllByMemberVotedAndCategoryOrderByCreatedAtAsc(member, category);
         }
 
         return votes.stream().map(VoteResponseDto::new).collect(Collectors.toList());
     }
+
     //여기서부터 영서 코드
     @Override
     public HotIssueVoteResponse getHotIssueVote() { // 파라미터 없음
