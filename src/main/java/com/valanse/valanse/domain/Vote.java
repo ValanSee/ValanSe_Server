@@ -4,6 +4,8 @@ import com.valanse.valanse.domain.common.BaseEntity;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDateTime;
+import org.hibernate.annotations.Where;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,6 +15,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Where(clause = "deleted_at IS NULL")
 public class Vote extends BaseEntity {
 
     @Id
@@ -38,8 +41,6 @@ public class Vote extends BaseEntity {
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
 
-    @Column(name = "is_deleted")
-    private boolean isDeleted;
     // totalVoteCount에 대한 Setter 추가
     public void setTotalVoteCount(Integer totalVoteCount) {
         this.totalVoteCount = totalVoteCount;

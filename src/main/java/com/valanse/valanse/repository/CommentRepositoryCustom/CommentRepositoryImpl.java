@@ -37,7 +37,7 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                         comment.content,
                         comment.likeCount,
                         comment.replyCount,
-                        comment.isDeleted,
+                        comment.deletedAt,
                         voteOption.label.stringValue()
 //                        new CaseBuilder()
 //                                .when(voteOption.isNotNull())

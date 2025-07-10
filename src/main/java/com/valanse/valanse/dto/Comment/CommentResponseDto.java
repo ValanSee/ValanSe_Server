@@ -16,20 +16,20 @@ public class CommentResponseDto {
     private String content;
     private Integer likeCount;
     private Integer replyCount;
-    private Boolean isDeleted;
+    private LocalDateTime deletedAt;
     private String label;
 
     @QueryProjection
     public CommentResponseDto(Long voteId, String nickname, LocalDateTime createdAt,
                               String content, Integer likeCount, Integer replyCount,
-                              Boolean isDeleted, String label) {
+                              LocalDateTime deletedAt, String label) {
         this.voteId = voteId;
         this.nickname = nickname;
         this.createdAt = createdAt;
         this.content = content;
         this.likeCount = likeCount;
         this.replyCount = replyCount;
-        this.isDeleted = isDeleted;
+        this.deletedAt = deletedAt;
         this.label = label;
     }
 }
