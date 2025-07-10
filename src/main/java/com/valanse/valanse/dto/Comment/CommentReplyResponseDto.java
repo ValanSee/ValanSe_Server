@@ -17,5 +17,6 @@ public class CommentReplyResponseDto {
     private int likeCount;
     private int replyCount;
     private boolean isDeleted;
+    private LocalDateTime deletedAt;
     private VoteLabel label;
 }

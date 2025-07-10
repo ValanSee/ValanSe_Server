@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
 
 
 import java.util.List;
@@ -39,7 +40,7 @@ public class CommentServiceImpl implements CommentService {
                 throw new IllegalArgumentException("삭제 권한 없음");
             }
 
-            comment.setIsDeleted(true);
+            comment.setDeletedAt(LocalDateTime.now());
             commentRepository.save(comment);
 
             System.out.println("댓글 ID " + commentId + " → isDeleted=true 저장 완료");
@@ -56,9 +57,9 @@ public class CommentServiceImpl implements CommentService {
         List<Comment> comments;
 
         if ("oldest".equalsIgnoreCase(sort)) {
-            comments = commentRepository.findByMemberIdAndIsDeletedFalseOrderByCreatedAtAsc(memberId);
+            comments = commentRepository.findByMemberIdAndDeletedAtIsNullOrderByCreatedAtAsc(memberId);
         } else if ("latest".equalsIgnoreCase(sort)) {
-            comments = commentRepository.findByMemberIdAndIsDeletedFalseOrderByCreatedAtDesc(memberId);
+            comments = commentRepository.findByMemberIdAndDeletedAtIsNullOrderByCreatedAtDesc(memberId);
         } else {
             throw new IllegalArgumentException("sort 파라미터는 'latest' 또는 'oldest'만 허용됩니다.");
         }
@@ -102,7 +103,7 @@ public class CommentServiceImpl implements CommentService {
                 .parent(parent)
                 .likeCount(0)
                 .replyCount(0)
-                .isDeleted(false)
+                .deletedAt(null)
                 .build();
         commentGroup.setTotalCommentCount(commentGroup.getTotalCommentCount() + 1); // 총 댓글 수 증가
         commentGroupRepository.save(commentGroup);
@@ -161,7 +162,7 @@ public class CommentServiceImpl implements CommentService {
                             .content(reply.getContent())
                             .likeCount(reply.getLikeCount())
                             .replyCount(reply.getReplyCount())
-                            .isDeleted(reply.getIsDeleted())
+                            .deletedAt(reply.getDeletedAt())
                             .label(label)
                             .build();
                 })

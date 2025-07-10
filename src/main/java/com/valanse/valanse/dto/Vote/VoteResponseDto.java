@@ -10,7 +10,6 @@ public class VoteResponseDto {
     private String category;
     private int totalVoteCount;
     private String createdAt;
-    private boolean isDeleted;
 
     public VoteResponseDto(Vote vote) {
         this.voteId = vote.getId();
@@ -18,6 +17,5 @@ public class VoteResponseDto {
         this.category = vote.getCategory().name(); // enum to string
         this.totalVoteCount = vote.getTotalVoteCount();
         this.createdAt = vote.getCreatedAt().toString();
-        this.isDeleted = vote.isDeleted();
     }
 }
