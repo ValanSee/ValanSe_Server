@@ -49,7 +49,7 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                 .join(comment.commentGroup.vote, vote)
                 .leftJoin(mvo).on(mvo.member.eq(member).and(mvo.vote.eq(vote)))
                 .leftJoin(mvo.voteOption, voteOption)
-                .where(vote.id.eq(voteId), comment.parent.isNull())
+                .where(vote.id.eq(voteId), comment.parent.isNull(), comment.deletedAt.isNull()) // deletedAt 조건 추가
                 .orderBy(sort.equals("latest") ? comment.createdAt.desc() : comment.likeCount.desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize() + 1)
