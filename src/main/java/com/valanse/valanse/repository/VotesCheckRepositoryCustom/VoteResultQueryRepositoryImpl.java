@@ -156,7 +156,7 @@ public class VoteResultQueryRepositoryImpl implements VoteResultQueryRepository 
             case "TEN" -> "10대";
             case "TWENTY" -> "20대";
             case "THIRTY" -> "30대";
-            case "FORTY" -> "40대 이상";
+            case "OVER_FORTY" -> "40대 이상";
             default -> "기타";
         };
     }
