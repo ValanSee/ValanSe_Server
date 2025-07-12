@@ -29,7 +29,6 @@ public class JwtTokenProvider {
         this.secretKey = secretKey;
         this.accessTokenExpiration = accessTokenExpiration;
         this.refreshTokenExpiration = refreshTokenExpiration;
-        // 시크릿 키를 디코딩하여 실제 Key 객체로 생성 (HMAC-SHA256 알고리즘에 맞게 변환)
         this.SECRET_KEY = new SecretKeySpec(java.util.Base64.getDecoder().decode(secretKey), SignatureAlgorithm.HS256.getJcaName());
     }
 
