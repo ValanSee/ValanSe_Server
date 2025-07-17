@@ -314,43 +314,29 @@ public class VoteServiceImpl implements VoteService {
     }
 
     @Override
-    public VoteListResponse getVotesByCategoryAndSort(String category, String sort, Pageable pageable) {
-        Page<Vote> votesPage; //데이터베이스에서 조회한 Vote 엔티티의 페이지 결과를 담을 변수이다.
-        Sort.Direction sortDirection = Sort.Direction.DESC; // 기본은 내림차순
+    public VoteListResponse getVotesByCategoryAndSort(String category, String sort, String cursor, int size) {
+        List<Vote> votes = voteRepository.findVotesByCursor(category, sort, cursor, size);
 
-        // 1. 정렬 기준 설정
-        Sort sortObj;
-        if ("popular".equalsIgnoreCase(sort)) {
-            sortObj = Sort.by(sortDirection, "totalVoteCount").and(Sort.by(sortDirection, "createdAt"));
-        } else { // 기본은 latest
-            sortObj = Sort.by(sortDirection, "createdAt");
-        }
+        boolean hasNext = votes.size() > size;
+        String nextCursor = null;
 
-        // 2. 페이징 및 정렬 정보가 포함된 Pageable 객체 생성
-        // 컨트롤러에서 넘어온 pageable 객체에 정렬 정보가 없으면 기본 정렬을 적용하기 위해 새로운 PageRequest 생성
-        Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sortObj);
-
-
-        // 3. 카테고리 필터링 및 데이터 조회
-        if ("ALL".equalsIgnoreCase(category)) {
-            votesPage = voteRepository.findAll(sortedPageable);
-        } else {
-            try {
-                VoteCategory voteCategory = VoteCategory.valueOf(category.toUpperCase()); // 문자열을 enum으로 변환
-                votesPage = voteRepository.findByCategory(voteCategory, sortedPageable);
-            } catch (IllegalArgumentException e) {
-                throw new ApiException("유효하지 않은 카테고리입니다: " + category, HttpStatus.BAD_REQUEST);
+        if (hasNext) {
+            votes.remove(votes.size() - 1);
+            Vote lastVote = votes.get(votes.size() - 1);
+            if ("popular".equalsIgnoreCase(sort)) {
+                nextCursor = lastVote.getTotalVoteCount() + "_" + lastVote.getCreatedAt().toString();
+            } else { // latest
+                nextCursor = lastVote.getCreatedAt().toString();
             }
         }
 
-        // 4. DTO 변환 및 반환
-        List<VoteListResponse.VoteDto> voteDtos = votesPage.getContent().stream()
+        List<VoteListResponse.VoteDto> voteDtos = votes.stream()
                 .map(vote -> {
-                    String creatorNickname = "익명"; // 기본값
+                    String creatorNickname = "익명";
                     if (vote.getMember() != null && vote.getMember().getProfile() != null) {
                         creatorNickname = vote.getMember().getProfile().getNickname();
                     } else if (vote.getMember() != null && vote.getMember().getName() != null) {
-                        creatorNickname = vote.getMember().getName(); // Member의 기본 이름 사용
+                        creatorNickname = vote.getMember().getName();
                     }
 
                     List<VoteListResponse.VoteOptionListDto> optionListDtos = vote.getVoteOptions().stream()
@@ -360,7 +346,6 @@ public class VoteServiceImpl implements VoteService {
                                     .build())
                             .collect(Collectors.toList());
 
-                    // CommentGroup에서 totalCommentCount 가져오기
                     Integer totalCommentCount = 0;
                     if (vote.getCommentGroup() != null) {
                         totalCommentCount = vote.getCommentGroup().getTotalCommentCount();
@@ -382,7 +367,8 @@ public class VoteServiceImpl implements VoteService {
 
         return VoteListResponse.builder()
                 .votes(voteDtos)
-                .has_next_page(votesPage.hasNext())
+                .has_next_page(hasNext)
+                .next_cursor(nextCursor)
                 .build();
     }
 }

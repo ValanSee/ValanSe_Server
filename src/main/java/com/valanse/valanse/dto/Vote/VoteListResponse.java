@@ -16,7 +16,8 @@ import java.util.List;
 @Builder
 public class VoteListResponse {
     private List<VoteDto> votes;
-    private boolean has_next_page; // 다음 페이지 존재 여부
+    private boolean has_next_page;
+    private String next_cursor; // 다음 페이지 요청에 사용할 커서 값// 다음 페이지 존재 여부
 
     @Data
     @NoArgsConstructor

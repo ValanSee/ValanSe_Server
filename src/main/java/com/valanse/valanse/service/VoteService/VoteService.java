@@ -17,9 +17,8 @@ public interface VoteService {
 
     VoteDetailResponse getVoteDetailById(Long voteId);
     List<VoteResponseDto> getMyCreatedVotes(Long memberId, String sort, VoteCategory category);
-
     Long createVote(Long userId, VoteCreateRequest request);
-
-    VoteListResponse getVotesByCategoryAndSort(String category, String sort, Pageable pageable);
     List<VoteResponseDto> getMyVotedVotes(Long memberId, String sort, VoteCategory category);
+    // /votes get 메서드 cursor기반으로 변경
+    VoteListResponse getVotesByCategoryAndSort(String category, String sort, String cursor, int size);
 }
