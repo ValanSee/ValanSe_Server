@@ -10,6 +10,7 @@ import com.querydsl.core.annotations.QueryProjection;
 @Getter
 @Builder
 public class CommentResponseDto {
+    private Long commentId;
     private Long voteId;
     private String nickname;
     private LocalDateTime createdAt;
@@ -20,9 +21,10 @@ public class CommentResponseDto {
     private String label;
 
     @QueryProjection
-    public CommentResponseDto(Long voteId, String nickname, LocalDateTime createdAt,
+    public CommentResponseDto(Long commentId, Long voteId, String nickname, LocalDateTime createdAt,
                               String content, Integer likeCount, Integer replyCount,
                               LocalDateTime deletedAt, String label) {
+        this.commentId = commentId;
         this.voteId = voteId;
         this.nickname = nickname;
         this.createdAt = createdAt;
