@@ -31,6 +31,7 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
 
         List<CommentResponseDto> result = queryFactory
                 .select(new QCommentResponseDto(
+                        comment.id,
                         vote.id,
                         member.profile.nickname,
                         comment.createdAt,
@@ -39,10 +40,6 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                         comment.replyCount,
                         comment.deletedAt,
                         voteOption.label.stringValue()
-//                        new CaseBuilder()
-//                                .when(voteOption.isNotNull())
-//                                .then(voteOption.label.stringValue())
-//                                .otherwise(constant("NONE"))
                 ))
                 .from(comment)
                 .join(comment.member, member)
