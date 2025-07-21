@@ -23,6 +23,9 @@ public class Comment extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(length = 255)
+    private String title;  // 댓글 제목 추가
+
     @Column(columnDefinition = "TEXT")
     private String content;
 
