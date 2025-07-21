@@ -52,6 +52,10 @@ public class Comment extends BaseEntity {
     @JoinColumn(name = "parent_id")
     private Comment parent;
 
+    @ManyToOne
+    @JoinColumn(name = "vote_option_id")
+    private VoteOption voteOption;
+
     @Builder.Default
     @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
     private List<Comment> replies = new ArrayList<>();
