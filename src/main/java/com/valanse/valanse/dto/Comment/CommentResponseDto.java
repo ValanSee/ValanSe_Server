@@ -13,26 +13,28 @@ public class CommentResponseDto {
     private Long commentId;
     private Long voteId;
     private String nickname;
-    private LocalDateTime createdAt;
+    private LocalDateTime commentCreatedAt;  // 추가
+    private LocalDateTime voteCreatedAt;     // 추가
     private String content;
     private Integer likeCount;
     private Integer replyCount;
     private LocalDateTime deletedAt;
-    private String label;
+    private String voteOptionLabel;
 
     @QueryProjection
-    public CommentResponseDto(Long commentId, Long voteId, String nickname, LocalDateTime createdAt,
+    public CommentResponseDto(Long commentId, Long voteId, String nickname,
+                              LocalDateTime commentCreatedAt, LocalDateTime voteCreatedAt,  // 추가
                               String content, Integer likeCount, Integer replyCount,
-                              LocalDateTime deletedAt, String label) {
+                              LocalDateTime deletedAt, String voteOptionLabel) {
         this.commentId = commentId;
         this.voteId = voteId;
         this.nickname = nickname;
-        this.createdAt = createdAt;
+        this.commentCreatedAt = commentCreatedAt;
+        this.voteCreatedAt = voteCreatedAt;
         this.content = content;
         this.likeCount = likeCount;
         this.replyCount = replyCount;
         this.deletedAt = deletedAt;
-        this.label = label;
+        this.voteOptionLabel = voteOptionLabel;
     }
 }
-
