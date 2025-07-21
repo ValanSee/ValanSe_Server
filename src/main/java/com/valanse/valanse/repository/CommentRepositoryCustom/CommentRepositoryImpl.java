@@ -28,12 +28,13 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
         QVote vote = QVote.vote;
         QMemberVoteOption mvo = QMemberVoteOption.memberVoteOption;
         QVoteOption voteOption = QVoteOption.voteOption;
+        QMemberProfile profile = QMemberProfile.memberProfile;
 
         List<CommentResponseDto> result = queryFactory
                 .select(new QCommentResponseDto(
                         comment.id,
                         vote.id,
-                        member.profile.nickname,
+                        profile.nickname,
                         comment.createdAt,
                         comment.content,
                         comment.likeCount,
@@ -43,6 +44,7 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                 ))
                 .from(comment)
                 .join(comment.member, member)
+                .leftJoin(member.profile, profile)
                 .join(comment.commentGroup.vote, vote)
                 .leftJoin(mvo).on(mvo.member.eq(member).and(mvo.vote.eq(vote)))
                 .leftJoin(mvo.voteOption, voteOption)

@@ -34,9 +34,17 @@ public class MyCommentResponseDto {
                 .isReply(comment.getParent() != null)
                 .createdAt(comment.getCreatedAt())
                 .voteOwnerId(comment.getCommentGroup().getVote().getMember().getId())
-                .voteOwnerNickname(comment.getCommentGroup().getVote().getMember().getNickname())  // 수정
+                .voteOwnerNickname(
+                        comment.getCommentGroup().getVote().getMember().getProfile() != null
+                                ? comment.getCommentGroup().getVote().getMember().getProfile().getNickname()
+                                : null
+                )
                 .voteTitle(comment.getCommentGroup().getVote().getTitle())
-                .voteOptionLabel(comment.getVoteOption() != null ? comment.getVoteOption().getLabel().name() : null)  // ✅ 수정
+                .voteOptionLabel(
+                        comment.getVoteOption() != null
+                                ? comment.getVoteOption().getLabel().name()
+                                : null
+                )
                 .build();
     }
 }
