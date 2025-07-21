@@ -36,6 +36,7 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                         vote.id,
                         profile.nickname,
                         comment.createdAt,
+                        vote.createdAt,
                         comment.content,
                         comment.likeCount,
                         comment.replyCount,
