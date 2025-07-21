@@ -45,6 +45,8 @@ public class Member extends BaseEntity {
 
     private String kakaoRefreshToken;
 
+    private String nickname;
+
     @Builder.Default
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)
     private List<Comment> comments = new ArrayList<>();
