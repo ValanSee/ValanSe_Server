@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 public class MyCommentResponseDto {
 
     private Long id;
+    private String title; // 추가
     private String content;
     private Long memberId;
     private String memberName;
@@ -22,6 +23,7 @@ public class MyCommentResponseDto {
     public static MyCommentResponseDto fromEntity(Comment comment) {
         return MyCommentResponseDto.builder()
                 .id(comment.getId())
+                .title(comment.getTitle())    //  추가
                 .content(comment.getContent())
                 .memberId(comment.getMember().getId())
                 .memberName(comment.getMember().getName())
