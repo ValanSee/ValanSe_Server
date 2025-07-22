@@ -35,24 +35,24 @@ public class MemberServiceImpl implements MemberService {
         return member;
     }
 
-//    @Override
-//    public Member deleteMemberById() {
-//        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
-//        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-//                .orElseThrow(() -> new ApiException("사용자를 찾을 수 없습니다", HttpStatus.NOT_FOUND));
-//
-//        member.softDelete(); // Soft delete 처리
-//        return memberRepository.save(member); // 삭제된 상태로 저장
-//    }
     @Override
-    public void deleteMemberById() {
+    public Member deleteMemberById() {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
-
-        Member member = memberRepository.findById(userId)
+        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new ApiException("사용자를 찾을 수 없습니다", HttpStatus.NOT_FOUND));
 
-        memberRepository.delete(member); // hard delete
+        member.softDelete(); // Soft delete 처리
+        return memberRepository.save(member); // 삭제된 상태로 저장
     }
+//    @Override
+//    public void deleteMemberById() {
+//        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+//
+//        Member member = memberRepository.findById(userId)
+//                .orElseThrow(() -> new ApiException("사용자를 찾을 수 없습니다", HttpStatus.NOT_FOUND));
+//
+//        memberRepository.delete(member); // hard delete
+//    }
 
 
     //  추가된 메서드
