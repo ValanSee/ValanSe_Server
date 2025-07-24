@@ -68,7 +68,6 @@ public class JwtTokenFilter extends GenericFilter {
         }
 
 
-        // Authorization 헤더에서 토큰 추출
         String token = request.getHeader("Authorization");
         try {
             // Bearer로 시작하는 토큰인지 확인
