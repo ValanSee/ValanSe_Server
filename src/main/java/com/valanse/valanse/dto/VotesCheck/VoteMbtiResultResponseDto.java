@@ -1,9 +1,6 @@
 package com.valanse.valanse.dto.VotesCheck;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.List;
 import java.util.Map;
@@ -19,6 +16,7 @@ public class VoteMbtiResultResponseDto {
     private Map<String, List<OptionRatio>> mbti_ratios;
 
     @Getter
+    @Setter
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
@@ -26,5 +24,7 @@ public class VoteMbtiResultResponseDto {
         private String content;
         private int vote_count;
         private float ratio;
+
+
     }
 }
