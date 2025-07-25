@@ -26,7 +26,7 @@ public class Member extends BaseEntity {
 
     private String socialId; // kakao id
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String email; // 카카오 이메일
 
     private String name; // 카카오 이름
@@ -44,6 +44,8 @@ public class Member extends BaseEntity {
     private String kakaoAccessToken;
 
     private String kakaoRefreshToken;
+
+    private String nickname;
 
     @Builder.Default
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)

@@ -19,4 +19,6 @@ public class CommentReplyResponseDto {
     private boolean isDeleted;
     private LocalDateTime deletedAt;
     private VoteLabel label;
+    private Long daysAgo;
+    private Long hoursAgo;
 }
