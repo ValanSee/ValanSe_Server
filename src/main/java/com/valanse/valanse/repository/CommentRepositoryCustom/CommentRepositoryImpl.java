@@ -2,6 +2,8 @@ package com.valanse.valanse.repository.CommentRepositoryCustom;
 
 //import com.querydsl.core.types.dsl.CaseBuilder;
 //import static com.querydsl.core.types.dsl.Expressions.constant;
+import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.core.types.dsl.NumberTemplate;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.valanse.valanse.domain.*;
 import com.valanse.valanse.domain.mapping.QMemberVoteOption;
@@ -30,6 +32,24 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
         QVoteOption voteOption = QVoteOption.voteOption;
         QMemberProfile profile = QMemberProfile.memberProfile;
 
+        NumberTemplate<Long> totalHoursAgo = Expressions.numberTemplate(
+                Long.class,
+                "timestampdiff(hour, {0}, current_timestamp)",
+                comment.createdAt
+        );
+
+        NumberTemplate<Long> daysAgo = Expressions.numberTemplate(
+                Long.class,
+                "floor(timestampdiff(hour, {0}, current_timestamp) / 24)",
+                comment.createdAt
+        );
+
+        NumberTemplate<Long> hoursAgo = Expressions.numberTemplate(
+                Long.class,
+                "mod(timestampdiff(hour, {0}, current_timestamp), 24)",
+                comment.createdAt
+        );
+
         List<CommentResponseDto> result = queryFactory
                 .select(new QCommentResponseDto(
                         comment.id,
@@ -41,8 +61,10 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                         comment.likeCount,
                         comment.replyCount,
                         comment.deletedAt,
-                        voteOption.label.stringValue()
-                ))
+                        voteOption.label.stringValue(),
+                        daysAgo,
+                        hoursAgo
+                        ))
                 .from(comment)
                 .join(comment.member, member)
                 .leftJoin(member.profile, profile)
