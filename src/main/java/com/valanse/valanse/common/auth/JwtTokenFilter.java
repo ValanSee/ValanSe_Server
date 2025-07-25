@@ -51,8 +51,8 @@ public class JwtTokenFilter extends GenericFilter {
                         // GET /votes (목록 조회) 경로 허용
                         (uri.equals("/votes") && request.getMethod().equals("GET")) ||
 
-                        // 추가된 부분: GET /votes/{voteId} (상세 조회) 경로 허용
-                        (uri.matches("^/votes/\\d+$") && request.getMethod().equals("GET")) ||
+//                        // 추가된 부분: GET /votes/{voteId} (상세 조회) 경로 허용
+//                        (uri.matches("^/votes/\\d+$") && request.getMethod().equals("GET")) ||
 
                         // GET /votes/{voteId}/comments 허용
                         (uri.matches("^/votes/\\d+/comments$") && request.getMethod().equals("GET")) ||

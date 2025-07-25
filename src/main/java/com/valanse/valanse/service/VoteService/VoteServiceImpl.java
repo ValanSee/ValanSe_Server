@@ -14,6 +14,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // import 추가
 
@@ -248,6 +249,41 @@ public class VoteServiceImpl implements VoteService {
                         .label(option.getLabel().name())
                         .build())
                 .collect(Collectors.toList());
+        // --- 추가된 로직 시작 ---
+        Boolean hasVoted = false;
+        String votedOptionLabel = null;
+
+        // 현재 로그인한 사용자 ID 가져오기
+        // JwtTokenFilter에서 인증 시 SecurityContextHolder에 userId를 String으로 저장함
+        Long currentUserId = null;
+        try {
+            if (SecurityContextHolder.getContext().getAuthentication() != null &&
+                    SecurityContextHolder.getContext().getAuthentication().getName() != null &&
+                    !SecurityContextHolder.getContext().getAuthentication().getName().equals("anonymousUser")) {
+                currentUserId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+                // --- 디버깅 로그 추가 시작 ---
+                System.out.println("DEBUG: Authenticated user ID: " + currentUserId);
+                // --- 디버깅 로그 추가 끝 ---
+            } else {
+                // --- 디버깅 로그 추가 시작 ---
+                System.out.println("DEBUG: User is not authenticated or is anonymous.");
+                // --- 디버깅 로그 추가 끝 ---
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("DEBUG: Error parsing user ID from SecurityContext: " + e.getMessage());
+            currentUserId = null;
+        }
+
+
+        if (currentUserId != null) {
+            // 사용자의 투표 기록 조회
+            Optional<MemberVoteOption> userVote = memberVoteOptionRepository.findByMemberIdAndVoteId(currentUserId, voteId);
+            if (userVote.isPresent()) {
+                hasVoted = true;
+                votedOptionLabel = userVote.get().getVoteOption().getLabel().name();
+            }
+        }
+        // --- 추가된 로직 끝 ---
 
         return VoteDetailResponse.builder()
                 .voteId(vote.getId())
@@ -257,6 +293,8 @@ public class VoteServiceImpl implements VoteService {
                 .creatorNickname(creatorNickname) // 수정된 닉네임 사용
                 .createdAt(vote.getCreatedAt())
                 .options(optionDtos)
+                .hasVoted(hasVoted) // 새로운 필드 값 설정
+                .votedOptionLabel(votedOptionLabel) // 새로운 필드 값 설정
                 .build();
     }
 
@@ -314,43 +352,29 @@ public class VoteServiceImpl implements VoteService {
     }
 
     @Override
-    public VoteListResponse getVotesByCategoryAndSort(String category, String sort, Pageable pageable) {
-        Page<Vote> votesPage; //데이터베이스에서 조회한 Vote 엔티티의 페이지 결과를 담을 변수이다.
-        Sort.Direction sortDirection = Sort.Direction.DESC; // 기본은 내림차순
+    public VoteListResponse getVotesByCategoryAndSort(String category, String sort, String cursor, int size) {
+        List<Vote> votes = voteRepository.findVotesByCursor(category, sort, cursor, size);
 
-        // 1. 정렬 기준 설정
-        Sort sortObj;
-        if ("popular".equalsIgnoreCase(sort)) {
-            sortObj = Sort.by(sortDirection, "totalVoteCount").and(Sort.by(sortDirection, "createdAt"));
-        } else { // 기본은 latest
-            sortObj = Sort.by(sortDirection, "createdAt");
-        }
+        boolean hasNext = votes.size() > size;
+        String nextCursor = null;
 
-        // 2. 페이징 및 정렬 정보가 포함된 Pageable 객체 생성
-        // 컨트롤러에서 넘어온 pageable 객체에 정렬 정보가 없으면 기본 정렬을 적용하기 위해 새로운 PageRequest 생성
-        Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sortObj);
-
-
-        // 3. 카테고리 필터링 및 데이터 조회
-        if ("ALL".equalsIgnoreCase(category)) {
-            votesPage = voteRepository.findAll(sortedPageable);
-        } else {
-            try {
-                VoteCategory voteCategory = VoteCategory.valueOf(category.toUpperCase()); // 문자열을 enum으로 변환
-                votesPage = voteRepository.findByCategory(voteCategory, sortedPageable);
-            } catch (IllegalArgumentException e) {
-                throw new ApiException("유효하지 않은 카테고리입니다: " + category, HttpStatus.BAD_REQUEST);
+        if (hasNext) {
+            votes.remove(votes.size() - 1);
+            Vote lastVote = votes.get(votes.size() - 1);
+            if ("popular".equalsIgnoreCase(sort)) {
+                nextCursor = lastVote.getTotalVoteCount() + "_" + lastVote.getCreatedAt().toString();
+            } else { // latest
+                nextCursor = lastVote.getCreatedAt().toString();
             }
         }
 
-        // 4. DTO 변환 및 반환
-        List<VoteListResponse.VoteDto> voteDtos = votesPage.getContent().stream()
+        List<VoteListResponse.VoteDto> voteDtos = votes.stream()
                 .map(vote -> {
-                    String creatorNickname = "익명"; // 기본값
+                    String creatorNickname = "익명";
                     if (vote.getMember() != null && vote.getMember().getProfile() != null) {
                         creatorNickname = vote.getMember().getProfile().getNickname();
                     } else if (vote.getMember() != null && vote.getMember().getName() != null) {
-                        creatorNickname = vote.getMember().getName(); // Member의 기본 이름 사용
+                        creatorNickname = vote.getMember().getName();
                     }
 
                     List<VoteListResponse.VoteOptionListDto> optionListDtos = vote.getVoteOptions().stream()
@@ -360,7 +384,6 @@ public class VoteServiceImpl implements VoteService {
                                     .build())
                             .collect(Collectors.toList());
 
-                    // CommentGroup에서 totalCommentCount 가져오기
                     Integer totalCommentCount = 0;
                     if (vote.getCommentGroup() != null) {
                         totalCommentCount = vote.getCommentGroup().getTotalCommentCount();
@@ -382,7 +405,8 @@ public class VoteServiceImpl implements VoteService {
 
         return VoteListResponse.builder()
                 .votes(voteDtos)
-                .has_next_page(votesPage.hasNext())
+                .has_next_page(hasNext)
+                .next_cursor(nextCursor)
                 .build();
     }
 }
