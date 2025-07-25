@@ -1,5 +1,7 @@
 package com.valanse.valanse.service.CommentService;
 
+import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.core.types.dsl.NumberTemplate;
 import com.valanse.valanse.domain.*;
 import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.dto.Comment.*;
@@ -12,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -167,6 +170,13 @@ public class CommentServiceImpl implements CommentService {
                             .findFirst()
                             .orElse(null);
 
+
+                    LocalDateTime now = LocalDateTime.now();
+                    LocalDateTime createdAt = reply.getCreatedAt();
+                    long totalHours = ChronoUnit.HOURS.between(createdAt, now);
+                    long daysAgo = totalHours / 24;
+                    long hoursAgo = totalHours % 24;
+
                     return CommentReplyResponseDto.builder()
                             .id(reply.getId())
                             .nickname(profile.getNickname())
@@ -176,6 +186,8 @@ public class CommentServiceImpl implements CommentService {
                             .replyCount(reply.getReplyCount())
                             .deletedAt(reply.getDeletedAt())
                             .label(label)
+                            .daysAgo(daysAgo)
+                            .hoursAgo(hoursAgo)
                             .build();
                 })
                 .collect(Collectors.toList());
