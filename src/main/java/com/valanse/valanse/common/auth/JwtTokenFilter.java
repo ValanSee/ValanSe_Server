@@ -48,7 +48,7 @@ public class JwtTokenFilter extends GenericFilter {
                         uri.startsWith("/webjars") ||
                         uri.equals("/votes/best") ||
 
-                        // 추가된 부분: GET /votes (목록 조회) 경로 허용
+                        // GET /votes (목록 조회) 경로 허용
                         (uri.equals("/votes") && request.getMethod().equals("GET")) ||
 
                         // 추가된 부분: GET /votes/{voteId} (상세 조회) 경로 허용
@@ -68,7 +68,6 @@ public class JwtTokenFilter extends GenericFilter {
         }
 
 
-        // Authorization 헤더에서 토큰 추출
         String token = request.getHeader("Authorization");
         try {
             // Bearer로 시작하는 토큰인지 확인
