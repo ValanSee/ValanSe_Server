@@ -20,7 +20,7 @@ public class VoteResponseDto {
         this.title = vote.getTitle();
         this.category = vote.getCategory().name(); // enum to string
         this.totalVoteCount = vote.getTotalVoteCount();
-        this.createdAt = vote.getCreatedAt().toString();
+        this.createdAt = vote.getCreatedAt().toLocalDate().toString();
         this.options = vote.getVoteOptions()
                 .stream()
                 .map(option -> option.getContent())  //  VoteOption에서 content 추출
