@@ -17,6 +17,10 @@ public class VoteDetailResponse {
     private String creatorNickname; // 생성자의 닉네임을 원한다고 가정
     private LocalDateTime createdAt;
     private List<VoteOptionDto> options; // 투표 옵션을 위한 DTO
+    // --- 추가될 필드 ---
+    private Boolean hasVoted; // 사용자가 이 투표에 투표했는지 여부
+    private String votedOptionLabel; // 사용자가 투표한 선택지의 라벨 (예: "A", "B")
+    // --- 추가될 필드 끝 ---
 
     @Getter
     @Builder

@@ -60,9 +60,25 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
 }
 
-// QueryDSL 설정
-def querydslDir = layout.buildDirectory.dir("generated/querydsl").get().asFile
+// QueryDSL 설정 시작
+// QueryDSL Q-Type이 생성될 디렉토리 정의
+// Gradle의 표준 어노테이션 프로세서 생성 소스 디렉토리 경로를 따릅니다.
+def generatedQuerydslDir = layout.buildDirectory.dir("generated/sources/annotationProcessor/java/main").get().asFile
 
-sourceSets {
-    main.java.srcDirs += querydslDir
+// 모든 Java 컴파일 태스크에 대해 어노테이션 프로세서의 출력 디렉토리를 명시적으로 설정
+tasks.withType(JavaCompile) {
+    options.annotationProcessorGeneratedSourcesDirectory = generatedQuerydslDir
 }
+
+// 생성된 QueryDSL 디렉토리를 main 소스 세트에 추가하여 컴파일 과정에 포함시킵니다.
+// 이렇게 하면 빌드 시스템이 이 파일들을 '생성된' 소스로 인식합니다.
+sourceSets {
+    main.java.srcDirs += generatedQuerydslDir
+}
+
+// 'clean' 태스크 실행 시 생성된 QueryDSL 디렉토리가 함께 삭제되도록 설정
+// 이는 빌드 시 잠재적인 충돌을 방지하는 데 중요합니다.
+clean {
+    delete generatedQuerydslDir
+}
+// QueryDSL 설정 끝

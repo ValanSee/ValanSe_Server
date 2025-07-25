@@ -14,6 +14,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // import 추가
 
@@ -248,6 +249,41 @@ public class VoteServiceImpl implements VoteService {
                         .label(option.getLabel().name())
                         .build())
                 .collect(Collectors.toList());
+        // --- 추가된 로직 시작 ---
+        Boolean hasVoted = false;
+        String votedOptionLabel = null;
+
+        // 현재 로그인한 사용자 ID 가져오기
+        // JwtTokenFilter에서 인증 시 SecurityContextHolder에 userId를 String으로 저장함
+        Long currentUserId = null;
+        try {
+            if (SecurityContextHolder.getContext().getAuthentication() != null &&
+                    SecurityContextHolder.getContext().getAuthentication().getName() != null &&
+                    !SecurityContextHolder.getContext().getAuthentication().getName().equals("anonymousUser")) {
+                currentUserId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+                // --- 디버깅 로그 추가 시작 ---
+                System.out.println("DEBUG: Authenticated user ID: " + currentUserId);
+                // --- 디버깅 로그 추가 끝 ---
+            } else {
+                // --- 디버깅 로그 추가 시작 ---
+                System.out.println("DEBUG: User is not authenticated or is anonymous.");
+                // --- 디버깅 로그 추가 끝 ---
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("DEBUG: Error parsing user ID from SecurityContext: " + e.getMessage());
+            currentUserId = null;
+        }
+
+
+        if (currentUserId != null) {
+            // 사용자의 투표 기록 조회
+            Optional<MemberVoteOption> userVote = memberVoteOptionRepository.findByMemberIdAndVoteId(currentUserId, voteId);
+            if (userVote.isPresent()) {
+                hasVoted = true;
+                votedOptionLabel = userVote.get().getVoteOption().getLabel().name();
+            }
+        }
+        // --- 추가된 로직 끝 ---
 
         return VoteDetailResponse.builder()
                 .voteId(vote.getId())
@@ -257,6 +293,8 @@ public class VoteServiceImpl implements VoteService {
                 .creatorNickname(creatorNickname) // 수정된 닉네임 사용
                 .createdAt(vote.getCreatedAt())
                 .options(optionDtos)
+                .hasVoted(hasVoted) // 새로운 필드 값 설정
+                .votedOptionLabel(votedOptionLabel) // 새로운 필드 값 설정
                 .build();
     }
 
