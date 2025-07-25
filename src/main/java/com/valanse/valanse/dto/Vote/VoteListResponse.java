@@ -9,6 +9,9 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonFormat;
+
+
 
 @Data
 @NoArgsConstructor
@@ -29,6 +32,7 @@ public class VoteListResponse {
         private String category; // ENUM 이름을 String으로 반환
         private Long member_id;
         private String nickname;
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
         private LocalDateTime created_at;
         private Integer total_vote_count;
         private Integer total_comment_count; // 댓글 그룹의 총 댓글 수
