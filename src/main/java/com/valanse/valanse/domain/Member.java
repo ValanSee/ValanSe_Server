@@ -26,7 +26,7 @@ public class Member extends BaseEntity {
 
     private String socialId; // kakao id
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String email; // 카카오 이메일
 
     private String name; // 카카오 이름
