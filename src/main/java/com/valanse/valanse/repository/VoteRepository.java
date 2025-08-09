@@ -5,6 +5,7 @@ import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.Vote; //
 import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.enums.VoteCategory;
+import com.valanse.valanse.repository.VotesCheckRepositoryCustom.VoteRepositoryCustom;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,7 +18,7 @@ import java.util.Optional;
 import java.time.LocalDateTime;
 
 @Repository
-public interface VoteRepository extends JpaRepository<Vote, Long> {
+public interface VoteRepository extends JpaRepository<Vote, Long>, VoteRepositoryCustom {
 
     // 내가 생성한 투표
     List<Vote> findAllByMemberOrderByCreatedAtDesc(Member member);
