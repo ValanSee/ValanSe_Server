@@ -89,14 +89,32 @@ public class VoteServiceImpl implements VoteService {
     //여기서부터 영서 코드
     @Override
     public HotIssueVoteResponse getHotIssueVote() { // 파라미터 없음
-        // 현재 시간으로부터 30일 이전의 시간을 계산합니다. (하드코딩된 30일)
-        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(30);
+        // 수정: 작일 반응성 기준으로 변경
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime yesterdayStart = now.minusDays(1).withHour(0).withMinute(0).withSecond(0);
 
-        // 1. 30일 이내에 생성된 투표 중, 가장 많이 참여한 투표 조회 (totalVoteCount 기준, 동률일 경우 최신 생성일시 기준)
-        Vote hotIssueVote = voteRepository.findTopByCreatedAtAfterOrderByTotalVoteCountDescCreatedAtDesc(sevenDaysAgo)
-                .orElseThrow(() -> new ApiException("30일 이내의 핫이슈 투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+        // 1. 먼저 모든 투표의 반응성 점수를 업데이트 (실시간 계산)
+        List<Vote> allVotes = voteRepository.findAll();
+        for(Vote vote : allVotes) {
+            vote.updateReactivityScore(); // Vote 엔티티에 추가한 메서드
+            voteRepository.save(vote);
+        }
 
-        // 2. 투표 생성자 정보 조회 (닉네임)
+        // 2. 작일 동안 반응성이 가장 높은 투표 조회 시도
+        Optional<Vote> yesterdayHotIssue = voteRepository
+                .findTopByReactivityUpdatedAtBetweenOrderByReactivityScoreDescCreatedAtDesc(yesterdayStart, now);
+
+        Vote hotIssueVote;
+        if (yesterdayHotIssue.isPresent()) {
+            // 작일 반응성 데이터가 있는 경우
+            hotIssueVote = yesterdayHotIssue.get();
+        } else {
+            // 작일 반응성 데이터가 없는 경우 → 전체 누적 반응성 기준 조회
+            hotIssueVote = voteRepository.findTopByOrderByReactivityScoreDescCreatedAtDesc()
+                    .orElseThrow(() -> new ApiException("핫이슈 투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+        }
+
+        // 3. 투표 생성자 정보 조회 (닉네임) - 기존 로직 유지
         String createdByNickname = "익명"; // 기본값 설정
         if (hotIssueVote.getMember() != null) { // Member가 null이 아닌 경우
             Member creatorMember = hotIssueVote.getMember(); // 생성자 Member 객체 가져오기
@@ -111,7 +129,7 @@ public class VoteServiceImpl implements VoteService {
             }
         }
 
-        // 3. 투표 옵션 정보 DTO로 변환
+        // 4. 투표 옵션 정보 DTO로 변환
         List<HotIssueVoteOptionDto> options = hotIssueVote.getVoteOptions().stream()
                 .map(option -> HotIssueVoteOptionDto.builder() // HotIssueVoteOptionDto 빌더 사용
                         .optionId(option.getId())  //option ID넣기
@@ -120,7 +138,7 @@ public class VoteServiceImpl implements VoteService {
                         .build())
                 .collect(Collectors.toList()); // 리스트로 수집
 
-        // 4. HotIssueVoteResponse DTO 생성 및 반환
+        // 5. HotIssueVoteResponse DTO 생성 및 반환
         return HotIssueVoteResponse.builder()
                 .voteId(hotIssueVote.getId()) // 투표 ID 설정
                 .title(hotIssueVote.getTitle()) // 제목 설정
