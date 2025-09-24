@@ -1,5 +1,7 @@
 package com.valanse.valanse.service.CommentService;
 
+import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.core.types.dsl.NumberTemplate;
 import com.valanse.valanse.domain.*;
 import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.dto.Comment.*;
@@ -9,8 +11,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
 
 
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -39,7 +43,7 @@ public class CommentServiceImpl implements CommentService {
                 throw new IllegalArgumentException("삭제 권한 없음");
             }
 
-            comment.setIsDeleted(true);
+            comment.setDeletedAt(LocalDateTime.now());
             commentRepository.save(comment);
 
             System.out.println("댓글 ID " + commentId + " → isDeleted=true 저장 완료");
@@ -55,10 +59,12 @@ public class CommentServiceImpl implements CommentService {
         Long memberId = member.getId();
         List<Comment> comments;
 
-        if ("asc".equalsIgnoreCase(sort)) {
-            comments = commentRepository.findByMemberIdAndIsDeletedFalseOrderByCreatedAtAsc(memberId);
+        if ("oldest".equalsIgnoreCase(sort)) {
+            comments = commentRepository.findByMemberIdAndDeletedAtIsNullOrderByCreatedAtAsc(memberId);
+        } else if ("latest".equalsIgnoreCase(sort)) {
+            comments = commentRepository.findByMemberIdAndDeletedAtIsNullOrderByCreatedAtDesc(memberId);
         } else {
-            comments = commentRepository.findByMemberIdAndIsDeletedFalseOrderByCreatedAtDesc(memberId);
+            throw new IllegalArgumentException("sort 파라미터는 'latest' 또는 'oldest'만 허용됩니다.");
         }
 
         return comments.stream()
@@ -100,7 +106,7 @@ public class CommentServiceImpl implements CommentService {
                 .parent(parent)
                 .likeCount(0)
                 .replyCount(0)
-                .isDeleted(false)
+                .deletedAt(null)
                 .build();
         commentGroup.setTotalCommentCount(commentGroup.getTotalCommentCount() + 1); // 총 댓글 수 증가
         commentGroupRepository.save(commentGroup);
@@ -121,16 +127,28 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public BestCommentResponseDto getBestCommentByVoteId(Long voteId) {
-        CommentGroup group = commentGroupRepository.findByVoteId(voteId)
-                .orElseThrow(() -> new IllegalArgumentException("comment group not found"));
+        // commentGroup이 없으면 아예 댓글도 없다고 판단하고 빈 응답 반환
+        CommentGroup group = commentGroupRepository.findByVoteId(voteId).orElse(null);
+        if (group == null) {
+            return BestCommentResponseDto.builder()
+                    .totalCommentCount(0)
+                    .content(null)
+                    .build();
+        }
 
         return commentRepository.findMostLikedCommentByVoteId(voteId)
                 .map(comment -> BestCommentResponseDto.builder()
                         .totalCommentCount(group.getTotalCommentCount())
                         .content(comment.getContent())
                         .build())
-                .orElseThrow(() -> new IllegalArgumentException("comment not found"));
+                .orElse( // 댓글이 없을 경우에도 빈 응답 반환
+                        BestCommentResponseDto.builder()
+                                .totalCommentCount(group.getTotalCommentCount())
+                                .content(null)
+                                .build()
+                );
     }
+
 
     @Override
     public List<CommentReplyResponseDto> getReplies(Long voteId, Long parentCommentId) {
@@ -152,6 +170,13 @@ public class CommentServiceImpl implements CommentService {
                             .findFirst()
                             .orElse(null);
 
+
+                    LocalDateTime now = LocalDateTime.now();
+                    LocalDateTime createdAt = reply.getCreatedAt();
+                    long totalHours = ChronoUnit.HOURS.between(createdAt, now);
+                    long daysAgo = totalHours / 24;
+                    long hoursAgo = totalHours % 24;
+
                     return CommentReplyResponseDto.builder()
                             .id(reply.getId())
                             .nickname(profile.getNickname())
@@ -159,8 +184,10 @@ public class CommentServiceImpl implements CommentService {
                             .content(reply.getContent())
                             .likeCount(reply.getLikeCount())
                             .replyCount(reply.getReplyCount())
-                            .isDeleted(reply.getIsDeleted())
+                            .deletedAt(reply.getDeletedAt())
                             .label(label)
+                            .daysAgo(daysAgo)
+                            .hoursAgo(hoursAgo)
                             .build();
                 })
                 .collect(Collectors.toList());

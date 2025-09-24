@@ -50,6 +50,9 @@ src/main/resources/application.yml
 
 ## 필요한 경우 data.sql 추가:
 src/main/resources/data.sql
+src/main/resources/clear_data.sql
+src/main/resources/new_data.sql
+src/main/resources/new_comments.sql
 
 # QueryDSL Q타입
 /src/main/generated/
@@ -59,4 +62,4 @@ gradle.properties
 
 ### pem key ###
 valanse.pem
-
+new-valanse.pem

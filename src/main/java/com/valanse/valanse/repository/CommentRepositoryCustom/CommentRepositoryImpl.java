@@ -2,6 +2,8 @@ package com.valanse.valanse.repository.CommentRepositoryCustom;
 
 //import com.querydsl.core.types.dsl.CaseBuilder;
 //import static com.querydsl.core.types.dsl.Expressions.constant;
+import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.core.types.dsl.NumberTemplate;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.valanse.valanse.domain.*;
 import com.valanse.valanse.domain.mapping.QMemberVoteOption;
@@ -28,28 +30,48 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
         QVote vote = QVote.vote;
         QMemberVoteOption mvo = QMemberVoteOption.memberVoteOption;
         QVoteOption voteOption = QVoteOption.voteOption;
+        QMemberProfile profile = QMemberProfile.memberProfile;
+
+        NumberTemplate<Long> totalHoursAgo = Expressions.numberTemplate(
+                Long.class,
+                "timestampdiff(hour, {0}, current_timestamp)",
+                comment.createdAt
+        );
+
+        NumberTemplate<Long> daysAgo = Expressions.numberTemplate(
+                Long.class,
+                "floor(timestampdiff(hour, {0}, current_timestamp) / 24)",
+                comment.createdAt
+        );
+
+        NumberTemplate<Long> hoursAgo = Expressions.numberTemplate(
+                Long.class,
+                "mod(timestampdiff(hour, {0}, current_timestamp), 24)",
+                comment.createdAt
+        );
 
         List<CommentResponseDto> result = queryFactory
                 .select(new QCommentResponseDto(
+                        comment.id,
                         vote.id,
-                        member.profile.nickname,
+                        profile.nickname,
                         comment.createdAt,
+                        vote.createdAt,
                         comment.content,
                         comment.likeCount,
                         comment.replyCount,
-                        comment.isDeleted,
-                        voteOption.label.stringValue()
-//                        new CaseBuilder()
-//                                .when(voteOption.isNotNull())
-//                                .then(voteOption.label.stringValue())
-//                                .otherwise(constant("NONE"))
-                ))
+                        comment.deletedAt,
+                        voteOption.label.stringValue(),
+                        daysAgo,
+                        hoursAgo
+                        ))
                 .from(comment)
                 .join(comment.member, member)
+                .leftJoin(member.profile, profile)
                 .join(comment.commentGroup.vote, vote)
                 .leftJoin(mvo).on(mvo.member.eq(member).and(mvo.vote.eq(vote)))
                 .leftJoin(mvo.voteOption, voteOption)
-                .where(vote.id.eq(voteId), comment.parent.isNull())
+                .where(vote.id.eq(voteId), comment.parent.isNull(), comment.deletedAt.isNull()) // deletedAt 조건 추가
                 .orderBy(sort.equals("latest") ? comment.createdAt.desc() : comment.likeCount.desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize() + 1)

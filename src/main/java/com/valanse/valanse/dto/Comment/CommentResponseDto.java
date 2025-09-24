@@ -10,27 +10,35 @@ import com.querydsl.core.annotations.QueryProjection;
 @Getter
 @Builder
 public class CommentResponseDto {
+    private Long commentId;
     private Long voteId;
     private String nickname;
-    private LocalDateTime createdAt;
+    private LocalDateTime commentCreatedAt;  // 추가
+    private LocalDateTime voteCreatedAt;     // 추가
     private String content;
     private Integer likeCount;
     private Integer replyCount;
-    private Boolean isDeleted;
-    private String label;
+    private LocalDateTime deletedAt;
+    private String voteOptionLabel;
+    private Long daysAgo;
+    private Long hoursAgo;
 
     @QueryProjection
-    public CommentResponseDto(Long voteId, String nickname, LocalDateTime createdAt,
+    public CommentResponseDto(Long commentId, Long voteId, String nickname,
+                              LocalDateTime commentCreatedAt, LocalDateTime voteCreatedAt,  // 추가
                               String content, Integer likeCount, Integer replyCount,
-                              Boolean isDeleted, String label) {
+                              LocalDateTime deletedAt, String voteOptionLabel, Long daysAgo, Long hoursAgo) {
+        this.commentId = commentId;
         this.voteId = voteId;
         this.nickname = nickname;
-        this.createdAt = createdAt;
+        this.commentCreatedAt = commentCreatedAt;
+        this.voteCreatedAt = voteCreatedAt;
         this.content = content;
         this.likeCount = likeCount;
         this.replyCount = replyCount;
-        this.isDeleted = isDeleted;
-        this.label = label;
+        this.deletedAt = deletedAt;
+        this.voteOptionLabel = voteOptionLabel;
+        this.daysAgo = daysAgo;
+        this.hoursAgo = hoursAgo;
     }
 }
-

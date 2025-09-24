@@ -24,9 +24,9 @@ public class Member extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id; // uuid
 
-    private String socialId; // kakao id
+    private String socialId; // kakao id 카카오가 제공하는 고유 사용자 id
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = true)
     private String email; // 카카오 이메일
 
     private String name; // 카카오 이름
@@ -41,9 +41,11 @@ public class Member extends BaseEntity {
     @Builder.Default
     private SocialType socialType = SocialType.KAKAO;
 
-    private String kakaoAccessToken;
+    private String kakaoAccessToken; // 카카오 API 호출용(짧은 만료시간)
 
-    private String kakaoRefreshToken;
+    private String kakaoRefreshToken; // AccessToken 갱신용
+
+    private String nickname;
 
     @Builder.Default
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)

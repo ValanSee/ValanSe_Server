@@ -30,6 +30,10 @@ public class VoteController {
     private final VoteService voteService;
 
     @GetMapping("/mine/created")
+    @Operation(
+            summary = "내가 만든 밸런스게임 목록 가져오기",
+            description = "내가 만든 밸런스게임 목록을 시간순(latest/oldest)으로 반환합니다."
+    )
     public ResponseEntity<List<VoteResponseDto>> getMyCreatedVotes(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(required = false) String category,       // 추가
@@ -47,6 +51,10 @@ public class VoteController {
     }
 
     @GetMapping("/mine/voted")
+    @Operation(
+            summary = "내가 투표한 밸런스게임 목록 가져오기",
+            description = "내가 투표한 밸런스게임 목록을 시간순(latest/oldest)으로 반환합니다."
+    )
     public ResponseEntity<List<VoteResponseDto>> getMyVotedVotes(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(required = false) String category,       // 추가
@@ -162,15 +170,11 @@ public class VoteController {
 public ResponseEntity<VoteListResponse> getVotes(
         @RequestParam(value = "category", required = false, defaultValue = "ALL") String category,
         @RequestParam(value = "sort", required = false, defaultValue = "latest") String sort,
-        @Parameter(in = ParameterIn.QUERY, description = "페이지 번호 (0부터 시작)", required = false, example = "0")
-        @RequestParam(value = "page", defaultValue = "0") int page,
-        @Parameter(in = ParameterIn.QUERY, description = "페이지당 항목 수", required = false, example = "10")
+        @RequestParam(value = "cursor", required = false) String cursor, // 변경된 파라미터
         @RequestParam(value = "size", defaultValue = "10") int size
 ) {
-    // Pageable 객체를 수동으로 생성하여 서비스 계층에 전달
-    Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, getSortProperty(sort)));
-
-    VoteListResponse response = voteService.getVotesByCategoryAndSort(category, sort, pageable);
+    // Pageable 객체 대신 cursor, size를 직접 전달
+    VoteListResponse response = voteService.getVotesByCategoryAndSort(category, sort, cursor, size);
     return ResponseEntity.ok(response);
 }
 

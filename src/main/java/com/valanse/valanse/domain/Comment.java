@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import java.time.LocalDateTime;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +23,9 @@ public class Comment extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(length = 255)
+    private String title;  // 댓글 제목 추가
+
     @Column(columnDefinition = "TEXT")
     private String content;
 
@@ -29,7 +33,7 @@ public class Comment extends BaseEntity {
 
     private Integer replyCount; // 대댓글 개수
 
-    private Boolean isDeleted;
+    private LocalDateTime deletedAt;
 
     @ManyToOne
     @JoinColumn(name = "member_id")
@@ -48,6 +52,10 @@ public class Comment extends BaseEntity {
     @JoinColumn(name = "parent_id")
     private Comment parent;
 
+    @ManyToOne
+    @JoinColumn(name = "vote_option_id")
+    private VoteOption voteOption;
+
     @Builder.Default
     @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
     private List<Comment> replies = new ArrayList<>();
@@ -56,9 +64,12 @@ public class Comment extends BaseEntity {
         this.replyCount = newCount;
     }
 
-    public void setLikeCount(int count) { this.likeCount = count; }
-
-    public void setIsDeleted(boolean isDeleted) {
-        this.isDeleted = isDeleted; }
+    public void setLikeCount(int count) {
+        this.likeCount = count;
     }
+
+    public void setDeletedAt(LocalDateTime deletedAt) {  // 메서드 변경
+        this.deletedAt = deletedAt;
+    }
+}
 
