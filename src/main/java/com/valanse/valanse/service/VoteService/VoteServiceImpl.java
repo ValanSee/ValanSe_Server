@@ -89,12 +89,12 @@ public class VoteServiceImpl implements VoteService {
     //여기서부터 영서 코드
     @Override
     public HotIssueVoteResponse getHotIssueVote() { // 파라미터 없음
-        // 현재 시간으로부터 7일 이전의 시간을 계산합니다. (하드코딩된 7일)
-        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+        // 현재 시간으로부터 30일 이전의 시간을 계산합니다. (하드코딩된 30일)
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(30);
 
-        // 1. 7일 이내에 생성된 투표 중, 가장 많이 참여한 투표 조회 (totalVoteCount 기준, 동률일 경우 최신 생성일시 기준)
+        // 1. 30일 이내에 생성된 투표 중, 가장 많이 참여한 투표 조회 (totalVoteCount 기준, 동률일 경우 최신 생성일시 기준)
         Vote hotIssueVote = voteRepository.findTopByCreatedAtAfterOrderByTotalVoteCountDescCreatedAtDesc(sevenDaysAgo)
-                .orElseThrow(() -> new ApiException("7일 이내의 핫이슈 투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException("30일 이내의 핫이슈 투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
 
         // 2. 투표 생성자 정보 조회 (닉네임)
         String createdByNickname = "익명"; // 기본값 설정
