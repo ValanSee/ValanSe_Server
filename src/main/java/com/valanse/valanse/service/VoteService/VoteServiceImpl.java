@@ -495,4 +495,20 @@ public class VoteServiceImpl implements VoteService {
                 .next_cursor(nextCursor)
                 .build();
     }
+
+    @Override
+    @Transactional
+    public void deleteVote(Long userId, Long voteId) {
+        Vote vote = voteRepository.findById(voteId)
+                .orElseThrow(() -> new ApiException("투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+
+        // 권한 확인
+        if (!vote.getMember().getId().equals(userId)) {
+            throw new ApiException("삭제 권한이 없습니다.", HttpStatus.FORBIDDEN);
+        }
+
+        // BaseEntity의 softDelete() 메서드 사용
+        vote.softDelete();
+        voteRepository.save(vote);
+    }
 }

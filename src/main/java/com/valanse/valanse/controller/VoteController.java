@@ -205,4 +205,12 @@ public ResponseEntity<VoteListResponse> getVotes(
         return "createdAt"; // 기본은 최신순
     }
 
+    @DeleteMapping("/{voteId}")
+    @Operation(summary = "투표 삭제", description = "내가 작성한 투표를 삭제합니다.")
+    public ResponseEntity<Void> deleteVote(@PathVariable("voteId") Long voteId) {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        voteService.deleteVote(userId, voteId);
+        return ResponseEntity.ok().build();
+    }
+
 }
