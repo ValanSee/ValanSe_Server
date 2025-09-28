@@ -50,6 +50,7 @@ public class SecurityConfig {
                                 "/swagger-resources/**",
                                 "/webjars/**",
                                 "/votes/best",
+                                "/votes/trending",
                                 "/votes/*/comments/*/replies",
                                 "/votes/*/comments/best"
                         ).permitAll()

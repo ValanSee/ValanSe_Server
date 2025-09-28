@@ -42,6 +42,9 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
 
+    // 테스트용 H2 데이터베이스 추가
+    testImplementation 'com.h2database:h2'
+
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 
     // JWT 설정
@@ -58,6 +61,8 @@ dependencies {
 
     // jdbc
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+
+
 }
 
 // QueryDSL 설정
