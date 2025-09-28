@@ -11,6 +11,7 @@ import java.util.List;
 @NoArgsConstructor
 public class VoteCreateRequest {
     private String title;
+    private String content; // 투표 상세 내용 (선택사항)
     private List<String> options; // 최대 4개 옵션을 받을 수 있도록 List<String>으로 정의
     private VoteCategory category; // ERD의 Vote 테이블 category와 매핑
 }
