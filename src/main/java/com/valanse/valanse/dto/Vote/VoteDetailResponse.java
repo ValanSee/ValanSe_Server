@@ -12,6 +12,7 @@ import java.util.List;
 public class VoteDetailResponse {
     private Long voteId;
     private String title;
+    private String content; // 투표 상세 내용
     private VoteCategory category;
     private Integer totalVoteCount;
     private String creatorNickname; // 생성자의 닉네임을 원한다고 가정

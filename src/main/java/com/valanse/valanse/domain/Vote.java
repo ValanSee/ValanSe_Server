@@ -27,6 +27,9 @@ public class Vote extends BaseEntity {
 
     private String title;
 
+    @Column(columnDefinition = "TEXT")
+    private String content; // 투표 상세 내용 (nullable)
+
     @Builder.Default
     private Integer totalVoteCount = 0; //Builder.Default 설정이 없으면 null값이 기본값이라 오류가 발생한다.
 

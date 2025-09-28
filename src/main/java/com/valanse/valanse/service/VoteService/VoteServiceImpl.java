@@ -142,6 +142,7 @@ public class VoteServiceImpl implements VoteService {
         return HotIssueVoteResponse.builder()
                 .voteId(hotIssueVote.getId()) // 투표 ID 설정
                 .title(hotIssueVote.getTitle()) // 제목 설정
+                .content(hotIssueVote.getContent())
                 .category(hotIssueVote.getCategory() != null ? hotIssueVote.getCategory().name() : null) // 카테고리 설정
                 .totalParticipants(hotIssueVote.getTotalVoteCount()) // 총 참여자 수 설정
                 .createdBy(createdByNickname) // 생성자 닉네임 설정
@@ -205,6 +206,7 @@ public class VoteServiceImpl implements VoteService {
         return HotIssueVoteResponse.builder()
                 .voteId(trendingVote.getId()) // 투표 ID 설정
                 .title(trendingVote.getTitle()) // 제목 설정
+                .content(trendingVote.getContent())
                 .category(trendingVote.getCategory() != null ? trendingVote.getCategory().name() : null) // 카테고리 설정
                 .totalParticipants(trendingVote.getTotalVoteCount()) // 총 참여자 수 설정
                 .createdBy(createdByNickname) // 생성자 닉네임 설정
@@ -370,6 +372,7 @@ public class VoteServiceImpl implements VoteService {
         return VoteDetailResponse.builder()
                 .voteId(vote.getId())
                 .title(vote.getTitle())
+                .content(vote.getContent())
                 .category(vote.getCategory())
                 .totalVoteCount(vote.getTotalVoteCount())
                 .creatorNickname(creatorNickname) // 수정된 닉네임 사용
@@ -399,6 +402,7 @@ public class VoteServiceImpl implements VoteService {
         // 2. 투표 생성 (아직 데이터베이스에 저장되지 않은 비영속 상태)
         Vote vote = Vote.builder()
                 .title(request.getTitle())
+                .content(request.getContent())
                 .category(request.getCategory())
                 .member(member)
                 .build();
@@ -490,5 +494,21 @@ public class VoteServiceImpl implements VoteService {
                 .has_next_page(hasNext)
                 .next_cursor(nextCursor)
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public void deleteVote(Long userId, Long voteId) {
+        Vote vote = voteRepository.findById(voteId)
+                .orElseThrow(() -> new ApiException("투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+
+        // 권한 확인
+        if (!vote.getMember().getId().equals(userId)) {
+            throw new ApiException("삭제 권한이 없습니다.", HttpStatus.FORBIDDEN);
+        }
+
+        // BaseEntity의 softDelete() 메서드 사용
+        vote.softDelete();
+        voteRepository.save(vote);
     }
 }
