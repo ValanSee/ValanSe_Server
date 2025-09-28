@@ -8,6 +8,10 @@ import com.valanse.valanse.dto.Vote.VoteResponseDto;
 import java.util.List;
 
 public interface VoteService {
+
+    // 신규 추가: 인기 급상승 토픽 조회
+    HotIssueVoteResponse getTrendingVote();
+
     HotIssueVoteResponse getHotIssueVote();
     // 사용자의 투표를 처리하는 핵심 메서드.
     // userId: 현재 로그인한 사용자의 ID

@@ -150,6 +150,70 @@ public class VoteServiceImpl implements VoteService {
                 .build();
     }
 
+    // 인기 급상승 토픽
+    @Override
+    public HotIssueVoteResponse getTrendingVote() {
+       // 7일 이전 시간 계산
+       LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+
+       // 1. 모든 투표의 반응성 점수 업데이트
+        List<Vote> allVotes = voteRepository.findAll();
+        for(Vote vote : allVotes) {
+            vote.updateReactivityScore();
+            voteRepository.save(vote);
+        }
+
+        // 2. 최근 7일 내 반응성이 가장 높은 투표 조회
+        Optional<Vote> recentTrendingVote = voteRepository
+                .findTopByReactivityUpdatedAtBetweenOrderByReactivityScoreDescCreatedAtDesc(sevenDaysAgo, LocalDateTime.now());
+
+        Vote trendingVote;
+        if (recentTrendingVote.isPresent()) {
+            // 7일 내 데이터가 있는 경우 - 새로 업데이트
+            trendingVote = recentTrendingVote.get();
+        } else {
+            // 7일 내 데이터가 없는 경우 - 이전 데이터 유지 (전체 기간에서 가장 높은 반응성)
+            trendingVote = voteRepository.findTopByOrderByReactivityScoreDescCreatedAtDesc()
+                    .orElseThrow(() -> new ApiException("인기 급상승 투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+        }
+
+        // 3. 투표 생성자 정보 조회 (닉네임) - 기존 로직 유지
+        String createdByNickname = "익명"; // 기본값 설정
+        if (trendingVote.getMember() != null) { // Member가 null이 아닌 경우
+            Member creatorMember = trendingVote.getMember(); // 생성자 Member 객체 가져오기
+            MemberProfile profile = memberProfileRepository.findByMemberId(creatorMember.getId()).orElse(null); // MemberProfile 조회
+            if (profile != null && profile.getNickname() != null) { // 프로필이 있고 닉네임이 있는 경우
+                createdByNickname = profile.getNickname(); // 닉네임 설정
+            } else {
+                // MemberProfile이 없거나 닉네임이 없는 경우, Member의 기본 이름 사용 (카카오 이름 등)
+                if (creatorMember.getName() != null) { // Member의 이름이 있는 경우
+                    createdByNickname = creatorMember.getName(); // 이름으로 닉네임 설정
+                }
+            }
+        }
+
+        // 4. 투표 옵션 정보 DTO로 변환
+        List<HotIssueVoteOptionDto> options = trendingVote.getVoteOptions().stream()
+                .map(option -> HotIssueVoteOptionDto.builder() // HotIssueVoteOptionDto 빌더 사용
+                        .optionId(option.getId())  //option ID넣기
+                        .content(option.getContent()) // 옵션 내용 설정
+                        .vote_count(option.getVoteCount()) // 투표 수 설정
+                        .build())
+                .collect(Collectors.toList()); // 리스트로 수집
+
+        // 5. HotIssueVoteResponse DTO 생성 및 반환
+        return HotIssueVoteResponse.builder()
+                .voteId(trendingVote.getId()) // 투표 ID 설정
+                .title(trendingVote.getTitle()) // 제목 설정
+                .category(trendingVote.getCategory() != null ? trendingVote.getCategory().name() : null) // 카테고리 설정
+                .totalParticipants(trendingVote.getTotalVoteCount()) // 총 참여자 수 설정
+                .createdBy(createdByNickname) // 생성자 닉네임 설정
+                .createdAt(trendingVote.getCreatedAt()) // 추가된 부분: createdAt 설정
+                .options(options) // 옵션 리스트 설정
+                .build();
+
+    }
+
     @Override
     @Transactional // 이 메서드는 데이터를 변경하므로 읽기/쓰기 트랜잭션이 필요합니다. (클래스 레벨의 readOnly = true를 오버라이드)
     public VoteCancleResponseDto processVote(Long userId, Long voteId, Long voteOptionId) {

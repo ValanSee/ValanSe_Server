@@ -98,6 +98,25 @@ public class VoteController {
         return ResponseEntity.ok(response);
     }
 
+    // 인기 급상승 토픽
+    @Operation(
+            summary = "인기 급상승 밸런스 게임 선택지들 반환",
+            description = "최근 7일 이내 반응성(투표수 + 댓글수)이 가장 높은 밸런스 게임을 반환합니다. " +
+                    "7일 이내 새로 추가되는 반응이 없을 경우 이전 데이터를 유지합니다.\n" +
+                    "  voteId -> 7일 내 반응성이 가장 높은 투표의 id\n" +
+                    "  title -> 7일 내 반응성이 가장 높은 투표의 제목\n" +
+                    "  category -> 7일 내 반응성이 가장 높은 투표의 카테고리\n" +
+                    "  totalParticipants -> 7일 내 반응성이 가장 높은 투표의 총 투표 수\n" +
+                    "  createdBy -> 7일 내 반응성이 가장 높은 투표를 생성한 사람의 닉네임\n" +
+                    "  createdAt -> 투표 생성 날짜\n" +
+                    "  options -> 투표 옵션 리스트 (content, vote_count)"
+    )
+    @GetMapping("/trending")
+    public ResponseEntity<HotIssueVoteResponse> getTrendingVote() {
+        HotIssueVoteResponse response = voteService.getTrendingVote();
+        return ResponseEntity.ok(response);
+    }
+
 
     @Operation(
             summary = "투표 선택, 취소, 재선택",
