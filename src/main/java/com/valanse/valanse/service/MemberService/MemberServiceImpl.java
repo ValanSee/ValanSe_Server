@@ -9,7 +9,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-//
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -54,6 +53,7 @@ public class MemberServiceImpl implements MemberService {
 //
 //        memberRepository.delete(member); // hard delete
 //    }
+
 
 
     //  추가된 메서드

@@ -7,12 +7,7 @@ import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.repository.*;
-import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -25,7 +20,7 @@ import java.util.stream.Collectors; // 기존 코드에 있었으므로 유지
 
 @Service
 @RequiredArgsConstructor
-@Transactional // 클래스 레벨에서 기본적으로 읽기 전용 트랜잭션으로 설정
+@Transactional(readOnly = true) // 클래스 레벨에서 기본적으로 읽기 전용 트랜잭션으로 설정
 public class VoteServiceImpl implements VoteService {
 
     private final VoteRepository voteRepository;
@@ -387,6 +382,7 @@ public class VoteServiceImpl implements VoteService {
 
 
     @Override
+    @Transactional
     public Long createVote(Long userId, VoteCreateRequest request) {
         // 1. 회원 검증
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)

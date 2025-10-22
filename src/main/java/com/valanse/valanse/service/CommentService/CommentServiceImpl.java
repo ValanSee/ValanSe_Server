@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class CommentServiceImpl implements CommentService {
 
     private final MemberRepository memberRepository;
@@ -29,7 +30,6 @@ public class CommentServiceImpl implements CommentService {
     private final MemberProfileRepository memberProfileRepository;
 
     @Override
-    @Transactional
     public void deleteMyComment(Member member, Long commentId) {
         commentRepository.findById(commentId).ifPresentOrElse(comment -> {
             Long writerId = comment.getMember().getId();
@@ -73,7 +73,6 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    @Transactional
     public Long createComment(Long voteId, Long userId, CommentPostRequest request) {
         Vote vote = voteRepository.findById(voteId)
                 .orElseThrow(() -> new IllegalArgumentException("Vote not found"));
@@ -115,6 +114,7 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable) {
         Slice<CommentResponseDto> slice = commentRepository.findCommentsByVoteIdSlice(voteId, sort, pageable);
         return PagedCommentResponse.builder() // 인덱스 , 쿼리
@@ -126,6 +126,7 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public BestCommentResponseDto getBestCommentByVoteId(Long voteId) {
         // commentGroup이 없으면 아예 댓글도 없다고 판단하고 빈 응답 반환
         CommentGroup group = commentGroupRepository.findByVoteId(voteId).orElse(null);
@@ -151,6 +152,7 @@ public class CommentServiceImpl implements CommentService {
 
 
     @Override
+    @Transactional(readOnly = true)
     public List<CommentReplyResponseDto> getReplies(Long voteId, Long parentCommentId) {
         // 유효한 투표인지 확인
         Vote vote = voteRepository.findById(voteId)
