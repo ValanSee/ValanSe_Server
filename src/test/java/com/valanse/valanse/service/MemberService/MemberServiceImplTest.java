@@ -2,6 +2,7 @@ package com.valanse.valanse.service.MemberService;
 
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.Member;
+import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.repository.MemberRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,7 +42,13 @@ class MemberServiceImplTest {
     @Test
         void 멤버삭제_test() {
         // given
-        Member member = new Member();
+        Member member = Member.builder()
+                .id(1L)
+                .email("test@email.com")
+                .nickname("테스트")
+                .name("test")
+                .role(Role.USER)
+                .build();
 
         when(memberRepository.findByIdAndDeletedAtIsNull(1L))
                 .thenReturn(Optional.of(member));
