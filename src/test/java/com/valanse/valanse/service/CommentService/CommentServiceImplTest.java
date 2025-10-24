@@ -7,7 +7,6 @@ import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.dto.Comment.CommentPostRequest;
 import com.valanse.valanse.repository.*;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -56,8 +55,8 @@ class CommentServiceImplTest {
 
     @Test
     void 새로운댓글생성_test() {
-        //given
 
+        //given
         CommentGroup newGroup = CommentGroup.builder()
                 .vote(vote)
                 .totalCommentCount(0)
@@ -93,7 +92,8 @@ class CommentServiceImplTest {
         //when
         commentService.createComment(1L,1L,request);
 
-        //then
+        //then: comment 저장 1회, commentGroup 저장 2회, commentRepository 찾기 0회, 및 객체 검증
+
         ArgumentCaptor<Comment> commentCaptor = ArgumentCaptor.forClass(Comment.class);
         verify(commentRepository,times(1)).save(commentCaptor.capture());
 
@@ -129,7 +129,7 @@ class CommentServiceImplTest {
                 .build();
 
         Comment parentComment = Comment.builder()
-                .content(newRequest.getContent())
+                .content(parentRequest.getContent())
                 .member(member)
                 .commentGroup(newGroup)
                 .parent(null)
@@ -165,7 +165,7 @@ class CommentServiceImplTest {
         //when
         commentService.createComment(1L,1L,newRequest);
 
-        // then
+        // then: 댓글 저장 1회, 댓글 모음 저장 1회, 댓글 찾기 1회, comment 객체, commentGroup 객체 검증
         ArgumentCaptor<Comment> commentCaptor = ArgumentCaptor.forClass(Comment.class);
         verify(commentRepository,times(1)).save(commentCaptor.capture());
 
@@ -179,7 +179,6 @@ class CommentServiceImplTest {
         CommentGroup commentGroup = commentGroupCaptor.getValue();
         assertThat(commentGroup.getTotalCommentCount()).isEqualTo(2L);
         assertThat(commentGroup.getVote().getId()).isEqualTo(1L);
-
 
         verify(commentRepository, times(1)).findById(any());
     }
@@ -212,13 +211,11 @@ class CommentServiceImplTest {
         //when
         commentService.deleteMyComment(member, 1L);
 
-        //then
+        //then: 댓글 1건 저장 및 deletedAt 속성 추가 검증
         ArgumentCaptor<Comment> commentCaptor = ArgumentCaptor.forClass(Comment.class);
         verify(commentRepository,times(1)).save(commentCaptor.capture());
-
         Comment deleted = commentCaptor.getValue();
         assertThat(deleted.getDeletedAt()).isNotNull();
-
     }
 
 }

@@ -30,7 +30,7 @@ public class TransactionalTest {
     private MemberRepository memberRepository;
 
     @Test
-    void deleteMemberById_ShouldRollback_WhenExceptionOccurs() {
+    void 에러_발생시_롤백되는지() {
         // given
         Member member = memberService.createOauth("sid", "u@e.com", "테스터", "img", "a", "r");
 

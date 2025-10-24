@@ -42,15 +42,9 @@ class MemberServiceImplTest {
     @Test
         void 멤버삭제_test() {
         // given
-        Member member = Member.builder()
-                .id(1L)
-                .email("test@email.com")
-                .nickname("테스트")
-                .name("test")
-                .role(Role.USER)
-                .build();
+        Member member = new Member();
 
-        when(memberRepository.findByIdAndDeletedAtIsNull(1L))
+        when(memberRepository.findByIdAndDeletedAtIsNull(any()))
                 .thenReturn(Optional.of(member));
         when(memberRepository.save(any(Member.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -58,8 +52,8 @@ class MemberServiceImplTest {
         // when
         Member deletedMember = memberService.deleteMemberById();
 
-        // then
-        assertNotNull(deletedMember.getDeletedAt(), "삭제 시간이 설정되어야 합니다.");
+        // then: member 객체 deletedAt 속성 검증 및 member 저장 1회 검증
+        assertNotNull(deletedMember.getDeletedAt());
         verify(memberRepository).save(member);
     }
 
@@ -69,7 +63,7 @@ class MemberServiceImplTest {
         when(memberRepository.findByIdAndDeletedAtIsNull(1L))
                 .thenReturn(Optional.empty());
 
-        // when & then
+        // when & then : Exception 검증
         ApiException exception = assertThrows(ApiException.class,
                 () -> memberService.deleteMemberById());
         assertEquals("사용자를 찾을 수 없습니다", exception.getMessage());

@@ -17,7 +17,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import javax.swing.text.html.Option;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -84,8 +83,7 @@ class MemberProfileServiceImplTest {
         //when
         memberProfileService.saveOrUpdateProfile(baseDto);
 
-        // then
-        // argementCaptor -> 서비스 레이어에서 원하는 레포지토리의 기능이 잘 동작했는지 확인하는 용도
+        // then: memberProfile 저장 1회, savedProfile 객체 속성 확인
         ArgumentCaptor<MemberProfile> captor = ArgumentCaptor.forClass(MemberProfile.class);
         verify(memberProfileRepository, times(1)).save(captor.capture());
 
@@ -121,7 +119,7 @@ class MemberProfileServiceImplTest {
         //when
         memberProfileService.saveOrUpdateProfile(newDto);
 
-        // then
+        // then: memberProfile 저장 1회, savedProfile 객체 속성 검증
         ArgumentCaptor<MemberProfile> captor = ArgumentCaptor.forClass(MemberProfile.class);
         verify(memberProfileRepository, times(1)).save(captor.capture());
 
