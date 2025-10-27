@@ -176,6 +176,7 @@ public class VoteControllerTest {
     @DisplayName("핫이슈 투표가 없을 때 404 Not Found를 반환한다.")
     void getHotIssueVote_NotFound() throws Exception {
         // 모든 투표 삭제하여 핫이슈 투표가 없는 상태로 만듦
+        commentGroupRepository.deleteAll();
         voteRepository.deleteAll();
 
         mockMvc.perform(get("/votes/best") // GET 요청
@@ -190,8 +191,8 @@ public class VoteControllerTest {
     @DisplayName("동일한 반응성을 가진 투표 중 최신 투표를 조회한다.")
     void getHotIssueVote_SameTotalVoteCount_NewerIsHotIssue() throws Exception {
         // 데이터 클린업
-        voteRepository.deleteAll();
         commentGroupRepository.deleteAll();
+        voteRepository.deleteAll();
 
         // 멤버 생성
         Member member3 = Member.builder()

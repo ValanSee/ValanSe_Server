@@ -7,10 +7,10 @@ import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.Set;
@@ -56,6 +56,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         }
     }
 
+    @Transactional(readOnly = true)
     @Override
     public MemberProfileResponse getProfile() {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
@@ -135,6 +136,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         return true;
     }
 
+    @Transactional(readOnly = true)
     @Override
     public MemberMyPageResponse getMyProfile() {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
