@@ -6,13 +6,18 @@ import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.Report;
 import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.enums.ReportType;
+import com.valanse.valanse.domain.enums.Role;
+import com.valanse.valanse.dto.Report.ReportedTargetResponse;
 import com.valanse.valanse.repository.CommentRepository;
 import com.valanse.valanse.repository.ReportRepository;
+import com.valanse.valanse.repository.ReportRepositoryCustom.ReportRepositoryCustom;
 import com.valanse.valanse.repository.VoteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +27,7 @@ public class ReportServiceImpl implements ReportService{
     private final VoteRepository voteRepository;
     private final CommentRepository commentRepository;
     private final ReportRepository reportRepository;
+    private final ReportRepositoryCustom reportRepositoryCustom;
 
     @Override
     public void report(Member member, Long targetId, ReportType reportType){
@@ -54,6 +60,22 @@ public class ReportServiceImpl implements ReportService{
                 .build();
 
         reportRepository.save(report);
+    }
+
+    @Override
+    public List<ReportedTargetResponse> getReportedTargets(Member member, ReportType type, String sort) {
+        if (member.getRole() != Role.ADMIN) {
+            throw new ApiException("관리자만 접근 가능합니다.", HttpStatus.FORBIDDEN);
+        }
+        return reportRepositoryCustom.findReportedTargets(type, sort);
+    }
+
+    @Override
+    public long countReports(Member member,ReportType type, Long targetId) {
+        if (member.getRole() != Role.ADMIN) {
+            throw new ApiException("관리자만 접근 가능합니다.", HttpStatus.FORBIDDEN);
+        }
+        return reportRepositoryCustom.countReports(type, targetId);
     }
 
 
