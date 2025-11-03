@@ -1,7 +1,6 @@
 package com.valanse.valanse.service.VoteService;
 
 import com.valanse.valanse.dto.Vote.*;
-import org.springframework.data.domain.Pageable;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import com.valanse.valanse.dto.Vote.VoteResponseDto;
 
@@ -26,4 +25,5 @@ public interface VoteService {
     // /votes get 메서드 cursor기반으로 변경
     VoteListResponse getVotesByCategoryAndSort(String category, String sort, String cursor, int size);
     void deleteVote(Long userId, Long voteId);
+
 }

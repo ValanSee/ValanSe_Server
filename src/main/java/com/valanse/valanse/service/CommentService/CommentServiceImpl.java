@@ -3,6 +3,7 @@ package com.valanse.valanse.service.CommentService;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberTemplate;
 import com.valanse.valanse.domain.*;
+import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.dto.Comment.*;
 import com.valanse.valanse.repository.*;
@@ -38,7 +39,7 @@ public class CommentServiceImpl implements CommentService {
             System.out.println("[삭제 시도] 댓글 ID: " + commentId);
             System.out.println("작성자 ID: " + writerId + ", 요청자 ID: " + loginId);
 
-            if (!writerId.equals(loginId)) {
+            if (!writerId.equals(loginId) && !member.getRole().equals(Role.ADMIN)) {
                 System.out.println("삭제 권한 없음: 요청자 ≠ 작성자");
                 throw new IllegalArgumentException("삭제 권한 없음");
             }

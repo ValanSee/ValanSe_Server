@@ -2,6 +2,7 @@ package com.valanse.valanse.service.VoteService;
 
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.*;
+import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.domain.mapping.MemberVoteOption;
@@ -498,8 +499,11 @@ public class VoteServiceImpl implements VoteService {
         Vote vote = voteRepository.findById(voteId)
                 .orElseThrow(() -> new ApiException("투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
 
+        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new ApiException("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+
         // 권한 확인
-        if (!vote.getMember().getId().equals(userId)) {
+        if (!vote.getMember().getId().equals(userId) && !member.getRole().equals(Role.ADMIN)) {
             throw new ApiException("삭제 권한이 없습니다.", HttpStatus.FORBIDDEN);
         }
 
