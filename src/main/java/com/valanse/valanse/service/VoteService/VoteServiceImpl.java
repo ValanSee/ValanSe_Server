@@ -503,7 +503,7 @@ public class VoteServiceImpl implements VoteService {
                 .orElseThrow(() -> new ApiException("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
 
         // 권한 확인
-        if (!vote.getMember().getId().equals(userId) && !member.getRole().equals(Role.ADMIN)) {
+        if (!vote.getMember().getId().equals(userId) && member.getRole() != Role.ADMIN) {
             throw new ApiException("삭제 권한이 없습니다.", HttpStatus.FORBIDDEN);
         }
 
