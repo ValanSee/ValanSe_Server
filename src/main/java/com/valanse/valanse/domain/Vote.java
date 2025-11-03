@@ -1,11 +1,13 @@
 package com.valanse.valanse.domain;
 
 import com.valanse.valanse.domain.common.BaseEntity;
+import com.valanse.valanse.domain.enums.PinType;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 import org.hibernate.annotations.Where;
+import org.springframework.security.core.parameters.P;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,6 +41,10 @@ public class Vote extends BaseEntity {
 
     private LocalDateTime reactivityUpdatedAt;// 반응성 마지막 계산 시점
 
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private PinType pinType = PinType.NONE;
+
 
     @Builder.Default
     @OneToMany(mappedBy = "vote", cascade = CascadeType.ALL)
@@ -50,6 +56,8 @@ public class Vote extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
+
+    // 추가
 
     // totalVoteCount에 대한 Setter 추가
     public void setTotalVoteCount(Integer totalVoteCount) {
@@ -69,6 +77,14 @@ public class Vote extends BaseEntity {
     public void addVoteOption(VoteOption voteOption) {
         this.voteOptions.add(voteOption);
         voteOption.setVote(this);
+    }
+
+    public void pin(PinType pinType) {
+        this.pinType = pinType;
+    }
+
+    public void unpin() {
+        this.pinType = PinType.NONE;
     }
 
 }

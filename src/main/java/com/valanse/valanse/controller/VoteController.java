@@ -1,5 +1,7 @@
 // src/main/java/com/valanse/valanse/controller/VoteController.java
 package com.valanse.valanse.controller;
+import com.valanse.valanse.domain.Member;
+import com.valanse.valanse.domain.enums.PinType;
 import com.valanse.valanse.service.VoteService.VoteService;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.dto.Vote.VoteResponseDto;
@@ -210,6 +212,17 @@ public ResponseEntity<VoteListResponse> getVotes(
     public ResponseEntity<Void> deleteVote(@PathVariable("voteId") Long voteId) {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         voteService.deleteVote(userId, voteId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/{voteId}/pin")
+    @Operation(summary = "고정", description = "관리자 권한으로 게시물을 고정합니다.")
+    public ResponseEntity<Void> updatePinStatus(
+            @AuthenticationPrincipal Member member,
+            @PathVariable Long voteId,
+            @RequestParam PinType pinType)
+    {
+        voteService.updatePinStatus(member, voteId, pinType);
         return ResponseEntity.ok().build();
     }
 

@@ -2,6 +2,7 @@ package com.valanse.valanse.service.VoteService;
 
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.*;
+import com.valanse.valanse.domain.enums.PinType;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import com.valanse.valanse.domain.enums.VoteLabel;
@@ -510,5 +511,21 @@ public class VoteServiceImpl implements VoteService {
         // BaseEntity의 softDelete() 메서드 사용
         vote.softDelete();
         voteRepository.save(vote);
+    }
+
+    @Override
+    @Transactional
+    public void updatePinStatus(Member member, Long voteId, PinType pinType) {
+        if (member.getRole() != Role.ADMIN) {
+            throw new ApiException("권한이 없습니다.", HttpStatus.FORBIDDEN);
+        }
+        Vote vote = voteRepository.findById(voteId)
+                .orElseThrow(() -> new ApiException("게시물이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+        if (pinType != PinType.NONE) {
+            vote.pin(pinType);
+        }
+        else {
+            vote.unpin();
+        }
     }
 }
