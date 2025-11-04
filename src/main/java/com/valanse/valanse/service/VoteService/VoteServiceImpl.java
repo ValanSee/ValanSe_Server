@@ -522,7 +522,8 @@ public class VoteServiceImpl implements VoteService {
         Vote vote = voteRepository.findById(voteId)
                 .orElseThrow(() -> new ApiException("게시물이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
         if (pinType != PinType.NONE) {
-            vote.pin(pinType);
+            vote.pin(pinType
+            );
         }
         else {
             vote.unpin();

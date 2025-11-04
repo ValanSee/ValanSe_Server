@@ -63,6 +63,7 @@ public class ReportServiceImpl implements ReportService{
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ReportedTargetResponse> getReportedTargets(Member member, ReportType type, String sort) {
         if (member.getRole() != Role.ADMIN) {
             throw new ApiException("관리자만 접근 가능합니다.", HttpStatus.FORBIDDEN);
@@ -71,6 +72,7 @@ public class ReportServiceImpl implements ReportService{
     }
 
     @Override
+    @Transactional(readOnly = true)
     public long countReports(Member member,ReportType type, Long targetId) {
         if (member.getRole() != Role.ADMIN) {
             throw new ApiException("관리자만 접근 가능합니다.", HttpStatus.FORBIDDEN);

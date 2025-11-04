@@ -40,7 +40,7 @@ public class CommentServiceImpl implements CommentService {
             System.out.println("작성자 ID: " + writerId + ", 요청자 ID: " + loginId);
 
             if (!writerId.equals(loginId) && member.getRole() != Role.ADMIN) {
-                System.out.println("삭제 권한 없음: 요청자 ≠ 작성자");
+                System.out.println("삭제 권한 없음: 요청자 ≠ 작성자, 관리자 x");
                 throw new IllegalArgumentException("삭제 권한 없음");
             }
 
