@@ -86,6 +86,15 @@ public class VoteServiceImpl implements VoteService {
     //여기서부터 영서 코드
     @Override
     public HotIssueVoteResponse getHotIssueVote() { // 파라미터 없음
+        // 0. 고정 게시물이 있다면 반환.
+        Optional<Vote> pinnedHot = voteRepository.findByPinType(PinType.HOT);
+        if (pinnedHot.isPresent()) {
+            Vote hotIssueVote = pinnedHot.get();
+
+            return getHotIssueVoteResponse(hotIssueVote);
+
+        }
+
         // 수정: 작일 반응성 기준으로 변경
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime yesterdayStart = now.minusDays(1).withHour(0).withMinute(0).withSecond(0);
@@ -112,45 +121,22 @@ public class VoteServiceImpl implements VoteService {
         }
 
         // 3. 투표 생성자 정보 조회 (닉네임) - 기존 로직 유지
-        String createdByNickname = "익명"; // 기본값 설정
-        if (hotIssueVote.getMember() != null) { // Member가 null이 아닌 경우
-            Member creatorMember = hotIssueVote.getMember(); // 생성자 Member 객체 가져오기
-            MemberProfile profile = memberProfileRepository.findByMemberId(creatorMember.getId()).orElse(null); // MemberProfile 조회
-            if (profile != null && profile.getNickname() != null) { // 프로필이 있고 닉네임이 있는 경우
-                createdByNickname = profile.getNickname(); // 닉네임 설정
-            } else {
-                // MemberProfile이 없거나 닉네임이 없는 경우, Member의 기본 이름 사용 (카카오 이름 등)
-                if (creatorMember.getName() != null) { // Member의 이름이 있는 경우
-                    createdByNickname = creatorMember.getName(); // 이름으로 닉네임 설정
-                }
-            }
-        }
-
-        // 4. 투표 옵션 정보 DTO로 변환
-        List<HotIssueVoteOptionDto> options = hotIssueVote.getVoteOptions().stream()
-                .map(option -> HotIssueVoteOptionDto.builder() // HotIssueVoteOptionDto 빌더 사용
-                        .optionId(option.getId())  //option ID넣기
-                        .content(option.getContent()) // 옵션 내용 설정
-                        .vote_count(option.getVoteCount()) // 투표 수 설정
-                        .build())
-                .collect(Collectors.toList()); // 리스트로 수집
-
-        // 5. HotIssueVoteResponse DTO 생성 및 반환
-        return HotIssueVoteResponse.builder()
-                .voteId(hotIssueVote.getId()) // 투표 ID 설정
-                .title(hotIssueVote.getTitle()) // 제목 설정
-                .content(hotIssueVote.getContent())
-                .category(hotIssueVote.getCategory() != null ? hotIssueVote.getCategory().name() : null) // 카테고리 설정
-                .totalParticipants(hotIssueVote.getTotalVoteCount()) // 총 참여자 수 설정
-                .createdBy(createdByNickname) // 생성자 닉네임 설정
-                .createdAt(hotIssueVote.getCreatedAt()) // 추가된 부분: createdAt 설정
-                .options(options) // 옵션 리스트 설정
-                .build();
+        return getHotIssueVoteResponse(hotIssueVote);
     }
 
     // 인기 급상승 토픽
     @Override
     public HotIssueVoteResponse getTrendingVote() {
+       // 0. 고정 게시물이 있다면 반환.
+        Optional<Vote> pinnedTrending = voteRepository.findByPinType(PinType.TRENDING);
+        if (pinnedTrending.isPresent()) {
+
+            Vote trendingVote = pinnedTrending.get();
+
+            return getHotIssueVoteResponse(trendingVote);
+
+        }
+
        // 7일 이전 시간 계산
        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
 
@@ -176,40 +162,7 @@ public class VoteServiceImpl implements VoteService {
         }
 
         // 3. 투표 생성자 정보 조회 (닉네임) - 기존 로직 유지
-        String createdByNickname = "익명"; // 기본값 설정
-        if (trendingVote.getMember() != null) { // Member가 null이 아닌 경우
-            Member creatorMember = trendingVote.getMember(); // 생성자 Member 객체 가져오기
-            MemberProfile profile = memberProfileRepository.findByMemberId(creatorMember.getId()).orElse(null); // MemberProfile 조회
-            if (profile != null && profile.getNickname() != null) { // 프로필이 있고 닉네임이 있는 경우
-                createdByNickname = profile.getNickname(); // 닉네임 설정
-            } else {
-                // MemberProfile이 없거나 닉네임이 없는 경우, Member의 기본 이름 사용 (카카오 이름 등)
-                if (creatorMember.getName() != null) { // Member의 이름이 있는 경우
-                    createdByNickname = creatorMember.getName(); // 이름으로 닉네임 설정
-                }
-            }
-        }
-
-        // 4. 투표 옵션 정보 DTO로 변환
-        List<HotIssueVoteOptionDto> options = trendingVote.getVoteOptions().stream()
-                .map(option -> HotIssueVoteOptionDto.builder() // HotIssueVoteOptionDto 빌더 사용
-                        .optionId(option.getId())  //option ID넣기
-                        .content(option.getContent()) // 옵션 내용 설정
-                        .vote_count(option.getVoteCount()) // 투표 수 설정
-                        .build())
-                .collect(Collectors.toList()); // 리스트로 수집
-
-        // 5. HotIssueVoteResponse DTO 생성 및 반환
-        return HotIssueVoteResponse.builder()
-                .voteId(trendingVote.getId()) // 투표 ID 설정
-                .title(trendingVote.getTitle()) // 제목 설정
-                .content(trendingVote.getContent())
-                .category(trendingVote.getCategory() != null ? trendingVote.getCategory().name() : null) // 카테고리 설정
-                .totalParticipants(trendingVote.getTotalVoteCount()) // 총 참여자 수 설정
-                .createdBy(createdByNickname) // 생성자 닉네임 설정
-                .createdAt(trendingVote.getCreatedAt()) // 추가된 부분: createdAt 설정
-                .options(options) // 옵션 리스트 설정
-                .build();
+        return getHotIssueVoteResponse(trendingVote);
 
     }
 
@@ -522,11 +475,54 @@ public class VoteServiceImpl implements VoteService {
         Vote vote = voteRepository.findById(voteId)
                 .orElseThrow(() -> new ApiException("게시물이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
         if (pinType != PinType.NONE) {
-            vote.pin(pinType
-            );
+            voteRepository.findByPinType(pinType).ifPresent(existing ->
+                    {if (!existing.getId().equals(voteId))
+                    {
+                        existing.unpin();
+                        voteRepository.save(existing);
+                    }});
+            vote.pin(pinType);
         }
         else {
             vote.unpin();
         }
+        voteRepository.save(vote);
     }
+
+    // 메서드
+    private HotIssueVoteResponse getHotIssueVoteResponse(Vote hotIssueVote) {
+        String createdByNickname = "익명"; // 기본값 설정
+        if (hotIssueVote.getMember() != null) { // Member가 null이 아닌 경우
+            Member creatorMember = hotIssueVote.getMember(); // 생성자 Member 객체 가져오기
+            MemberProfile profile = memberProfileRepository.findByMemberId(creatorMember.getId()).orElse(null); // MemberProfile 조회
+            if (profile != null && profile.getNickname() != null) { // 프로필이 있고 닉네임이 있는 경우
+                createdByNickname = profile.getNickname(); // 닉네임 설정
+            } else {
+                // MemberProfile이 없거나 닉네임이 없는 경우, Member의 기본 이름 사용 (카카오 이름 등)
+                if (creatorMember.getName() != null) { // Member의 이름이 있는 경우
+                    createdByNickname = creatorMember.getName(); // 이름으로 닉네임 설정
+                }
+            }
+        }
+
+        List<HotIssueVoteOptionDto> options = hotIssueVote.getVoteOptions().stream()
+                .map(option -> HotIssueVoteOptionDto.builder() // HotIssueVoteOptionDto 빌더 사용
+                        .optionId(option.getId())  //option ID넣기
+                        .content(option.getContent()) // 옵션 내용 설정
+                        .vote_count(option.getVoteCount()) // 투표 수 설정
+                        .build())
+                .collect(Collectors.toList()); // 리스트로 수집
+
+        return HotIssueVoteResponse.builder()
+                .voteId(hotIssueVote.getId()) // 투표 ID 설정
+                .title(hotIssueVote.getTitle()) // 제목 설정
+                .content(hotIssueVote.getContent())
+                .category(hotIssueVote.getCategory() != null ? hotIssueVote.getCategory().name() : null) // 카테고리 설정
+                .totalParticipants(hotIssueVote.getTotalVoteCount()) // 총 참여자 수 설정
+                .createdBy(createdByNickname) // 생성자 닉네임 설정
+                .createdAt(hotIssueVote.getCreatedAt()) // 추가된 부분: createdAt 설정
+                .options(options) // 옵션 리스트 설정
+                .build();
+    }
+
 }
