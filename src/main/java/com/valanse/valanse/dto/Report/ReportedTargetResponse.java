@@ -1,9 +1,17 @@
 package com.valanse.valanse.dto.Report;
 
-import lombok.Getter;
-import lombok.Setter;
+import com.valanse.valanse.dto.Comment.CommentResponseDto;
+import com.valanse.valanse.dto.Vote.VoteResponseDto;
+import lombok.*;
 
-public record ReportedTargetResponse (
-     Long targetId,
-     Long count )
-{}
+@Getter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class ReportedTargetResponse {
+    private Long targetId;
+    private Long reportCount;
+    private String targetType;
+    private VoteResponseDto vote;
+    private CommentResponseDto comment;
+}

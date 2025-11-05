@@ -1,19 +1,13 @@
 // src/main/java/com/valanse/valanse/controller/VoteController.java
 package com.valanse.valanse.controller;
-import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.PinType;
+import com.valanse.valanse.service.MemberService.MemberService;
 import com.valanse.valanse.service.VoteService.VoteService;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.dto.Vote.VoteResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -30,6 +24,7 @@ import java.util.List;
 public class VoteController {
 
     private final VoteService voteService;
+    private final MemberService memberService;
 
     @GetMapping("/mine/created")
     @Operation(
@@ -168,19 +163,6 @@ public class VoteController {
         return ResponseEntity.ok(new VoteCreateResponse(voteId));
     }
 
-//    @Operation(
-//            summary = "카테고리별/정렬 방식별 투표 목록 조회",
-//            description = "카테고리와 정렬 기준에 따라 투표 목록을 조회합니다. 'category' 파라미터는 'ETC', 'FOOD', 'LOVE', 'ALL' 중 하나를 받을 수 있으며, 'sort' 파라미터는 'popular' (인기순) 또는 'latest' (최신순) 중 하나를 받습니다. 페이징을 지원합니다."
-//    )
-//    @GetMapping // 새로운 엔드포인트: /votes?category={category}&sort={sort}
-//    public ResponseEntity<VoteListResponse> getVotes(
-//            @RequestParam(value = "category", required = false, defaultValue = "ALL") String category, // 카테고리 (ALL 포함)
-//            @RequestParam(value = "sort", required = false, defaultValue = "latest") String sort, // 정렬 기준 (popular, latest)
-//            @PageableDefault(size = 10, page = 0) Pageable pageable // 페이징 정보 (기본 10개, 0페이지)
-//    ) {
-//        VoteListResponse response = voteService.getVotesByCategoryAndSort(category, sort, pageable);
-//        return ResponseEntity.ok(response);
-//    }
 @Operation(
         summary = "카테고리별/정렬 방식별 투표 목록 조회",
         description = "카테고리와 정렬 기준에 따라 투표 목록을 조회합니다. 'category' 파라미터는 'ETC', 'FOOD', 'LOVE', 'ALL' 중 하나를 받을 수 있으며, 'sort' 파라미터는 'popular' (인기순) 또는 'latest' (최신순) 중 하나를 받습니다. 페이징을 지원합니다. \n" +
@@ -218,10 +200,11 @@ public ResponseEntity<VoteListResponse> getVotes(
     @PatchMapping("/{voteId}/pin")
     @Operation(summary = "고정", description = "관리자 권한으로 게시물을 고정합니다.")
     public ResponseEntity<Void> updatePinStatus(
-            @AuthenticationPrincipal Member member,
             @PathVariable Long voteId,
             @RequestParam PinType pinType)
     {
+        Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        var member = memberService.findById(loginId);
         voteService.updatePinStatus(member, voteId, pinType);
         return ResponseEntity.ok().build();
     }

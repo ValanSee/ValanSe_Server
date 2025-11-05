@@ -2,20 +2,29 @@ package com.valanse.valanse.repository.ReportRepositoryCustom;
 
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import com.valanse.valanse.domain.Comment;
 import com.valanse.valanse.domain.QReport;
+import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.enums.ReportType;
+import com.valanse.valanse.dto.Comment.CommentResponseDto;
 import com.valanse.valanse.dto.Report.ReportedTargetResponse;
+import com.valanse.valanse.dto.Vote.VoteResponseDto;
+import com.valanse.valanse.repository.CommentRepository;
+import com.valanse.valanse.repository.VoteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import javax.swing.text.html.Option;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
 public class ReportRepositoryImpl implements ReportRepositoryCustom {
     private final JPAQueryFactory queryFactory;
+    private final VoteRepository voteRepository;
+    private final CommentRepository commentRepository;
 
     @Override
     public List<ReportedTargetResponse> findReportedTargets(ReportType type, String sort) {
@@ -29,29 +38,50 @@ public class ReportRepositoryImpl implements ReportRepositoryCustom {
                 .orderBy(
                         sort.equalsIgnoreCase("popular")
                                 ? report.count().desc()
-                                : report.createdAt.desc()
+                                : report.createdAt.max().desc()
                 )
                 .fetch();
         return tuples.stream()
-                .map( t-> new ReportedTargetResponse(
-                        t.get(report.targetId),
-                        t.get(report.count())
-                )).toList();
-    }
+                .map(t -> {
+                    Long targetId = t.get(report.targetId);
+                    Long count = t.get(report.count());
 
-    @Override
-    public long countReports(ReportType type, Long targetId) {
-        QReport report = QReport.report;
-
-        return Optional.ofNullable(queryFactory
-                .select(report.count())
-                .from(report)
-                .where(
-                        report.reportType.eq(type),
-                        report.targetId.eq(targetId)
-                )
-                .fetchOne()
-        ).orElse(0L);
+                    if (type == ReportType.VOTE) {
+                        Vote vote = voteRepository.findById(targetId)
+                                .orElse(null);
+                        return ReportedTargetResponse.builder()
+                                .targetId(targetId)
+                                .reportCount(count)
+                                .targetType("VOTE")
+                                .vote(vote != null ? new VoteResponseDto(vote) : null)
+                                .build();
+                    } else if (type == ReportType.COMMENT) {
+                        Comment comment = commentRepository.findById(targetId).orElse(null);
+                        return ReportedTargetResponse.builder()
+                                .targetId(targetId)
+                                .reportCount(count)
+                                .targetType("COMMENT")
+                                .comment(comment != null
+                                        ? new CommentResponseDto(
+                                        comment.getId(),
+                                        comment.getCommentGroup().getVote().getId(),
+                                        comment.getMember().getNickname(),
+                                        comment.getCreatedAt(),
+                                        comment.getCommentGroup().getVote().getCreatedAt(),
+                                        comment.getContent(),
+                                        comment.getLikeCount(),
+                                        comment.getReplyCount(),
+                                        comment.getDeletedAt(),
+                                        comment.getVoteOption().getLabel().toString(),
+                                        0L, 0L
+                                )
+                                        : null)
+                                .build();
+                    }
+                    return null;
+                })
+                .filter(Objects::nonNull)
+                .toList();
     }
 
 }

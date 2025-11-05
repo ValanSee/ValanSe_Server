@@ -8,5 +8,4 @@ import java.util.List;
 
 public interface ReportRepositoryCustom {
     List<ReportedTargetResponse> findReportedTargets(ReportType type, String sort);
-    long countReports(ReportType type, Long targetId);
 }

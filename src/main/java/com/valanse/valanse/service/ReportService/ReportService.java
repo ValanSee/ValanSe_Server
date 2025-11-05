@@ -12,6 +12,4 @@ public interface ReportService {
     void report(Member member, Long targetId, ReportType reportType);
     // 신고 대상 조회
     List<ReportedTargetResponse> getReportedTargets(Member member,ReportType type, String sort);
-    // 신고 개수 측정
-    long countReports(Member member,ReportType type, Long targetId);
 }

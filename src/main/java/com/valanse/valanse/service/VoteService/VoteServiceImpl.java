@@ -85,14 +85,13 @@ public class VoteServiceImpl implements VoteService {
 
     //여기서부터 영서 코드
     @Override
+    @Transactional
     public HotIssueVoteResponse getHotIssueVote() { // 파라미터 없음
         // 0. 고정 게시물이 있다면 반환.
         Optional<Vote> pinnedHot = voteRepository.findByPinType(PinType.HOT);
         if (pinnedHot.isPresent()) {
             Vote hotIssueVote = pinnedHot.get();
-
             return getHotIssueVoteResponse(hotIssueVote);
-
         }
 
         // 수정: 작일 반응성 기준으로 변경
@@ -126,6 +125,7 @@ public class VoteServiceImpl implements VoteService {
 
     // 인기 급상승 토픽
     @Override
+    @Transactional
     public HotIssueVoteResponse getTrendingVote() {
        // 0. 고정 게시물이 있다면 반환.
         Optional<Vote> pinnedTrending = voteRepository.findByPinType(PinType.TRENDING);
@@ -356,6 +356,7 @@ public class VoteServiceImpl implements VoteService {
                 .content(request.getContent())
                 .category(request.getCategory())
                 .member(member)
+                .pinType(PinType.NONE)
                 .build();
 
         // 3. 투표 옵션 생성 및 추가 (최대 4개 옵션 제한)
@@ -521,6 +522,7 @@ public class VoteServiceImpl implements VoteService {
                 .totalParticipants(hotIssueVote.getTotalVoteCount()) // 총 참여자 수 설정
                 .createdBy(createdByNickname) // 생성자 닉네임 설정
                 .createdAt(hotIssueVote.getCreatedAt()) // 추가된 부분: createdAt 설정
+                .pinType(hotIssueVote.getPinType())
                 .options(options) // 옵션 리스트 설정
                 .build();
     }

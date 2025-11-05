@@ -71,14 +71,5 @@ public class ReportServiceImpl implements ReportService{
         return reportRepositoryCustom.findReportedTargets(type, sort);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public long countReports(Member member,ReportType type, Long targetId) {
-        if (member.getRole() != Role.ADMIN) {
-            throw new ApiException("관리자만 접근 가능합니다.", HttpStatus.FORBIDDEN);
-        }
-        return reportRepositoryCustom.countReports(type, targetId);
-    }
-
 
 }
