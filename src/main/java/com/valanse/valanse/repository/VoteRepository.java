@@ -67,7 +67,7 @@ public interface VoteRepository extends JpaRepository<Vote, Long>, VoteRepositor
 
     // 고정된 투표 찾기
     Optional<Vote> findByPinType(PinType pinType);
-
+    Optional<Vote> findByIdAndDeletedAtIsNull(Long id);
 
     // 모든 투표를 페이징하여 조회 (JpaRepository의 findAll(Pageable)을 사용)
     // Page<Vote> findAll(Pageable pageable); // JpaRepository에 이미 정의되어 있으므로 명시적으로 추가할 필요 없음

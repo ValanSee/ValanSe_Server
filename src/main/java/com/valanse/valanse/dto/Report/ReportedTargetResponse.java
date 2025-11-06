@@ -12,6 +12,6 @@ public class ReportedTargetResponse {
     private Long targetId;
     private Long reportCount;
     private String targetType;
-    private VoteResponseDto vote;
-    private CommentResponseDto comment;
+    private ReportedVoteResponse vote;
+    private ReportedCommentResponse comment;
 }

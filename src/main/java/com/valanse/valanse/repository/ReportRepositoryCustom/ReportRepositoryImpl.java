@@ -7,7 +7,9 @@ import com.valanse.valanse.domain.QReport;
 import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.enums.ReportType;
 import com.valanse.valanse.dto.Comment.CommentResponseDto;
+import com.valanse.valanse.dto.Report.ReportedCommentResponse;
 import com.valanse.valanse.dto.Report.ReportedTargetResponse;
+import com.valanse.valanse.dto.Report.ReportedVoteResponse;
 import com.valanse.valanse.dto.Vote.VoteResponseDto;
 import com.valanse.valanse.repository.CommentRepository;
 import com.valanse.valanse.repository.VoteRepository;
@@ -47,35 +49,22 @@ public class ReportRepositoryImpl implements ReportRepositoryCustom {
                     Long count = t.get(report.count());
 
                     if (type == ReportType.VOTE) {
-                        Vote vote = voteRepository.findById(targetId)
-                                .orElse(null);
+                        Vote vote = voteRepository.findByIdAndDeletedAtIsNull(targetId)
+                                .orElseThrow(() -> new RuntimeException("해당 밸런스게임을 찾을 수 없습니다."));
                         return ReportedTargetResponse.builder()
                                 .targetId(targetId)
                                 .reportCount(count)
                                 .targetType("VOTE")
-                                .vote(vote != null ? new VoteResponseDto(vote) : null)
+                                .vote(vote != null ? new ReportedVoteResponse(vote) : null)
                                 .build();
                     } else if (type == ReportType.COMMENT) {
-                        Comment comment = commentRepository.findById(targetId).orElse(null);
+                        Comment comment = commentRepository.findByIdAndDeletedAtIsNull(targetId).
+                                orElseThrow(() -> new RuntimeException("해당 댓글을 찾을 수 없습니다."));
                         return ReportedTargetResponse.builder()
                                 .targetId(targetId)
                                 .reportCount(count)
                                 .targetType("COMMENT")
-                                .comment(comment != null
-                                        ? new CommentResponseDto(
-                                        comment.getId(),
-                                        comment.getCommentGroup().getVote().getId(),
-                                        comment.getMember().getNickname(),
-                                        comment.getCreatedAt(),
-                                        comment.getCommentGroup().getVote().getCreatedAt(),
-                                        comment.getContent(),
-                                        comment.getLikeCount(),
-                                        comment.getReplyCount(),
-                                        comment.getDeletedAt(),
-                                        comment.getVoteOption().getLabel().toString(),
-                                        0L, 0L
-                                )
-                                        : null)
+                                .comment(comment != null ? new ReportedCommentResponse(comment) : null)
                                 .build();
                     }
                     return null;

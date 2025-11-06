@@ -61,6 +61,9 @@ public class MemberProfileServiceImpl implements MemberProfileService {
     public MemberProfileResponse getProfile() {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
 
+        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
+
         MemberProfile profile = memberProfileRepository.findByMemberId(userId)
                 .orElse(null);
 
@@ -74,7 +77,8 @@ public class MemberProfileServiceImpl implements MemberProfileService {
                 profile.getAge() != null ? profile.getAge().name() : null,
                 profile.getMbtiIe() != null ? profile.getMbtiIe().name() : null,
                 profile.getMbtiTf() != null ? profile.getMbtiTf().name() : null,
-                profile.getMbti() != null ? profile.getMbti() : null
+                profile.getMbti() != null ? profile.getMbti() : null,
+                member.getRole() != null ? member.getRole() : null
         );
 
         return new MemberProfileResponse(info);
