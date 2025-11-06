@@ -457,7 +457,7 @@ public class VoteServiceImpl implements VoteService {
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new ApiException("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
 
-        // 권한 확인
+        // 권한 확인 - 자기 자신 혹은 관리자 
         if (!vote.getMember().getId().equals(userId) && member.getRole() != Role.ADMIN) {
             throw new ApiException("삭제 권한이 없습니다.", HttpStatus.FORBIDDEN);
         }
@@ -469,6 +469,7 @@ public class VoteServiceImpl implements VoteService {
 
     @Override
     @Transactional
+    // 고정 , 고정 해제 기능은 vote 엔티티에 메서드로 존재
     public void updatePinStatus(Member member, Long voteId, PinType pinType) {
         if (member.getRole() != Role.ADMIN) {
             throw new ApiException("권한이 없습니다.", HttpStatus.FORBIDDEN);
@@ -476,6 +477,7 @@ public class VoteServiceImpl implements VoteService {
         Vote vote = voteRepository.findById(voteId)
                 .orElseThrow(() -> new ApiException("게시물이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
         if (pinType != PinType.NONE) {
+            // 이미 고정된 다른 게시물이 존재한다면 해당 게시물의 고정 해제
             voteRepository.findByPinType(pinType).ifPresent(existing ->
                     {if (!existing.getId().equals(voteId))
                     {
@@ -490,7 +492,7 @@ public class VoteServiceImpl implements VoteService {
         voteRepository.save(vote);
     }
 
-    // 메서드
+    // 핫이슈 발런스 게임을 뽑아내는 메서드
     private HotIssueVoteResponse getHotIssueVoteResponse(Vote hotIssueVote) {
         String createdByNickname = "익명"; // 기본값 설정
         if (hotIssueVote.getMember() != null) { // Member가 null이 아닌 경우

@@ -32,6 +32,7 @@ public class ReportRepositoryImpl implements ReportRepositoryCustom {
     public List<ReportedTargetResponse> findReportedTargets(ReportType type, String sort) {
         QReport report = QReport.report;
 
+        // 기본은 최신순, sort 값에 따라서 인기순 정렬 가능
         List<Tuple> tuples = queryFactory
                 .select(report.targetId, report.count())
                 .from(report)
@@ -43,6 +44,7 @@ public class ReportRepositoryImpl implements ReportRepositoryCustom {
                                 : report.createdAt.max().desc()
                 )
                 .fetch();
+        // type에 따라서 분기 처리
         return tuples.stream()
                 .map(t -> {
                     Long targetId = t.get(report.targetId);

@@ -49,6 +49,7 @@ public class ReportServiceImpl implements ReportService{
             }
         }
 
+        // 신고를 이미 했다면 에러 발생
         if (reportRepository.existsByMemberAndReportTypeAndTargetId(member, reportType, targetId)) {
             throw new ApiException("이미 신고한 대상입니다.", HttpStatus.BAD_REQUEST);
         }
