@@ -1,5 +1,6 @@
 package com.valanse.valanse.service.CommentService;
 
+import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.Comment;
 import com.valanse.valanse.domain.CommentGroup;
 import com.valanse.valanse.domain.Member;
@@ -216,6 +217,64 @@ class CommentServiceImplTest {
         verify(commentRepository,times(1)).save(commentCaptor.capture());
         Comment deleted = commentCaptor.getValue();
         assertThat(deleted.getDeletedAt()).isNotNull();
+    }
+
+    @Test
+    void 관리자댓글삭제_test() {
+        // given
+        Member admin = Member
+                .builder()
+                .id(100L)
+                .role(Role.ADMIN)
+                .build();
+
+        Comment comment = Comment.builder()
+                .content("댓글")
+                .member(member)
+                .deletedAt(null)
+                .build();
+
+        // stub
+        when(commentRepository.findById(1L))
+                .thenReturn(Optional.of(comment));
+        when(commentRepository.save(any()))
+                .thenReturn(comment);
+
+        //when
+        commentService.deleteMyComment(admin, 1L);
+
+        //then: 댓글 1건 저장 및 deletedAt 속성 추가 검증
+        ArgumentCaptor<Comment> commentCaptor = ArgumentCaptor.forClass(Comment.class);
+        verify(commentRepository,times(1)).save(commentCaptor.capture());
+        Comment deleted = commentCaptor.getValue();
+        assertThat(deleted.getDeletedAt()).isNotNull();
+    }
+
+    @Test
+    void 관리자댓글삭제_실패test() {
+        // given
+        Member admin = Member
+                .builder()
+                .id(100L)
+                .role(Role.USER)
+                .build();
+
+        Comment comment = Comment.builder()
+                .content("댓글")
+                .member(member)
+                .deletedAt(null)
+                .build();
+
+        // stub
+        when(commentRepository.findById(1L))
+                .thenReturn(Optional.of(comment));
+
+        //when
+        IllegalArgumentException apiException = assertThrows(IllegalArgumentException.class, () -> commentService.deleteMyComment(admin, 1L));
+
+        //then
+        assertThat(apiException.getMessage()).isEqualTo("삭제 권한 없음");
+
     }
 
 }

@@ -3,10 +3,7 @@ package com.valanse.valanse.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.valanse.valanse.domain.*;
-import com.valanse.valanse.domain.enums.Age; //
-import com.valanse.valanse.domain.enums.Gender; //
-import com.valanse.valanse.domain.enums.VoteCategory; //
-import com.valanse.valanse.domain.enums.VoteLabel; //
+import com.valanse.valanse.domain.enums.*;
 import com.valanse.valanse.repository.CommentGroupRepository;
 import com.valanse.valanse.repository.MemberProfileRepository; //
 import com.valanse.valanse.repository.MemberRepository; //
@@ -89,7 +86,8 @@ public class VoteControllerTest {
                 .totalVoteCount(100)
                 .reactivityScore(110) // 투표 100 + 댓글 10 = 반응성 110
                 .reactivityUpdatedAt(LocalDateTime.now()) // 현재 시간으로 설정
-                .member(member1) //
+                .member(member1)//
+                .pinType(PinType.NONE)
                 .build();
         voteRepository.save(hotIssueVote);
 
@@ -144,7 +142,8 @@ public class VoteControllerTest {
                 .totalVoteCount(50)
                 .reactivityScore(55) // 투표 50 + 댓글 5 = 반응성 55
                 .reactivityUpdatedAt(LocalDateTime.now())
-                .member(member2) //
+                .member(member2)
+                .pinType(PinType.NONE)//
                 .build();
         voteRepository.save(otherVote);
 
@@ -222,6 +221,7 @@ public class VoteControllerTest {
                 .reactivityScore(50) // 추가
                 .reactivityUpdatedAt(LocalDateTime.now().minusDays(3)) // 3일 전
                 .member(member3)
+                .pinType(PinType.NONE)
                 .build();
         voteRepository.save(oldVote);
 
@@ -240,6 +240,7 @@ public class VoteControllerTest {
                 .reactivityScore(50) // 추가
                 .reactivityUpdatedAt(LocalDateTime.now()) // 현재 시간
                 .member(member3)
+                .pinType(PinType.NONE)
                 .build();
         voteRepository.save(newVote);
 

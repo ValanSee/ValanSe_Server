@@ -5,6 +5,7 @@ import com.valanse.valanse.domain.CommentGroup;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.VoteOption;
+import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import com.valanse.valanse.dto.Vote.VoteCancleResponseDto;
@@ -241,6 +242,68 @@ class VoteServiceImplTest {
         verify(memberVoteOptionRepository, times(1)).delete(any(MemberVoteOption.class));
         verify(memberVoteOptionRepository, times(1)).save(any(MemberVoteOption.class));
         verify(voteOptionRepository, times(2)).save(any(VoteOption.class));
+    }
+
+    @Test
+    @DisplayName("관리자의 권한으로 다른 사용자의 투표를 삭제한다.")
+    void 관리자권한_투표삭제_test() {
+        //given
+        Member admin = Member.builder()
+                .id(1L)
+                .role(Role.ADMIN)
+                .build();
+
+        Member member = Member.builder()
+                .id(2L)
+                .build();
+
+        Vote vote = Vote.builder()
+                .member(member)
+                .id(10L)
+                .totalVoteCount(7)
+                .build();
+
+        //stub
+        when(memberRepository.findByIdAndDeletedAtIsNull(any())).thenReturn(Optional.of(admin));
+        when(voteRepository.findById(any())).thenReturn(Optional.of(vote));
+
+        //when
+        voteService.deleteVote(1L,10L);
+
+        //then
+        ArgumentCaptor<Vote> voteArgumentCaptor = ArgumentCaptor.forClass(Vote.class);
+        verify(voteRepository).save(voteArgumentCaptor.capture());
+        Vote captorVote = voteArgumentCaptor.getValue();
+        assertThat((captorVote.getDeletedAt())).isNotNull();
+    }
+
+    @Test
+    @DisplayName("관리자가 아니면 다른 사용자의 투표를 삭제할 수 없다.")
+    void 관리자_투표삭제_실패test() {
+        //given
+        Member admin = Member.builder()
+                .id(1L)
+                .role(Role.USER)
+                .build();
+
+        Member member = Member.builder()
+                .id(2L)
+                .build();
+
+        Vote vote = Vote.builder()
+                .member(member)
+                .id(10L)
+                .totalVoteCount(7)
+                .build();
+        // stub
+        when(memberRepository.findByIdAndDeletedAtIsNull(any())).thenReturn(Optional.of(admin));
+        when(voteRepository.findById(any())).thenReturn(Optional.of(vote));
+
+        // when
+        ApiException apiException = assertThrows(ApiException.class, () -> voteService.deleteVote(1L, 10L));
+
+        // then
+        assertThat(apiException.getMessage()).isEqualTo("삭제 권한이 없습니다.");
     }
 
 
