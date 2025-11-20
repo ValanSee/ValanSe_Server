@@ -394,7 +394,7 @@ public class VoteServiceImpl implements VoteService {
     }
 
     @Override
-    public VoteListResponse getVotesByCategoryAndSort(String category, String sort, String cursor, int size) {
+    public VoteListResponse getVotesByCategoryAndSort(Member loginUser, String category, String sort, String cursor, int size) {
         List<Vote> votes = voteRepository.findVotesByCursor(category, sort, cursor, size);
 
         boolean hasNext = votes.size() > size;
@@ -431,6 +431,11 @@ public class VoteServiceImpl implements VoteService {
                         totalCommentCount = vote.getCommentGroup().getTotalCommentCount();
                     }
 
+                    boolean isAdmin = loginUser != null && loginUser.getRole() == Role.ADMIN;
+                    boolean canDelete = false;
+                    if (loginUser != null && vote.getMember() != null) {
+                        canDelete = isAdmin || vote.getMember().getId().equals(loginUser.getId());
+                    }
                     return VoteListResponse.VoteDto.builder()
                             .id(vote.getId())
                             .title(vote.getTitle())
@@ -441,6 +446,7 @@ public class VoteServiceImpl implements VoteService {
                             .total_vote_count(vote.getTotalVoteCount())
                             .total_comment_count(totalCommentCount)
                             .options(optionListDtos)
+                            .canDelete(canDelete)
                             .build();
                 })
                 .collect(Collectors.toList());

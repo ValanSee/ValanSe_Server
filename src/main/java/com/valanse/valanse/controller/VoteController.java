@@ -177,7 +177,9 @@ public ResponseEntity<VoteListResponse> getVotes(
         @RequestParam(value = "size", defaultValue = "10") int size
 ) {
     // Pageable 객체 대신 cursor, size를 직접 전달
-    VoteListResponse response = voteService.getVotesByCategoryAndSort(category, sort, cursor, size);
+    Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+    var loginMember = memberService.findById(loginId);
+    VoteListResponse response = voteService.getVotesByCategoryAndSort(loginMember, category, sort, cursor, size);
     return ResponseEntity.ok(response);
 }
 

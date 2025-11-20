@@ -37,6 +37,7 @@ public class VoteListResponse {
         private Integer total_vote_count;
         private Integer total_comment_count; // 댓글 그룹의 총 댓글 수
         private List<VoteOptionListDto> options; // 옵션 목록
+        boolean canDelete;
 
     }
 
