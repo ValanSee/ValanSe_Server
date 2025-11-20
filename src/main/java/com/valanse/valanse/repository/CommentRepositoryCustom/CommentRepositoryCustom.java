@@ -9,7 +9,7 @@ import org.springframework.data.domain.Slice;
 import java.util.Optional;
 
 public interface CommentRepositoryCustom {
-    Slice<CommentResponseDto> findCommentsByVoteIdSlice(Long voteId, String sort, Pageable pageable);
+    Slice<CommentResponseDto> findCommentsByVoteIdSlice(Long voteId, String sort, Pageable pageable, Long loginId,boolean isAdmin);
 
     Optional<Comment> findMostLikedCommentByVoteId(Long voteId);
 }

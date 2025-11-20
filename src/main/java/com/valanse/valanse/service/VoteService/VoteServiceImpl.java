@@ -55,9 +55,7 @@ public class VoteServiceImpl implements VoteService {
                    voteRepository.findAllByMemberAndCategoryOrderByCreatedAtAsc(member, category);
        }
 
-       boolean isAdmin = member.getRole() == Role.ADMIN;
-
-       return votes.stream().map(vote -> new VoteResponseDto(vote, memberId, isAdmin)).collect(Collectors.toList());
+       return votes.stream().map(VoteResponseDto::new).collect(Collectors.toList());
    }
 
     @Override
@@ -82,9 +80,7 @@ public class VoteServiceImpl implements VoteService {
                     voteRepository.findAllByMemberVotedAndCategoryOrderByCreatedAtAsc(member, category);
         }
 
-        boolean isAdmin = member.getRole() == Role.ADMIN;
-
-        return votes.stream().map(vote -> new VoteResponseDto(vote, memberId, isAdmin)).collect(Collectors.toList());
+        return votes.stream().map(VoteResponseDto::new).collect(Collectors.toList());
     }
 
     //여기서부터 영서 코드

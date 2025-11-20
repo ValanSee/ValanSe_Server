@@ -1,14 +1,18 @@
 package com.valanse.valanse.controller;
 
+import com.valanse.valanse.domain.Member;
+import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.dto.Comment.*;
 import com.valanse.valanse.service.CommentLikeService.CommentLikeService;
 import com.valanse.valanse.service.CommentService.CommentService;
+import com.valanse.valanse.service.MemberService.MemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +26,7 @@ public class CommentController {
 
     private final CommentService commentService;
     private final CommentLikeService commentLikeService;
+    private final MemberService  memberService;
 
     @Operation(
             summary = "댓글 작성",
@@ -46,10 +51,19 @@ public class CommentController {
             @PathVariable("voteId") Long voteId,
             @RequestParam(name = "sort", defaultValue = "latest") String sort,
             @RequestParam(name = "page", defaultValue = "0") int page,
-            @RequestParam(name = "size", defaultValue = "10") int size
+            @RequestParam(name = "size", defaultValue = "10") int size,
+            @RequestParam(value = "memberId", required = false) Long memberId
     ) {
+
+        boolean isAdmin = false;
+
+        if (memberId != null) {
+            Member member = memberService.findById(memberId);
+            isAdmin = member.getRole() == Role.ADMIN;
+        }
+
         Pageable pageable = PageRequest.of(page, size);
-        return commentService.getCommentsByVoteId(voteId, sort, pageable);
+        return commentService.getCommentsByVoteId(voteId, sort, pageable,memberId,isAdmin);
     }
 
     @Operation(
@@ -81,9 +95,17 @@ public class CommentController {
     @GetMapping("/{commentId}/replies")
     public ResponseEntity<List<CommentReplyResponseDto>> getReplies(
             @PathVariable("voteId") Long voteId,
-            @PathVariable("commentId") Long commentId
+            @PathVariable("commentId") Long commentId,
+            @RequestParam(value = "memberId", required = false) Long memberId
     ) {
-        List<CommentReplyResponseDto> replies = commentService.getReplies(voteId, commentId);
+
+        Member member = null;
+
+        if (memberId != null) {
+            member = memberService.findById(memberId);
+        }
+
+        List<CommentReplyResponseDto> replies = commentService.getReplies(member, voteId, commentId);
         return ResponseEntity.ok(replies);
     }
 }

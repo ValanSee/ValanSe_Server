@@ -1,5 +1,6 @@
 // src/main/java/com/valanse/valanse/controller/VoteController.java
 package com.valanse.valanse.controller;
+import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.PinType;
 import com.valanse.valanse.service.MemberService.MemberService;
 import com.valanse.valanse.service.VoteService.VoteService;
@@ -9,6 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -174,12 +176,13 @@ public ResponseEntity<VoteListResponse> getVotes(
         @RequestParam(value = "category", required = false, defaultValue = "ALL") String category,
         @RequestParam(value = "sort", required = false, defaultValue = "latest") String sort,
         @RequestParam(value = "cursor", required = false) String cursor, // 변경된 파라미터
-        @RequestParam(value = "size", defaultValue = "10") int size
+        @RequestParam(value = "size", defaultValue = "10") int size,
+        @RequestParam(value = "memberId", required = false) Long memberId
 ) {
     // Pageable 객체 대신 cursor, size를 직접 전달
-    Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
-    var loginMember = memberService.findById(loginId);
-    VoteListResponse response = voteService.getVotesByCategoryAndSort(loginMember, category, sort, cursor, size);
+    Member member = memberId != null ? memberService.findById(memberId) : null;
+
+    VoteListResponse response = voteService.getVotesByCategoryAndSort(member, category, sort, cursor, size);
     return ResponseEntity.ok(response);
 }
 

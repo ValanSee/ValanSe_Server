@@ -15,9 +15,8 @@ public class VoteResponseDto {
     private int totalVoteCount;
     private String createdAt;
     private List<String> options;
-    private boolean canDelete;
 
-    public VoteResponseDto(Vote vote, Long loginUserId, boolean isAdmin) {
+    public VoteResponseDto(Vote vote) {
         this.voteId = vote.getId();
         this.title = vote.getTitle();
         this.content = vote.getContent(); // content 필드 추가
@@ -28,6 +27,5 @@ public class VoteResponseDto {
                 .stream()
                 .map(option -> option.getContent())  //  VoteOption에서 content 추출
                 .collect(Collectors.toList());
-        this.canDelete = isAdmin || vote.getMember().getId().equals(loginUserId);
     }
 }

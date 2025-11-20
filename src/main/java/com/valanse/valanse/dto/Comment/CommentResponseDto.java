@@ -22,12 +22,14 @@ public class CommentResponseDto {
     private String voteOptionLabel;
     private Long daysAgo;
     private Long hoursAgo;
+    private Boolean canDelete;
 
     @QueryProjection
     public CommentResponseDto(Long commentId, Long voteId, String nickname,
                               LocalDateTime commentCreatedAt, LocalDateTime voteCreatedAt,  // 추가
                               String content, Integer likeCount, Integer replyCount,
-                              LocalDateTime deletedAt, String voteOptionLabel, Long daysAgo, Long hoursAgo) {
+                              LocalDateTime deletedAt, String voteOptionLabel, Long daysAgo, Long hoursAgo,
+                              Boolean canDelete) {
         this.commentId = commentId;
         this.voteId = voteId;
         this.nickname = nickname;
@@ -40,5 +42,6 @@ public class CommentResponseDto {
         this.voteOptionLabel = voteOptionLabel;
         this.daysAgo = daysAgo;
         this.hoursAgo = hoursAgo;
+        this.canDelete = canDelete;
     }
 }
