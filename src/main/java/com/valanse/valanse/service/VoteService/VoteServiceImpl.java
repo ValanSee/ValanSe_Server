@@ -55,7 +55,9 @@ public class VoteServiceImpl implements VoteService {
                    voteRepository.findAllByMemberAndCategoryOrderByCreatedAtAsc(member, category);
        }
 
-       return votes.stream().map(VoteResponseDto::new).collect(Collectors.toList());
+       boolean isAdmin = member.getRole() == Role.ADMIN;
+
+       return votes.stream().map(vote -> new VoteResponseDto(vote, memberId, isAdmin)).collect(Collectors.toList());
    }
 
     @Override
@@ -80,7 +82,9 @@ public class VoteServiceImpl implements VoteService {
                     voteRepository.findAllByMemberVotedAndCategoryOrderByCreatedAtAsc(member, category);
         }
 
-        return votes.stream().map(VoteResponseDto::new).collect(Collectors.toList());
+        boolean isAdmin = member.getRole() == Role.ADMIN;
+
+        return votes.stream().map(vote -> new VoteResponseDto(vote, memberId, isAdmin)).collect(Collectors.toList());
     }
 
     //여기서부터 영서 코드
@@ -457,7 +461,7 @@ public class VoteServiceImpl implements VoteService {
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new ApiException("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
 
-        // 권한 확인 - 자기 자신 혹은 관리자 
+        // 권한 확인 - 자기 자신 혹은 관리자
         if (!vote.getMember().getId().equals(userId) && member.getRole() != Role.ADMIN) {
             throw new ApiException("삭제 권한이 없습니다.", HttpStatus.FORBIDDEN);
         }
