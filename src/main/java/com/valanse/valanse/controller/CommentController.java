@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -51,19 +52,20 @@ public class CommentController {
             @PathVariable("voteId") Long voteId,
             @RequestParam(name = "sort", defaultValue = "latest") String sort,
             @RequestParam(name = "page", defaultValue = "0") int page,
-            @RequestParam(name = "size", defaultValue = "10") int size,
-            @RequestParam(value = "memberId", required = false) Long memberId
+            @RequestParam(name = "size", defaultValue = "10") int size
     ) {
 
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Long loginId = null;
         boolean isAdmin = false;
-
-        if (memberId != null) {
-            Member member = memberService.findById(memberId);
+        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+            loginId = Long.parseLong(auth.getName());
+            Member member = memberService.findById(loginId);
             isAdmin = member.getRole() == Role.ADMIN;
         }
 
         Pageable pageable = PageRequest.of(page, size);
-        return commentService.getCommentsByVoteId(voteId, sort, pageable,memberId,isAdmin);
+        return commentService.getCommentsByVoteId(voteId, sort, pageable,loginId,isAdmin);
     }
 
     @Operation(
@@ -95,14 +97,13 @@ public class CommentController {
     @GetMapping("/{commentId}/replies")
     public ResponseEntity<List<CommentReplyResponseDto>> getReplies(
             @PathVariable("voteId") Long voteId,
-            @PathVariable("commentId") Long commentId,
-            @RequestParam(value = "memberId", required = false) Long memberId
+            @PathVariable("commentId") Long commentId
     ) {
-
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         Member member = null;
-
-        if (memberId != null) {
-            member = memberService.findById(memberId);
+        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+            Long loginId = Long.parseLong(auth.getName());
+            member = memberService.findById(loginId);
         }
 
         List<CommentReplyResponseDto> replies = commentService.getReplies(member, voteId, commentId);
