@@ -83,12 +83,14 @@ public class SecurityConfig {
                 "https://backendbase.store",
                 "http://backendbase.store:8080",   // 운영 환경 HTTP
                 "http://backendbase.store:8081",   // 개발 환경 HTTP ← 이거 추가!
+                "http://backendbase.store:8082",
                 "https://backendbase.store:8080",  // 운영 환경 HTTPS (필요시)
-                "https://backendbase.store:8081"   // 개발 환경 HTTPS (필요시)
+                "https://backendbase.store:8081", // 개발 환경 HTTPS (필요시)
+                "https://backendbase.store:8082"
         ));
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true); // 쿠키 및 JWT 등 인증 필요 시 true 설정
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
