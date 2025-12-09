@@ -16,11 +16,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
-//import org.springframework.web.cors.CorsConfiguration;
-//import org.springframework.web.cors.CorsConfigurationSource;
-//import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-//
-//import java.util.Arrays;
 
 @Configuration
 public class SecurityConfig {
@@ -39,7 +34,10 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // ← preflight 허용
+                        // Preflight (CORS)
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // 공개 API
                         .requestMatchers(
                                 "/auth/kakao/login",
                                 "/auth/reissue",
@@ -48,21 +46,41 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/swagger-resources/**",
-                                "/webjars/**",
-                                "/votes/best",
-                                "/votes/trending",
-                                "/votes/*/comments/*/replies",
-                                "/votes/*/comments/best"
+                                "/webjars/**"
                         ).permitAll()
-                        // 추가된 부분: GET /votes 경로를 permitAll 허용
-                        .requestMatchers(HttpMethod.GET, "/votes").permitAll() //
-//                        .requestMatchers(HttpMethod.GET, "/votes/{voteId}").permitAll() // 새롭게 추가된 부분
-                        .requestMatchers(HttpMethod.GET, "/votes/*/comments").permitAll()
+
+                        // ============================================
+                        // HTTP 메서드별 설정 (중요! 순서 지키기!)
+                        // ============================================
+
+                        // GET - 공개 (모든 사람이 볼 수 있음)
+                        .requestMatchers(HttpMethod.GET, "/votes/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/comments/**").permitAll()
+
+                        // POST - 인증 필요 (로그인해야 가능)
+                        .requestMatchers(HttpMethod.POST, "/votes").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/votes/*/vote-options/*").authenticated()
                         .requestMatchers(HttpMethod.POST, "/votes/*/comments").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/comments/*/like").authenticated()
+
+                        // PUT - 인증 필요 (수정)
+                        .requestMatchers(HttpMethod.PUT, "/votes/*").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/comments/*").authenticated()
+
+                        // DELETE - 인증 필요 (삭제)
+                        .requestMatchers(HttpMethod.DELETE, "/votes/*").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/comments/*").authenticated()
+
+                        // 특별한 경로 (내가 만든/투표한 게임)
+                        .requestMatchers("/votes/mine/**").authenticated()
+
+                        // 회원 관련
+                        .requestMatchers("/member/**").authenticated()
+
+                        // 나머지 모든 요청
                         .anyRequest().authenticated()
                 )
-                .cors(c -> c.configurationSource(corsConfigurationSource())) // ← CORS 활성화
-                //.cors(AbstractHttpConfigurer::disable) // CORS 비활성화
+                .cors(c -> c.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -78,16 +96,20 @@ public class SecurityConfig {
                 "http://localhost:3000",
                 "https://test-front-security.netlify.app",
                 "https://valan-se-web.vercel.app",
+                "https://valanse.kr",
+                "https://develop.valanse.kr",
                 "https://backendbase.store",
-                "http://backendbase.store:8080",   // 운영 환경 HTTP
-                "http://backendbase.store:8081",   // 개발 환경 HTTP ← 이거 추가!
-                "https://backendbase.store:8080",  // 운영 환경 HTTPS (필요시)
-                "https://backendbase.store:8081"   // 개발 환경 HTTPS (필요시)
+                "http://backendbase.store:8080",
+                "http://backendbase.store:8081",
+                "http://backendbase.store:8082",
+                "https://backendbase.store:8080",
+                "https://backendbase.store:8081",
+                "https://backendbase.store:8082"
         ));
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
-        configuration.setAllowCredentials(true); // 쿠키 및 JWT 등 인증 필요 시 true 설정
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
