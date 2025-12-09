@@ -62,16 +62,7 @@ public class JwtTokenFilter extends OncePerRequestFilter {
                 uri.equals("/swagger-ui.html") ||
                 uri.startsWith("/v3/api-docs") ||
                 uri.startsWith("/swagger-resources") ||
-<<<<<<< HEAD
-                uri.startsWith("/webjars") ;
-//                uri.equals("/votes/best") ||
-//                (uri.equals("/votes") && "GET".equalsIgnoreCase(request.getMethod())) ||
-//                (uri.matches("^/votes/\\d+/comments$") && "GET".equalsIgnoreCase(request.getMethod())) ||
-//                (uri.matches("^/votes/\\d+/comments/\\d+/replies$") && "GET".equalsIgnoreCase(request.getMethod())) ||
-//                (uri.matches("^/votes/\\d+/comments/best$") && "GET".equalsIgnoreCase(request.getMethod()));
-=======
                 uri.startsWith("/webjars");
->>>>>>> dev
     }
 
     @Override
