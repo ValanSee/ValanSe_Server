@@ -390,7 +390,7 @@ public class VoteServiceImpl implements VoteService {
     }
 
     @Override
-    public VoteListResponse getVotesByCategoryAndSort(String category, String sort, String cursor, int size) {
+    public VoteListResponse getVotesByCategoryAndSort(Member loginUser, String category, String sort, String cursor, int size) {
         List<Vote> votes = voteRepository.findVotesByCursor(category, sort, cursor, size);
 
         boolean hasNext = votes.size() > size;
@@ -427,6 +427,11 @@ public class VoteServiceImpl implements VoteService {
                         totalCommentCount = vote.getCommentGroup().getTotalCommentCount();
                     }
 
+                    boolean isAdmin = loginUser != null && loginUser.getRole() == Role.ADMIN;
+                    boolean canDelete = false;
+                    if (loginUser != null && vote.getMember() != null) {
+                        canDelete = isAdmin || vote.getMember().getId().equals(loginUser.getId());
+                    }
                     return VoteListResponse.VoteDto.builder()
                             .id(vote.getId())
                             .title(vote.getTitle())
@@ -437,6 +442,7 @@ public class VoteServiceImpl implements VoteService {
                             .total_vote_count(vote.getTotalVoteCount())
                             .total_comment_count(totalCommentCount)
                             .options(optionListDtos)
+                            .canDelete(canDelete)
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -457,7 +463,7 @@ public class VoteServiceImpl implements VoteService {
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new ApiException("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
 
-        // 권한 확인 - 자기 자신 혹은 관리자 
+        // 권한 확인 - 자기 자신 혹은 관리자
         if (!vote.getMember().getId().equals(userId) && member.getRole() != Role.ADMIN) {
             throw new ApiException("삭제 권한이 없습니다.", HttpStatus.FORBIDDEN);
         }

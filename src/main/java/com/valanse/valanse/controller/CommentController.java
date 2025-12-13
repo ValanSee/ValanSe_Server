@@ -1,14 +1,19 @@
 package com.valanse.valanse.controller;
 
+import com.valanse.valanse.domain.Member;
+import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.dto.Comment.*;
 import com.valanse.valanse.service.CommentLikeService.CommentLikeService;
 import com.valanse.valanse.service.CommentService.CommentService;
+import com.valanse.valanse.service.MemberService.MemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +27,7 @@ public class CommentController {
 
     private final CommentService commentService;
     private final CommentLikeService commentLikeService;
+    private final MemberService  memberService;
 
     @Operation(
             summary = "댓글 작성",
@@ -48,8 +54,18 @@ public class CommentController {
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "10") int size
     ) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Long loginId = null;
+        boolean isAdmin = false;
+        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+            loginId = Long.parseLong(auth.getName());
+            Member member = memberService.findById(loginId);
+            isAdmin = member.getRole() == Role.ADMIN;
+        }
+
         Pageable pageable = PageRequest.of(page, size);
-        return commentService.getCommentsByVoteId(voteId, sort, pageable);
+        return commentService.getCommentsByVoteId(voteId, sort, pageable,loginId,isAdmin);
     }
 
     @Operation(
@@ -83,7 +99,14 @@ public class CommentController {
             @PathVariable("voteId") Long voteId,
             @PathVariable("commentId") Long commentId
     ) {
-        List<CommentReplyResponseDto> replies = commentService.getReplies(voteId, commentId);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Member member = null;
+        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+            Long loginId = Long.parseLong(auth.getName());
+            member = memberService.findById(loginId);
+        }
+
+        List<CommentReplyResponseDto> replies = commentService.getReplies(member, voteId, commentId);
         return ResponseEntity.ok(replies);
     }
 }

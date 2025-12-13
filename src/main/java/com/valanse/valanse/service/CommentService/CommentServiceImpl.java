@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -116,8 +117,9 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @Transactional(readOnly = true)
-    public PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable) {
-        Slice<CommentResponseDto> slice = commentRepository.findCommentsByVoteIdSlice(voteId, sort, pageable);
+    public PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable, Long loginId, Boolean isAdmin) {
+
+        Slice<CommentResponseDto> slice = commentRepository.findCommentsByVoteIdSlice(voteId, sort, pageable, loginId, isAdmin);
         return PagedCommentResponse.builder() // 인덱스 , 쿼리
                 .comments(slice.getContent())
                 .page(pageable.getPageNumber())
@@ -154,7 +156,7 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<CommentReplyResponseDto> getReplies(Long voteId, Long parentCommentId) {
+    public List<CommentReplyResponseDto> getReplies(Member loginUser, Long voteId, Long parentCommentId) {
         // 유효한 투표인지 확인
         Vote vote = voteRepository.findById(voteId)
                 .orElseThrow(() -> new IllegalArgumentException("투표가 존재하지 않습니다."));
@@ -180,6 +182,12 @@ public class CommentServiceImpl implements CommentService {
                     long daysAgo = totalHours / 24;
                     long hoursAgo = totalHours % 24;
 
+                    boolean isAdmin = loginUser != null && loginUser.getRole() == Role.ADMIN;
+                    boolean canDelete = false;
+                    if (loginUser != null && vote.getMember() != null) {
+                        canDelete = isAdmin || vote.getMember().getId().equals(loginUser.getId());
+                    }
+
                     return CommentReplyResponseDto.builder()
                             .id(reply.getId())
                             .nickname(profile.getNickname())
@@ -191,6 +199,7 @@ public class CommentServiceImpl implements CommentService {
                             .label(label)
                             .daysAgo(daysAgo)
                             .hoursAgo(hoursAgo)
+                            .canDelete(canDelete)
                             .build();
                 })
                 .collect(Collectors.toList());

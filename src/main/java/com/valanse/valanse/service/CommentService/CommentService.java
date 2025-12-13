@@ -13,7 +13,7 @@ public interface CommentService {
 
     Long createComment(Long voteId, Long userId, CommentPostRequest request);
 
-    PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable);
+    PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable,Long userId, Boolean isAdmin);
     BestCommentResponseDto getBestCommentByVoteId(Long voteId);
-    List<CommentReplyResponseDto> getReplies(Long voteId, Long commentId);
+    List<CommentReplyResponseDto> getReplies(Member loginUser, Long voteId, Long commentId);
 }

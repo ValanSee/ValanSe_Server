@@ -25,7 +25,7 @@ public interface VoteService {
     Long createVote(Long userId, VoteCreateRequest request);
     List<VoteResponseDto> getMyVotedVotes(Long memberId, String sort, VoteCategory category);
     // /votes get 메서드 cursor기반으로 변경
-    VoteListResponse getVotesByCategoryAndSort(String category, String sort, String cursor, int size);
+    VoteListResponse getVotesByCategoryAndSort(Member loginUser, String category, String sort, String cursor, int size);
     void deleteVote(Long userId, Long voteId);
     // 관리자의 고정 기능
     void updatePinStatus(Member member, Long voteId, PinType pinType);

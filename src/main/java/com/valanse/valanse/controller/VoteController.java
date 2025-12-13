@@ -1,5 +1,6 @@
 // src/main/java/com/valanse/valanse/controller/VoteController.java
 package com.valanse.valanse.controller;
+import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.PinType;
 import com.valanse.valanse.service.MemberService.MemberService;
 import com.valanse.valanse.service.VoteService.VoteService;
@@ -8,7 +9,9 @@ import com.valanse.valanse.dto.Vote.VoteResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,6 +20,7 @@ import com.valanse.valanse.domain.enums.VoteCategory;
 
 import java.util.List;
 
+@Slf4j
 @Tag(name = "투표 API", description = "투표 관련 API")
 @RestController
 @RequestMapping("/votes") // 투표 관련 API의 기본 경로
@@ -177,7 +181,14 @@ public ResponseEntity<VoteListResponse> getVotes(
         @RequestParam(value = "size", defaultValue = "10") int size
 ) {
     // Pageable 객체 대신 cursor, size를 직접 전달
-    VoteListResponse response = voteService.getVotesByCategoryAndSort(category, sort, cursor, size);
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    Member member = null;
+    if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+        Long loginId = Long.parseLong(auth.getName());
+        member = memberService.findById(loginId);
+    }
+
+    VoteListResponse response = voteService.getVotesByCategoryAndSort(member, category, sort, cursor, size);
     return ResponseEntity.ok(response);
 }
 

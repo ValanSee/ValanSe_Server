@@ -21,4 +21,5 @@ public class CommentReplyResponseDto {
     private VoteLabel label;
     private Long daysAgo;
     private Long hoursAgo;
+    private boolean canDelete;
 }
