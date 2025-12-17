@@ -71,6 +71,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/votes/*").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/comments/*").authenticated()
 
+                        // PATCH
+                        .requestMatchers(HttpMethod.PATCH, "/votes/*/pin").authenticated()
+
                         // 특별한 경로 (내가 만든/투표한 게임)
                         .requestMatchers("/votes/mine/**").authenticated()
 
