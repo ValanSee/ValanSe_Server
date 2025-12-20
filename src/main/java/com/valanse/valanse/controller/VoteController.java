@@ -212,11 +212,11 @@ public ResponseEntity<VoteListResponse> getVotes(
     @Operation(summary = "고정", description = "관리자 권한으로 게시물을 고정합니다.")
     public ResponseEntity<Void> updatePinStatus(
             @PathVariable Long voteId,
-            @RequestParam PinType pinType)
+            @RequestBody PinRequest request)
     {
         Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         var member = memberService.findById(loginId);
-        voteService.updatePinStatus(member, voteId, pinType);
+        voteService.updatePinStatus(member, voteId, request.getPinType());
         return ResponseEntity.ok().build();
     }
 
