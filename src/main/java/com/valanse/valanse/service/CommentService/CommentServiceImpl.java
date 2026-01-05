@@ -10,8 +10,11 @@ import com.valanse.valanse.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
 import java.time.LocalDateTime;
 
 
@@ -42,7 +45,10 @@ public class CommentServiceImpl implements CommentService {
 
             if (!writerId.equals(loginId) && member.getRole() != Role.ADMIN) {
                 System.out.println("삭제 권한 없음: 요청자 ≠ 작성자, 관리자 x");
-                throw new IllegalArgumentException("삭제 권한 없음");
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "삭제 권한이 없습니다."
+                );
             }
 
             comment.setDeletedAt(LocalDateTime.now());
@@ -52,6 +58,10 @@ public class CommentServiceImpl implements CommentService {
 
         }, () -> {
             System.out.println("삭제 실패: 해당 댓글 ID " + commentId + " 없음");
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "댓글을 찾을 수 없습니다."
+            );
         });
     }
 
