@@ -2,6 +2,7 @@ package com.valanse.valanse.service.CommentService;
 
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberTemplate;
+import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.*;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.VoteLabel;
@@ -45,10 +46,7 @@ public class CommentServiceImpl implements CommentService {
 
             if (!writerId.equals(loginId) && member.getRole() != Role.ADMIN) {
                 System.out.println("삭제 권한 없음: 요청자 ≠ 작성자, 관리자 x");
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "삭제 권한이 없습니다."
-                );
+                throw new ApiException("삭제 권한이 없습니다.",HttpStatus.FORBIDDEN);
             }
 
             comment.setDeletedAt(LocalDateTime.now());
@@ -58,10 +56,7 @@ public class CommentServiceImpl implements CommentService {
 
         }, () -> {
             System.out.println("삭제 실패: 해당 댓글 ID " + commentId + " 없음");
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "댓글을 찾을 수 없습니다."
-            );
+            throw new ApiException("댓글을 찾을 수 없습니다.", HttpStatus.NOT_FOUND);
         });
     }
 
