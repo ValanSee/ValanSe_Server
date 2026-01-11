@@ -48,6 +48,12 @@ public class CommentServiceImpl implements CommentService {
             comment.setDeletedAt(LocalDateTime.now());
             commentRepository.save(comment);
 
+            CommentGroup commentGroup = comment.getCommentGroup();
+            if (commentGroup != null) {
+                commentGroup.setTotalCommentCount(commentGroup.getTotalCommentCount() - 1);
+                commentGroupRepository.save(commentGroup);
+            }
+
             System.out.println("댓글 ID " + commentId + " → isDeleted=true 저장 완료");
 
         }, () -> {
@@ -139,15 +145,16 @@ public class CommentServiceImpl implements CommentService {
                     .content(null)
                     .build();
         }
+        Long actualCommentCount = commentRepository.countActiveCommentsByVoteId(voteId);
 
         return commentRepository.findMostLikedCommentByVoteId(voteId)
                 .map(comment -> BestCommentResponseDto.builder()
-                        .totalCommentCount(group.getTotalCommentCount())
+                        .totalCommentCount(actualCommentCount.intValue())
                         .content(comment.getContent())
                         .build())
                 .orElse( // 댓글이 없을 경우에도 빈 응답 반환
                         BestCommentResponseDto.builder()
-                                .totalCommentCount(group.getTotalCommentCount())
+                                .totalCommentCount(actualCommentCount.intValue())
                                 .content(null)
                                 .build()
                 );
