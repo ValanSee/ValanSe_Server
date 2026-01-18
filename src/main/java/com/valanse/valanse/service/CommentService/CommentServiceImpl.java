@@ -46,23 +46,32 @@ public class CommentServiceImpl implements CommentService {
 
             if (!writerId.equals(loginId) && member.getRole() != Role.ADMIN) {
                 System.out.println("삭제 권한 없음: 요청자 ≠ 작성자, 관리자 x");
-                throw new ApiException("삭제 권한이 없습니다.",HttpStatus.FORBIDDEN);
+                throw new IllegalArgumentException("삭제 권한 없음");
             }
 
+            // Soft delete 처리
             comment.setDeletedAt(LocalDateTime.now());
             commentRepository.save(comment);
 
-            CommentGroup commentGroup = comment.getCommentGroup();
-            if (commentGroup != null) {
+            // ✅ 추가: 카운트 감소 로직
+            if (comment.getParent() == null) {
+                // 부모 댓글인 경우: totalCommentCount 감소
+                CommentGroup commentGroup = comment.getCommentGroup();
                 commentGroup.setTotalCommentCount(commentGroup.getTotalCommentCount() - 1);
                 commentGroupRepository.save(commentGroup);
+                System.out.println("부모 댓글 삭제 → totalCommentCount 감소: " + commentGroup.getTotalCommentCount());
+            } else {
+                // 대댓글인 경우: 부모 댓글의 replyCount 감소
+                Comment parent = comment.getParent();
+                parent.updateReplyCount(parent.getReplyCount() - 1);
+                commentRepository.save(parent);
+                System.out.println("대댓글 삭제 → 부모 댓글 replyCount 감소: " + parent.getReplyCount());
             }
 
-            System.out.println("댓글 ID " + commentId + " → isDeleted=true 저장 완료");
+            System.out.println("댓글 ID " + commentId + " → 삭제 완료");
 
         }, () -> {
             System.out.println("삭제 실패: 해당 댓글 ID " + commentId + " 없음");
-            throw new ApiException("댓글을 찾을 수 없습니다.", HttpStatus.NOT_FOUND);
         });
     }
 
@@ -108,6 +117,7 @@ public class CommentServiceImpl implements CommentService {
             parent = commentRepository.findById(request.getParentId())
                     .orElseThrow(() -> new IllegalArgumentException("해당 id에 해당하는 부모 댓글이 존재하지 않습니다."));
             parent.updateReplyCount(parent.getReplyCount() + 1); // replyCount 증가
+            commentRepository.save(parent);
         }
 
         // 3. 댓글 저장
@@ -120,8 +130,12 @@ public class CommentServiceImpl implements CommentService {
                 .replyCount(0)
                 .deletedAt(null)
                 .build();
-        commentGroup.setTotalCommentCount(commentGroup.getTotalCommentCount() + 1); // 총 댓글 수 증가
-        commentGroupRepository.save(commentGroup);
+
+        // ✅ 수정: 부모 댓글일 때만 totalCommentCount 증가
+        if (request.getParentId() == null) {
+            commentGroup.setTotalCommentCount(commentGroup.getTotalCommentCount() + 1);
+            commentGroupRepository.save(commentGroup);
+        }
 
         return commentRepository.save(comment).getId();
     }
