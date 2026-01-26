@@ -29,6 +29,7 @@ public class VoteListResponse {
     public static class VoteDto {
         private Long id;
         private String title;
+        private String content;
         private String category; // ENUM 이름을 String으로 반환
         private Long member_id;
         private String nickname;

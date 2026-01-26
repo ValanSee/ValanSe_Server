@@ -115,11 +115,18 @@ public class AuthController {
 
     @Operation(
             summary = "회원 탈퇴 처리",
-            description = "refresh token을 redis로부터 삭제해서 토큰 재발급 방지, 카카오 로그인 연결끊기, 그리고 사용자 데이터베이스 삭제를 진행합니다. "
+            description = "refresh token을 redis로부터 삭제해서 토큰 재발급 방지, 카카오 로그인 연결끊기, 그리고 사용자 데이터베이스 삭제를 진행합니다."
     )
     @PostMapping("/withdraw")
     public ResponseEntity<Void> withdraw() {
-        kakaoService.unLink(); // 카카오 로그인 연결 끊기
+        // 카카오 연결 끊기 시도 (실패해도 무시)
+        try {
+            kakaoService.unLink();
+        } catch (Exception e) {
+            // 카카오 refresh token 만료 등으로 연결 끊기 실패해도 탈퇴는 계속 진행
+            System.out.println("카카오 연결 끊기 실패 (무시): " + e.getMessage());
+        }
+
         authService.logout(); // refresh token을 redis로부터 삭제
         memberService.deleteMemberById(); // 사용자 데이터베이스 내용 삭제
         return ResponseEntity.ok().build();

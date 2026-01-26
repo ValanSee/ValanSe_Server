@@ -30,17 +30,38 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
 
+        // ✅ 추가: MBTI 검증
+        if (dto.mbtiIe() == null || dto.mbtiTf() == null) {
+            throw new IllegalArgumentException("MBTI를 모두 선택해주세요");
+        }
+
+        if (dto.mbti() == null || dto.mbti().length() != 4) {
+            throw new IllegalArgumentException("MBTI는 4자리여야 합니다 (예: ENFP)");
+        }
+
         // 기존 프로필 조회
         Optional<MemberProfile> existingProfileOpt = memberProfileRepository.findByMemberId(userId);
 
         if (existingProfileOpt.isPresent()) {
-            // 기존 객체에 값만 덮어쓰기
+            // ✅ 수정: 기존 프로필이 있는 경우
             MemberProfile profile = existingProfileOpt.get();
-            profile.update(dto.nickname(), dto.gender(), dto.age(), dto.mbtiIe(), dto.mbtiTf(), dto.mbti());
 
-            // 수정된 객체 저장 (영속성 때문에 이 부분은 생략도 가능)
+            // 닉네임이 변경되었을 때만 중복 체크
+            if (!profile.getNickname().equals(dto.nickname())) {
+                if (memberProfileRepository.existsByNickname(dto.nickname())) {
+                    throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
+                }
+            }
+
+            // 기존 객체에 값만 덮어쓰기
+            profile.update(dto.nickname(), dto.gender(), dto.age(), dto.mbtiIe(), dto.mbtiTf(), dto.mbti());
             memberProfileRepository.save(profile);
         } else {
+            // ✅ 신규 생성: 무조건 중복 체크
+            if (memberProfileRepository.existsByNickname(dto.nickname())) {
+                throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
+            }
+
             // 새 객체 생성 후 저장
             MemberProfile newProfile = MemberProfile.builder()
                     .member(member)

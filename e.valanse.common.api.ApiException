@@ -1,0 +1,276 @@
+[1mdiff --git a/src/main/java/com/valanse/valanse/service/VoteService/VoteServiceImpl.java b/src/main/java/com/valanse/valanse/service/VoteService/VoteServiceImpl.java[m
+[1mindex 57a6f96..8740dcf 100644[m
+[1m--- a/src/main/java/com/valanse/valanse/service/VoteService/VoteServiceImpl.java[m
+[1m+++ b/src/main/java/com/valanse/valanse/service/VoteService/VoteServiceImpl.java[m
+[36m@@ -2,17 +2,14 @@[m [mpackage com.valanse.valanse.service.VoteService;[m
+ [m
+ import com.valanse.valanse.common.api.ApiException;[m
+ import com.valanse.valanse.domain.*;[m
+[32m+[m[32mimport com.valanse.valanse.domain.enums.PinType;[m
+[32m+[m[32mimport com.valanse.valanse.domain.enums.Role;[m
+ import com.valanse.valanse.domain.enums.VoteCategory;[m
+ import com.valanse.valanse.domain.enums.VoteLabel;[m
+ import com.valanse.valanse.domain.mapping.MemberVoteOption;[m
+ import com.valanse.valanse.dto.Vote.*;[m
+ import com.valanse.valanse.repository.*;[m
+[31m-import io.swagger.v3.oas.annotations.Operation;[m
+ import lombok.RequiredArgsConstructor;[m
+[31m-import org.springframework.data.domain.Page;[m
+[31m-import org.springframework.data.domain.PageRequest;[m
+[31m-import org.springframework.data.domain.Pageable;[m
+[31m-import org.springframework.data.domain.Sort;[m
+ import org.springframework.http.HttpStatus;[m
+ import org.springframework.security.core.context.SecurityContextHolder;[m
+ import org.springframework.stereotype.Service;[m
+[36m@@ -25,7 +22,7 @@[m [mimport java.util.stream.Collectors; // 기존 코드에 있었으므로 유지[m
+ [m
+ @Service[m
+ @RequiredArgsConstructor[m
+[31m-@Transactional // 클래스 레벨에서 기본적으로 읽기 전용 트랜잭션으로 설정[m
+[32m+[m[32m@Transactional(readOnly = true) // 클래스 레벨에서 기본적으로 읽기 전용 트랜잭션으로 설정[m
+ public class VoteServiceImpl implements VoteService {[m
+ [m
+     private final VoteRepository voteRepository;[m
+[36m@@ -88,7 +85,15 @@[m [mpublic class VoteServiceImpl implements VoteService {[m
+ [m
+     //여기서부터 영서 코드[m
+     @Override[m
+[32m+[m[32m    @Transactional[m
+     public HotIssueVoteResponse getHotIssueVote() { // 파라미터 없음[m
+[32m+[m[32m        // 0. 고정 게시물이 있다면 반환.[m
+[32m+[m[32m        Optional<Vote> pinnedHot = voteRepository.findByPinType(PinType.HOT);[m
+[32m+[m[32m        if (pinnedHot.isPresent()) {[m
+[32m+[m[32m            Vote hotIssueVote = pinnedHot.get();[m
+[32m+[m[32m            return getHotIssueVoteResponse(hotIssueVote);[m
+[32m+[m[32m        }[m
+[32m+[m
+         // 수정: 작일 반응성 기준으로 변경[m
+         LocalDateTime now = LocalDateTime.now();[m
+         LocalDateTime yesterdayStart = now.minusDays(1).withHour(0).withMinute(0).withSecond(0);[m
+[36m@@ -115,45 +120,23 @@[m [mpublic class VoteServiceImpl implements VoteService {[m
+         }[m
+ [m
+         // 3. 투표 생성자 정보 조회 (닉네임) - 기존 로직 유지[m
+[31m-        String createdByNickname = "익명"; // 기본값 설정[m
+[31m-        if (hotIssueVote.getMember() != null) { // Member가 null이 아닌 경우[m
+[31m-            Member creatorMember = hotIssueVote.getMember(); // 생성자 Member 객체 가져오기[m
+[31m-            MemberProfile profile = memberProfileRepository.findByMemberId(creatorMember.getId()).orElse(null); // MemberProfile 조회[m
+[31m-            if (profile != null && profile.getNickname() != null) { // 프로필이 있고 닉네임이 있는 경우[m
+[31m-                createdByNickname = profile.getNickname(); // 닉네임 설정[m
+[31m-            } else {[m
+[31m-                // MemberProfile이 없거나 닉네임이 없는 경우, Member의 기본 이름 사용 (카카오 이름 등)[m
+[31m-                if (creatorMember.getName() != null) { // Member의 이름이 있는 경우[m
+[31m-                    createdByNickname = creatorMember.getName(); // 이름으로 닉네임 설정[m
+[31m-                }[m
+[31m-            }[m
+[31m-        }[m
+[31m-[m
+[31m-        // 4. 투표 옵션 정보 DTO로 변환[m
+[31m-        List<HotIssueVoteOptionDto> options = hotIssueVote.getVoteOptions().stream()[m
+[31m-                .map(option -> HotIssueVoteOptionDto.builder() // HotIssueVoteOptionDto 빌더 사용[m
+[31m-                        .optionId(option.getId())  //option ID넣기[m
+[31m-                        .content(option.getContent()) // 옵션 내용 설정[m
+[31m-                        .vote_count(option.getVoteCount()) // 투표 수 설정[m
+[31m-                        .build())[m
+[31m-                .collect(Collectors.toList()); // 리스트로 수집[m
+[31m-[m
+[31m-        // 5. HotIssueVoteResponse DTO 생성 및 반환[m
+[31m-        return HotIssueVoteResponse.builder()[m
+[31m-                .voteId(hotIssueVote.getId()) // 투표 ID 설정[m
+[31m-                .title(hotIssueVote.getTitle()) // 제목 설정[m
+[31m-                .content(hotIssueVote.getContent())[m
+[31m-                .category(hotIssueVote.getCategory() != null ? hotIssueVote.getCategory().name() : null) // 카테고리 설정[m
+[31m-                .totalParticipants(hotIssueVote.getTotalVoteCount()) // 총 참여자 수 설정[m
+[31m-                .createdBy(createdByNickname) // 생성자 닉네임 설정[m
+[31m-                .createdAt(hotIssueVote.getCreatedAt()) // 추가된 부분: createdAt 설정[m
+[31m-                .options(options) // 옵션 리스트 설정[m
+[31m-                .build();[m
+[32m+[m[32m        return getHotIssueVoteResponse(hotIssueVote);[m
+     }[m
+ [m
+     // 인기 급상승 토픽[m
+     @Override[m
+[32m+[m[32m    @Transactional[m
+     public HotIssueVoteResponse getTrendingVote() {[m
+[32m+[m[32m       // 0. 고정 게시물이 있다면 반환.[m
+[32m+[m[32m        Optional<Vote> pinnedTrending = voteRepository.findByPinType(PinType.TRENDING);[m
+[32m+[m[32m        if (pinnedTrending.isPresent()) {[m
+[32m+[m
+[32m+[m[32m            Vote trendingVote = pinnedTrending.get();[m
+[32m+[m
+[32m+[m[32m            return getHotIssueVoteResponse(trendingVote);[m
+[32m+[m
+[32m+[m[32m        }[m
+[32m+[m
+        // 7일 이전 시간 계산[m
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);[m
+ [m
+[36m@@ -179,40 +162,7 @@[m [mpublic class VoteServiceImpl implements VoteService {[m
+         }[m
+ [m
+         // 3. 투표 생성자 정보 조회 (닉네임) - 기존 로직 유지[m
+[31m-        String createdByNickname = "익명"; // 기본값 설정[m
+[31m-        if (trendingVote.getMember() != null) { // Member가 null이 아닌 경우[m
+[31m-            Member creatorMember = trendingVote.getMember(); // 생성자 Member 객체 가져오기[m
+[31m-            MemberProfile profile = memberProfileRepository.findByMemberId(creatorMember.getId()).orElse(null); // MemberProfile 조회[m
+[31m-            if (profile != null && profile.getNickname() != null) { // 프로필이 있고 닉네임이 있는 경우[m
+[31m-                createdByNickname = profile.getNickname(); // 닉네임 설정[m
+[31m-            } else {[m
+[31m-                // MemberProfile이 없거나 닉네임이 없는 경우, Member의 기본 이름 사용 (카카오 이름 등)[m
+[31m-                if (creatorMember.getName() != null) { // Member의 이름이 있는 경우[m
+[31m-                    createdByNickname = creatorMember.getName(); // 이름으로 닉네임 설정[m
+[31m-                }[m
+[31m-            }[m
+[31m-        }[m
+[31m-[m
+[31m-        // 4. 투표 옵션 정보 DTO로 변환[m
+[31m-        List<HotIssueVoteOptionDto> options = trendingVote.getVoteOptions().stream()[m
+[31m-                .map(option -> HotIssueVoteOptionDto.builder() // HotIssueVoteOptionDto 빌더 사용[m
+[31m-                        .optionId(option.getId())  //option ID넣기[m
+[31m-                        .content(option.getContent()) // 옵션 내용 설정[m
+[31m-                        .vote_count(option.getVoteCount()) // 투표 수 설정[m
+[31m-                        .build())[m
+[31m-                .collect(Collectors.toList()); // 리스트로 수집[m
+[31m-[m
+[31m-        // 5. HotIssueVoteResponse DTO 생성 및 반환[m
+[31m-        return HotIssueVoteResponse.builder()[m
+[31m-                .voteId(trendingVote.getId()) // 투표 ID 설정[m
+[31m-                .title(trendingVote.getTitle()) // 제목 설정[m
+[31m-                .content(trendingVote.getContent())[m
+[31m-                .category(trendingVote.getCategory() != null ? trendingVote.getCategory().name() : null) // 카테고리 설정[m
+[31m-                .totalParticipants(trendingVote.getTotalVoteCount()) // 총 참여자 수 설정[m
+[31m-                .createdBy(createdByNickname) // 생성자 닉네임 설정[m
+[31m-                .createdAt(trendingVote.getCreatedAt()) // 추가된 부분: createdAt 설정[m
+[31m-                .options(options) // 옵션 리스트 설정[m
+[31m-                .build();[m
+[32m+[m[32m        return getHotIssueVoteResponse(trendingVote);[m
+ [m
+     }[m
+ [m
+[36m@@ -387,6 +337,7 @@[m [mpublic class VoteServiceImpl implements VoteService {[m
+ [m
+ [m
+     @Override[m
+[32m+[m[32m    @Transactional[m
+     public Long createVote(Long userId, VoteCreateRequest request) {[m
+         // 1. 회원 검증[m
+         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)[m
+[36m@@ -405,6 +356,7 @@[m [mpublic class VoteServiceImpl implements VoteService {[m
+                 .content(request.getContent())[m
+                 .category(request.getCategory())[m
+                 .member(member)[m
+[32m+[m[32m                .pinType(PinType.NONE)[m
+                 .build();[m
+ [m
+         // 3. 투표 옵션 생성 및 추가 (최대 4개 옵션 제한)[m
+[36m@@ -438,7 +390,7 @@[m [mpublic class VoteServiceImpl implements VoteService {[m
+     }[m
+ [m
+     @Override[m
+[31m-    public VoteListResponse getVotesByCategoryAndSort(String category, String sort, String cursor, int size) {[m
+[32m+[m[32m    public VoteListResponse getVotesByCategoryAndSort(Member loginUser, String category, String sort, String cursor, int size) {[m
+         List<Vote> votes = voteRepository.findVotesByCursor(category, sort, cursor, size);[m
+ [m
+         boolean hasNext = votes.size() > size;[m
+[36m@@ -475,6 +427,11 @@[m [mpublic class VoteServiceImpl implements VoteService {[m
+                         totalCommentCount = vote.getCommentGroup().getTotalCommentCount();[m
+                     }[m
+ [m
+[32m+[m[32m                    boolean isAdmin = loginUser != null && loginUser.getRole() == Role.ADMIN;[m
+[32m+[m[32m                    boolean canDelete = false;[m
+[32m+[m[32m                    if (loginUser != null && vote.getMember() != null) {[m
+[32m+[m[32m                        canDelete = isAdmin || vote.getMember().getId().equals(loginUser.getId());[m
+[32m+[m[32m                    }[m
+                     return VoteListResponse.VoteDto.builder()[m
+                             .id(vote.getId())[m
+                             .title(vote.getTitle())[m
+[36m@@ -485,6 +442,7 @@[m [mpublic class VoteServiceImpl implements VoteService {[m
+                             .total_vote_count(vote.getTotalVoteCount())[m
+                             .total_comment_count(totalCommentCount)[m
+                             .options(optionListDtos)[m
+[32m+[m[32m                            .canDelete(canDelete)[m
+                             .build();[m
+                 })[m
+                 .collect(Collectors.toList());[m
+[36m@@ -502,8 +460,11 @@[m [mpublic class VoteServiceImpl implements VoteService {[m
+         Vote vote = voteRepository.findById(voteId)[m
+                 .orElseThrow(() -> new ApiException("투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));[m
+ [m
+[31m-        // 권한 확인[m
+[31m-        if (!vote.getMember().getId().equals(userId)) {[m
+[32m+[m[32m        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)[m
+[32m+[m[32m                .orElseThrow(() -> new ApiException("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));[m
+[32m+[m
+[32m+[m[32m        // 권한 확인 - 자기 자신 혹은 관리자[m
+[32m+[m[32m        if (!vote.getMember().getId().equals(userId) && member.getRole() != Role.ADMIN) {[m
+             throw new ApiException("삭제 권한이 없습니다.", HttpStatus.FORBIDDEN);[m
+         }[m
+ [m
+[36m@@ -511,4 +472,67 @@[m [mpublic class VoteServiceImpl implements VoteService {[m
+         vote.softDelete();[m
+         voteRepository.save(vote);[m
+     }[m
+[32m+[m
+[32m+[m[32m    @Override[m
+[32m+[m[32m    @Transactional[m
+[32m+[m[32m    // 고정 , 고정 해제 기능은 vote 엔티티에 메서드로 존재[m
+[32m+[m[32m    public void updatePinStatus(Member member, Long voteId, PinType pinType) {[m
+[32m+[m[32m        if (member.getRole() != Role.ADMIN) {[m
+[32m+[m[32m            throw new ApiException("권한이 없습니다.", HttpStatus.FORBIDDEN);[m
+[32m+[m[32m        }[m
+[32m+[m[32m        Vote vote = voteRepository.findById(voteId)[m
+[32m+[m[32m                .orElseThrow(() -> new ApiException("게시물이 존재하지 않습니다.", HttpStatus.NOT_FOUND));[m
+[32m+[m[32m        if (pinType != PinType.NONE) {[m
+[32m+[m[32m            // 이미 고정된 다른 게시물이 존재한다면 해당 게시물의 고정 해제[m
+[32m+[m[32m            voteRepository.findByPinType(pinType).ifPresent(existing ->[m
+[32m+[m[32m                    {if (!existing.getId().equals(voteId))[m
+[32m+[m[32m                    {[m
+[32m+[m[32m                        existing.unpin();[m
+[32m+[m[32m                        voteRepository.save(existing);[m
+[32m+[m[32m                    }});[m
+[32m+[m[32m            vote.pin(pinType);[m
+[32m+[m[32m        }[m
+[32m+[m[32m        else {[m
+[32m+[m[32m            vote.unpin();[m
+[32m+[m[32m        }[m
+[32m+[m[32m        voteRepository.save(vote);[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    // 핫이슈 발런스 게임을 뽑아내는 메서드[m
+[32m+[m[32m    private HotIssueVoteResponse getHotIssueVoteResponse(Vote hotIssueVote) {[m
+[32m+[m[32m        String createdByNickname = "익명"; // 기본값 설정[m
+[32m+[m[32m        if (hotIssueVote.getMember() != null) { // Member가 null이 아닌 경우[m
+[32m+[m[32m            Member creatorMember = hotIssueVote.getMember(); // 생성자 Member 객체 가져오기[m
+[32m+[m[32m            MemberProfile profile = memberProfileRepository.findByMemberId(creatorMember.getId()).orElse(null); // MemberProfile 조회[m
+[32m+[m[32m            if (profile != null && profile.getNickname() != null) { // 프로필이 있고 닉네임이 있는 경우[m
+[32m+[m[32m                createdByNickname = profile.getNickname(); // 닉네임 설정[m
+[32m+[m[32m            } else {[m
+[32m+[m[32m                // MemberProfile이 없거나 닉네임이 없는 경우, Member의 기본 이름 사용 (카카오 이름 등)[m
+[32m+[m[32m                if (creatorMember.getName() != null) { // Member의 이름이 있는 경우[m
+[32m+[m[32m                    createdByNickname = creatorMember.getName(); // 이름으로 닉네임 설정[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        List<HotIssueVoteOptionDto> options = hotIssueVote.getVoteOptions().stream()[m
+[32m+[m[32m                .map(option -> HotIssueVoteOptionDto.builder() // HotIssueVoteOptionDto 빌더 사용[m
+[32m+[m[32m                        .optionId(option.getId())  //option ID넣기[m
+[32m+[m[32m                        .content(option.getContent()) // 옵션 내용 설정[m
+[32m+[m[32m                        .vote_count(option.getVoteCount()) // 투표 수 설정[m
+[32m+[m[32m                        .build())[m
+[32m+[m[32m                .collect(Collectors.toList()); // 리스트로 수집[m
+[32m+[m
+[32m+[m[32m        return HotIssueVoteResponse.builder()[m
+[32m+[m[32m                .voteId(hotIssueVote.getId()) // 투표 ID 설정[m
+[32m+[m[32m                .title(hotIssueVote.getTitle()) // 제목 설정[m
+[32m+[m[32m                .content(hotIssueVote.getContent())[m
+[32m+[m[32m                .category(hotIssueVote.getCategory() != null ? hotIssueVote.getCategory().name() : null) // 카테고리 설정[m
+[32m+[m[32m                .totalParticipants(hotIssueVote.getTotalVoteCount()) // 총 참여자 수 설정[m
+[32m+[m[32m                .createdBy(createdByNickname) // 생성자 닉네임 설정[m
+[32m+[m[32m                .createdAt(hotIssueVote.getCreatedAt()) // 추가된 부분: createdAt 설정[m
+[32m+[m[32m                .pinType(hotIssueVote.getPinType())[m
+[32m+[m[32m                .options(options) // 옵션 리스트 설정[m
+[32m+[m[32m                .build();[m
+[32m+[m[32m    }[m
+[32m+[m
+ }[m

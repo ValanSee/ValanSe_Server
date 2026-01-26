@@ -435,6 +435,7 @@ public class VoteServiceImpl implements VoteService {
                     return VoteListResponse.VoteDto.builder()
                             .id(vote.getId())
                             .title(vote.getTitle())
+                            .content(vote.getContent())
                             .category(vote.getCategory().name())
                             .member_id(vote.getMember() != null ? vote.getMember().getId() : null)
                             .nickname(creatorNickname)

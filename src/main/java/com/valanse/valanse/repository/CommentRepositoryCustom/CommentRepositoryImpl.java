@@ -107,9 +107,29 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                 queryFactory
                         .selectFrom(comment)
                         .join(comment.commentGroup, group)
-                        .where(group.vote.id.eq(voteId))
+                        .where(
+                                group.vote.id.eq(voteId),
+                                comment.deletedAt.isNull()
+                        )
                         .orderBy(comment.likeCount.desc())
                         .fetchFirst()
         );
+    }
+
+    @Override
+    public Long countActiveCommentsByVoteId(Long voteId) {
+        QComment comment = QComment.comment;
+        QCommentGroup group = QCommentGroup.commentGroup;
+
+        return queryFactory
+                .select(comment.count())
+                .from(comment)
+                .join(comment.commentGroup, group)
+                .where(
+                        group.vote.id.eq(voteId),
+                        comment.deletedAt.isNull(),
+                        comment.parent.isNull()  // 최상위 댓글만 카운트
+                )
+                .fetchOne();
     }
 }
