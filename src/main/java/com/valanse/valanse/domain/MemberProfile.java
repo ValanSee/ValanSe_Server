@@ -19,7 +19,6 @@ import lombok.NoArgsConstructor;
 public class MemberProfile extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @OneToOne
