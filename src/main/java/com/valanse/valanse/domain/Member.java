@@ -44,9 +44,7 @@ public class Member extends BaseEntity {
     private String kakaoAccessToken; // 카카오 API 호출용(짧은 만료시간)
 
     private String kakaoRefreshToken; // AccessToken 갱신용
-
-    private String nickname;
-
+    
     @Builder.Default
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)
     private List<Comment> comments = new ArrayList<>();
