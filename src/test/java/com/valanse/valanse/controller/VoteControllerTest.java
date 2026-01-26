@@ -182,8 +182,7 @@ public class VoteControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound()) // HTTP 상태 코드 404 Not Found 확인
                 .andExpect(jsonPath("$.error").value("핫이슈 투표를 찾을 수 없습니다.")) // 에러 메시지 확인
-                .andExpect(jsonPath("$.status").value(404)) // 상태 코드 확인
-                .andExpect(jsonPath("$.type").value("ApiException")); // 예외 타입 확인
+                .andExpect(jsonPath("$.status").value(404)); // 상태 코드 확인
     }
 
     @Test

@@ -45,7 +45,6 @@ class CommentServiceImplTest {
         member = Member.builder()
                 .id(1L)
                 .email("test@email.com")
-                .nickname("테스트")
                 .name("test")
                 .role(Role.USER)
                 .build();
@@ -270,10 +269,10 @@ class CommentServiceImplTest {
                 .thenReturn(Optional.of(comment));
 
         //when
-        IllegalArgumentException apiException = assertThrows(IllegalArgumentException.class, () -> commentService.deleteMyComment(admin, 1L));
+        ApiException apiException = assertThrows(ApiException.class, () -> commentService.deleteMyComment(admin, 1L));
 
         //then
-        assertThat(apiException.getMessage()).isEqualTo("삭제 권한 없음");
+        assertThat(apiException.getMessage()).isEqualTo("삭제 권한이 없습니다.");
 
     }
 

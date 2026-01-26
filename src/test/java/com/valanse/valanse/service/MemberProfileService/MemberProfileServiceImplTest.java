@@ -52,7 +52,6 @@ class MemberProfileServiceImplTest {
         member = Member.builder()
                 .id(1L)
                 .email("test@email.com")
-                .nickname("테스트")
                 .name("test")
                 .role(Role.USER)
                 .build();

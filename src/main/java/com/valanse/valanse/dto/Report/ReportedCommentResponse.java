@@ -19,7 +19,7 @@ public class ReportedCommentResponse {
         this.commentId = comment.getId();
         this.content = comment.getContent();
         this.likeCount = comment.getLikeCount();
-        this.nickname = comment.getMember().getNickname();
+        this.nickname = comment.getMember().getProfile().getNickname();
         this.replyCount = comment.getReplyCount();
         this.voteId = comment.getCommentGroup().getVote().getId();
     }
