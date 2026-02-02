@@ -122,10 +122,14 @@ public class MemberProfileServiceImpl implements MemberProfileService {
             return false;
         }
 
-        // 2. 한글/ 영어 혼합금지
+        // 2. 한글/ 영어 혼합금지, 숫자만으로 이루어진 닉네임 금지
         boolean hasEnglish = nickname.matches(".*[a-zA-Z].*");
         boolean hasKorean = nickname.matches(".*[가-힣].*");
         if (hasEnglish && hasKorean) {
+            return false;
+        }
+
+        if (nickname.matches("\\d+")) {
             return false;
         }
 
