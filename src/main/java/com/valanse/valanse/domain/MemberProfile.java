@@ -43,6 +43,8 @@ public class MemberProfile extends BaseEntity {
 
     private String mbti;
 
+    private Long point = 0L;
+
     public void update(String nickname, Gender gender, Age age, MbtiIe mbtiIe, MbtiTf mbtiTf, String mbti) {
         this.nickname = nickname;
         this.gender = gender;
