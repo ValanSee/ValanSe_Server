@@ -112,10 +112,6 @@ class CommentLikeServiceImplTest {
     // 예외 테스트 - 회원이 존재하지 않는 경우
     @Test
     void 회원_없음_예외_test() {
-        // given
-
-        // when
-        Member member = new Member();
 
         // stub
         when(memberRepository.findByIdAndDeletedAtIsNull(any())).thenReturn(Optional.empty());
@@ -124,7 +120,23 @@ class CommentLikeServiceImplTest {
         // then
         assertThat(illegalArgumentException.getMessage()).isEqualTo("회원이 존재하지 않습니다.");
     }
-    
+
+    // 예외 테스트 - 댓글이 존재 하지 않는 경우
+    @Test
+    void 댓글_없음_예외_test() {
+
+        // when
+        Member member = new Member();
+
+        // stub
+        when(memberRepository.findByIdAndDeletedAtIsNull(any())).thenReturn(Optional.of(member));
+        when(commentRepository.findById(any())).thenReturn(Optional.empty());
+        IllegalArgumentException illegalArgumentException = assertThrows(IllegalArgumentException.class, () -> commentLikeService.likeComment(1L, 1L));
+
+        // then
+        assertThat(illegalArgumentException.getMessage()).isEqualTo("댓글이 존재하지 않습니다.");
+
+    }
 
 
 }
