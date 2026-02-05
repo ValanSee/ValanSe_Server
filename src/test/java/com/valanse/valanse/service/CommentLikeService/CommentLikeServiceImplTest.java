@@ -1,6 +1,5 @@
 package com.valanse.valanse.service.CommentLikeService;
 
-import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.Comment;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.mapping.CommentLike;
@@ -23,8 +22,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CommentLikeServiceImplTest {
@@ -77,6 +75,7 @@ class CommentLikeServiceImplTest {
         //then: 응답 dto 반환 값 확인
         assertThat(responseDto.getLikeCount()).isEqualTo(1);
         assertThat(responseDto.getMessage()).isEqualTo("좋아요 성공");
+        verify(commentLikeRepository,times(1)).save(any(CommentLike.class));
     }
 
     @Test
@@ -107,6 +106,7 @@ class CommentLikeServiceImplTest {
         //then: 응답 dto 반환 값 확인
         assertThat(responseDto.getLikeCount()).isEqualTo(0);
         assertThat(responseDto.getMessage()).isEqualTo("좋아요 취소");
+        verify(commentLikeRepository,times(1)).delete(any(CommentLike.class));
     }
 
     // 예외 테스트 - 회원이 존재하지 않는 경우
