@@ -1,5 +1,6 @@
 package com.valanse.valanse.service.CommentLikeService;
 
+import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.Comment;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.mapping.CommentLike;
@@ -20,6 +21,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -106,5 +108,23 @@ class CommentLikeServiceImplTest {
         assertThat(responseDto.getLikeCount()).isEqualTo(0);
         assertThat(responseDto.getMessage()).isEqualTo("좋아요 취소");
     }
-  
+
+    // 예외 테스트 - 회원이 존재하지 않는 경우
+    @Test
+    void 회원_없음_예외_test() {
+        // given
+
+        // when
+        Member member = new Member();
+
+        // stub
+        when(memberRepository.findByIdAndDeletedAtIsNull(any())).thenReturn(Optional.empty());
+        IllegalArgumentException illegalArgumentException = assertThrows(IllegalArgumentException.class, () -> commentLikeService.likeComment(1L , 1L));
+
+        // then
+        assertThat(illegalArgumentException.getMessage()).isEqualTo("회원이 존재하지 않습니다.");
+    }
+    
+
+
 }
