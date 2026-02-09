@@ -54,4 +54,8 @@ public class MemberProfile extends BaseEntity {
         this.mbti = mbti;
     }
 
+    public void addPoint(Long point) {
+        this.point += point;
+    }
+
 }
