@@ -137,6 +137,9 @@ public class CommentServiceImpl implements CommentService {
             commentGroupRepository.save(commentGroup);
         }
 
+        // 댓글 작성시 포인트 1점
+        member.getProfile().addPoint(1L);
+
         return commentRepository.save(comment).getId();
     }
 
