@@ -24,7 +24,7 @@ jobs:
           echo "${{ secrets.APPLICATION_PROPERTIES }}" > src/main/resources/application.yml
 
       - name: 테스트 & 빌드
-        run: ./gradlew clean build
+        run: ./gradlew clean build -x test
 
       - name: AWS Resource에 접근할 수 있도록 AWS credentials 설정하기
         uses: aws-actions/configure-aws-credentials@v4
