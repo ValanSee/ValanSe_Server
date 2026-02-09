@@ -112,16 +112,43 @@ public class MemberProfileServiceImpl implements MemberProfileService {
 
     @Override
     public boolean isMeaningfulNickname(String nickname) {
+        // 0. 전체 공백 허용 x
         if (nickname == null || nickname.isBlank()) {
             return false;
         }
 
-        // 1. 같은 문자 4회 이상 반복 (예: aaaa, ㅋㅋㅋㅋ, ㅏㅏㅏㅏ)
+        // 1. 특수문자/이모지 한글 자음,모음 차단
+        if (!nickname.matches("[a-zA-Z가-힣0-9]+")){
+            return false;
+        }
+
+        // 2. 한글/ 영어 혼합금지, 숫자만으로 이루어진 닉네임 금지
+        boolean hasEnglish = nickname.matches(".*[a-zA-Z].*");
+        boolean hasKorean = nickname.matches(".*[가-힣].*");
+        if (hasEnglish && hasKorean) {
+            return false;
+        }
+
+        if (nickname.matches("\\d+")) {
+            return false;
+        }
+
+        // 3. 길이제한 (한글 8/ 영어 16)
+        int length = nickname.length();
+
+        if (hasKorean && length > 8) {
+            return false;
+        }
+        else if (hasEnglish && length > 16) {
+            return false;
+        }
+
+        // 4. 같은 문자 4회 이상 반복 (예: aaaa, ㅋㅋㅋㅋ, ㅏㅏㅏㅏ)
         if (nickname.matches(".*(.)\\1{3,}.*")) {
             return false;
         }
 
-        // 2. 반복되는 문자열 패턴 감지 (예: ililil, ababab)
+        // 5. 반복되는 문자열 패턴 감지 (예: ililil, ababab)
         for (int i = 1; i <= nickname.length() / 2; i++) {
             String pattern = nickname.substring(0, i);
             StringBuilder repeated = new StringBuilder();
@@ -132,8 +159,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
                 return false;
             }
         }
-
-        // 3. 중복 문자 제외하고 글자 수
+        // 6. 중복 문자 제외하고 글자 수
         if (nickname.codePoints().distinct().count() <= 1) {
             return false;
         }
@@ -141,7 +167,9 @@ public class MemberProfileServiceImpl implements MemberProfileService {
     }
 
     private static final Set<String> BAD_WORDS = Set.of(
-            "시발", "씨발", "병신", "ㅅㅂ", "ㅂㅅ", "ㄱㅅㄲ", "개새끼"
+            "시발", "씨발", "병신", "개새끼",
+            "섹스", "보지", "자지", "좆", "고아",
+            "애미"
     );
 
     @Override
@@ -150,7 +178,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
             return false;
         }
 
-        String lower = nickname.toLowerCase().replaceAll("[^가-힣a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ]", "");
+        String lower = nickname.toLowerCase().replaceAll("[^가-힣a-zA-Z0-9]", "");
 
         for (String bad : BAD_WORDS) {
             if (lower.contains(bad)) {
