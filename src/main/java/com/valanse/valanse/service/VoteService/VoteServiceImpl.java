@@ -386,6 +386,8 @@ public class VoteServiceImpl implements VoteService {
 
         commentGroupRepository.save(commentGroup); // CommentGroup 저장
 
+        member.getProfile().addPoint(5L); // 포인트 5점 추가 (포인트 값은 미정)
+
         return savedVote.getId(); // 저장된 투표의 ID를 반환
     }
 
