@@ -2,13 +2,11 @@ package com.valanse.valanse.service.VoteService;
 
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.*;
-import com.valanse.valanse.domain.enums.PinType;
-import com.valanse.valanse.domain.enums.Role;
-import com.valanse.valanse.domain.enums.VoteCategory;
-import com.valanse.valanse.domain.enums.VoteLabel;
+import com.valanse.valanse.domain.enums.*;
 import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.repository.*;
+import com.valanse.valanse.service.MemberProfileService.MemberProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -31,6 +29,7 @@ public class VoteServiceImpl implements VoteService {
     private final VoteOptionRepository voteOptionRepository; // processVote 메서드에서 VoteOption 조회를 위해 추가
     private final MemberVoteOptionRepository memberVoteOptionRepository; // processVote 메서드에서 MemberVoteOption 조회를 위해 추가
     private final CommentGroupRepository commentGroupRepository;
+    private final MemberProfileService memberProfileService;
 
    //작은 민지가 구현한 것
    @Override
@@ -386,7 +385,7 @@ public class VoteServiceImpl implements VoteService {
 
         commentGroupRepository.save(commentGroup); // CommentGroup 저장
 
-        member.getProfile().addPoint(5L); // 포인트 5점 추가 (포인트 값은 미정)
+        memberProfileService.givePoint(member, PointType.POST_CREATE, 10L);
 
         return savedVote.getId(); // 저장된 투표의 ID를 반환
     }

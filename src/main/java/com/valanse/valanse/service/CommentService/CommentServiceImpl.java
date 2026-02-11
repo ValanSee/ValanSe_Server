@@ -1,20 +1,17 @@
 package com.valanse.valanse.service.CommentService;
 
-import com.querydsl.core.types.dsl.Expressions;
-import com.querydsl.core.types.dsl.NumberTemplate;
-import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.*;
+import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.dto.Comment.*;
 import com.valanse.valanse.repository.*;
+import com.valanse.valanse.service.MemberProfileService.MemberProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
@@ -34,6 +31,7 @@ public class CommentServiceImpl implements CommentService {
     private final CommentGroupRepository commentGroupRepository;
     private final CommentRepository commentRepository;
     private final MemberProfileRepository memberProfileRepository;
+    private final MemberProfileService memberProfileService;
 
     @Override
     public void deleteMyComment(Member member, Long commentId) {
@@ -138,7 +136,7 @@ public class CommentServiceImpl implements CommentService {
         }
 
         // 댓글 작성시 포인트 1점
-        member.getProfile().addPoint(1L);
+        memberProfileService.givePoint(member, PointType.COMMENT_CREATE, 1L);
 
         return commentRepository.save(comment).getId();
     }
