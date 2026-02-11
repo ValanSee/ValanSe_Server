@@ -135,7 +135,7 @@ public class CommentServiceImpl implements CommentService {
             commentGroupRepository.save(commentGroup);
         }
 
-        // 댓글 작성시 포인트 1점
+        // 댓글 작성시 포인트 1점 (하루 5회)
         memberProfileService.givePoint(member, PointType.COMMENT_CREATE, 1L);
 
         return commentRepository.save(comment).getId();
