@@ -20,7 +20,7 @@ import java.util.Arrays;
 @Configuration
 public class SecurityConfig {
     private final JwtTokenFilter jwtTokenFilter;
-
+    // 테스트용 주석
     public SecurityConfig(JwtTokenFilter jwtTokenFilter) {
         this.jwtTokenFilter = jwtTokenFilter;
     }

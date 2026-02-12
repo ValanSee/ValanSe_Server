@@ -5,6 +5,8 @@ import com.valanse.valanse.domain.Comment;
 import com.valanse.valanse.repository.CommentRepositoryCustom.CommentRepositoryCustom;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -28,4 +30,11 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, Comment
     List<Comment> findAllByParentId(Long parentId);
 
     Optional<Comment> findByIdAndDeletedAtIsNull(Long id);
+
+    @Query("SELECT COUNT(c) FROM Comment c " +
+            "WHERE c.commentGroup.vote.id = :voteId " +
+            "AND c.deletedAt IS NULL " +
+            "AND c.parent IS NULL")
+    Long countActiveCommentsByVoteId(@Param("voteId") Long voteId);
+
 }
