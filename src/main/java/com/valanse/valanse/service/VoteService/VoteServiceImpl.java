@@ -514,6 +514,10 @@ public class VoteServiceImpl implements VoteService {
                     createdByNickname = creatorMember.getName(); // 이름으로 닉네임 설정
                 }
             }
+            if (!hotIssueVote.isHotIssueVoted()) {
+                memberProfileService.givePoint(creatorMember, PointType.HOT_ISSUE, 50L);
+                hotIssueVote.markAsHotIssueVoted();
+            }
         }
 
         List<HotIssueVoteOptionDto> options = hotIssueVote.getVoteOptions().stream()
