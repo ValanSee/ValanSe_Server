@@ -15,6 +15,5 @@ public interface MemberProfileService {
     boolean isAvailableNickname(String nickname);      // 중복 아님 → true
     boolean isMeaningfulNickname(String nickname);     // 무의미하지 않음 → true
     boolean isCleanNickname(String nickname);          // 비속어 아님 → true
-    void givePoint(Member member, PointType type, Long amount);
 }
 

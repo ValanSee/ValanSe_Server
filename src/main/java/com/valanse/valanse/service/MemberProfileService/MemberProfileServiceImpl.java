@@ -2,8 +2,6 @@ package com.valanse.valanse.service.MemberProfileService;
 
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
-import com.valanse.valanse.domain.PointHistory;
-import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
@@ -25,7 +23,6 @@ public class MemberProfileServiceImpl implements MemberProfileService {
 
     private final MemberRepository memberRepository;
     private final MemberProfileRepository memberProfileRepository;
-    private final PointHistoryRepository pointHistoryRepository;
 
     @Override
     public void saveOrUpdateProfile(MemberProfileRequest dto) {
@@ -191,20 +188,5 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         );
 
         return new MemberMyPageResponse(info);
-    }
-
-    // 포인트 제도
-    // 중복 지급 방지 기능 추가해야됨
-    @Override
-    public void givePoint(Member member, PointType type, Long amount) {
-
-        MemberProfile profile = member.getProfile();
-
-        profile.addPoint(amount);
-
-        pointHistoryRepository.save(
-                PointHistory.of(member, type, amount)
-        );
-
     }
 }

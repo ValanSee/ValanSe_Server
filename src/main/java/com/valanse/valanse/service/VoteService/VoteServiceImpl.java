@@ -7,6 +7,7 @@ import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.repository.*;
 import com.valanse.valanse.service.MemberProfileService.MemberProfileService;
+import com.valanse.valanse.service.PointService.PointService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -30,6 +31,7 @@ public class VoteServiceImpl implements VoteService {
     private final MemberVoteOptionRepository memberVoteOptionRepository; // processVote 메서드에서 MemberVoteOption 조회를 위해 추가
     private final CommentGroupRepository commentGroupRepository;
     private final MemberProfileService memberProfileService;
+    private final PointService pointService;
 
    //작은 민지가 구현한 것
    @Override
@@ -385,7 +387,7 @@ public class VoteServiceImpl implements VoteService {
 
         commentGroupRepository.save(commentGroup); // CommentGroup 저장
 
-        memberProfileService.givePoint(member, PointType.POST_CREATE, 10L);
+        pointService.givePoint(member, PointType.POST_CREATE, 10L);
 
         return savedVote.getId(); // 저장된 투표의 ID를 반환
     }
@@ -515,7 +517,7 @@ public class VoteServiceImpl implements VoteService {
                 }
             }
             if (!hotIssueVote.isHotIssueVoted()) {
-                memberProfileService.givePoint(creatorMember, PointType.HOT_ISSUE, 50L);
+                pointService.givePoint(creatorMember, PointType.HOT_ISSUE, 50L);
                 hotIssueVote.markAsHotIssueVoted();
             }
         }

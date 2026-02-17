@@ -1,12 +1,12 @@
 package com.valanse.valanse.service.CommentService;
 
 import com.valanse.valanse.domain.*;
-import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.dto.Comment.*;
 import com.valanse.valanse.repository.*;
 import com.valanse.valanse.service.MemberProfileService.MemberProfileService;
+import com.valanse.valanse.service.PointService.PointService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -18,7 +18,6 @@ import java.time.LocalDateTime;
 
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,6 +31,8 @@ public class CommentServiceImpl implements CommentService {
     private final CommentRepository commentRepository;
     private final MemberProfileRepository memberProfileRepository;
     private final MemberProfileService memberProfileService;
+    private final PointHistoryRepository pointHistoryRepository;
+    private final PointService pointService;
 
     @Override
     public void deleteMyComment(Member member, Long commentId) {
@@ -135,10 +136,13 @@ public class CommentServiceImpl implements CommentService {
             commentGroupRepository.save(commentGroup);
         }
 
+        // 댓글 저장
+        Comment saved = commentRepository.save(comment);
+        
         // 댓글 작성시 포인트 1점 (하루 5회)
-        memberProfileService.givePoint(member, PointType.COMMENT_CREATE, 1L);
+        pointService.giveCommentPointIfAvailable(member);
 
-        return commentRepository.save(comment).getId();
+        return saved.getId();
     }
 
     @Override
