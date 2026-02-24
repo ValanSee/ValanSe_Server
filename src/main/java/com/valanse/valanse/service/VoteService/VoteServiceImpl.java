@@ -6,7 +6,6 @@ import com.valanse.valanse.domain.enums.*;
 import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.repository.*;
-import com.valanse.valanse.service.MemberProfileService.MemberProfileService;
 import com.valanse.valanse.service.PointService.PointService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -30,7 +29,6 @@ public class VoteServiceImpl implements VoteService {
     private final VoteOptionRepository voteOptionRepository; // processVote 메서드에서 VoteOption 조회를 위해 추가
     private final MemberVoteOptionRepository memberVoteOptionRepository; // processVote 메서드에서 MemberVoteOption 조회를 위해 추가
     private final CommentGroupRepository commentGroupRepository;
-    private final MemberProfileService memberProfileService;
     private final PointService pointService;
 
    //작은 민지가 구현한 것
@@ -241,6 +239,13 @@ public class VoteServiceImpl implements VoteService {
             newVoteOption.setVoteCount(newVoteOption.getVoteCount() + 1);
             // 전체 투표 수 증가
             vote.setTotalVoteCount(vote.getTotalVoteCount() + 1);
+
+            // 게시물 주인에게 포인트 지급
+            Member writer = vote.getMember();
+
+            if (writer != null && !writer.getId().equals(member.getId())) {
+                pointService.givePoint(writer, PointType.POST_VOTED, 3L);
+            }
 
             isVoted = true; // 새로운 옵션에 투표했으므로 true
             updatedTotalVoteCount = vote.getTotalVoteCount();
