@@ -30,8 +30,6 @@ public class CommentServiceImpl implements CommentService {
     private final CommentGroupRepository commentGroupRepository;
     private final CommentRepository commentRepository;
     private final MemberProfileRepository memberProfileRepository;
-    private final MemberProfileService memberProfileService;
-    private final PointHistoryRepository pointHistoryRepository;
     private final PointService pointService;
 
     @Override
