@@ -3,6 +3,7 @@ package com.valanse.valanse.service.MemberProfileService;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
+import com.valanse.valanse.dto.MemberProfile.MemberPointRankingResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 import com.valanse.valanse.repository.MemberProfileRepository;
@@ -12,6 +13,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -187,5 +190,22 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         );
 
         return new MemberMyPageResponse(info);
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public MemberPointRankingResponse getPointRanking() {
+        List<MemberProfile> top5 = memberProfileRepository.findTop5ByOrderByPointDesc();
+        List<MemberPointRankingResponse.Info> profiles = new ArrayList<>();
+
+        for (MemberProfile memberProfile : top5) {
+            MemberPointRankingResponse.Info info = new MemberPointRankingResponse.Info(
+                    memberProfile.getNickname(),
+                    memberProfile.getPoint()
+            );
+            profiles.add(info);
+        }
+
+        return new MemberPointRankingResponse(profiles);
     }
 }
