@@ -57,11 +57,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/votes/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/comments/**").permitAll()
 
+                        // 관리자만 접근 가능
+                        .requestMatchers(HttpMethod.GET, "/report").hasRole("ADMIN")
+
                         // POST - 인증 필요 (로그인해야 가능)
                         .requestMatchers(HttpMethod.POST, "/votes").authenticated()
                         .requestMatchers(HttpMethod.POST, "/votes/*/vote-options/*").authenticated()
                         .requestMatchers(HttpMethod.POST, "/votes/*/comments").authenticated()
                         .requestMatchers(HttpMethod.POST, "/comments/*/like").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/report/*").authenticated()
 
                         // PUT - 인증 필요 (수정)
                         .requestMatchers(HttpMethod.PUT, "/votes/*").authenticated()

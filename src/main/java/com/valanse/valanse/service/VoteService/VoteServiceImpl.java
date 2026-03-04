@@ -2,13 +2,11 @@ package com.valanse.valanse.service.VoteService;
 
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.*;
-import com.valanse.valanse.domain.enums.PinType;
-import com.valanse.valanse.domain.enums.Role;
-import com.valanse.valanse.domain.enums.VoteCategory;
-import com.valanse.valanse.domain.enums.VoteLabel;
+import com.valanse.valanse.domain.enums.*;
 import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.repository.*;
+import com.valanse.valanse.service.PointService.PointService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -31,6 +29,7 @@ public class VoteServiceImpl implements VoteService {
     private final VoteOptionRepository voteOptionRepository; // processVote 메서드에서 VoteOption 조회를 위해 추가
     private final MemberVoteOptionRepository memberVoteOptionRepository; // processVote 메서드에서 MemberVoteOption 조회를 위해 추가
     private final CommentGroupRepository commentGroupRepository;
+    private final PointService pointService;
 
    //작은 민지가 구현한 것
    @Override
@@ -241,6 +240,13 @@ public class VoteServiceImpl implements VoteService {
             // 전체 투표 수 증가
             vote.setTotalVoteCount(vote.getTotalVoteCount() + 1);
 
+            // 게시물 주인에게 포인트 지급
+            Member writer = vote.getMember();
+
+            if (writer != null && !writer.getId().equals(member.getId())) {
+                pointService.givePoint(writer, PointType.POST_VOTED, 3L);
+            }
+
             isVoted = true; // 새로운 옵션에 투표했으므로 true
             updatedTotalVoteCount = vote.getTotalVoteCount();
             updatedVoteOptionCount = newVoteOption.getVoteCount();
@@ -386,6 +392,8 @@ public class VoteServiceImpl implements VoteService {
 
         commentGroupRepository.save(commentGroup); // CommentGroup 저장
 
+        pointService.givePoint(member, PointType.POST_CREATE, 10L);
+
         return savedVote.getId(); // 저장된 투표의 ID를 반환
     }
 
@@ -512,6 +520,10 @@ public class VoteServiceImpl implements VoteService {
                 if (creatorMember.getName() != null) { // Member의 이름이 있는 경우
                     createdByNickname = creatorMember.getName(); // 이름으로 닉네임 설정
                 }
+            }
+            if (!hotIssueVote.isHotIssueVoted()) {
+                pointService.givePoint(creatorMember, PointType.HOT_ISSUE, 50L);
+                hotIssueVote.markAsHotIssueVoted();
             }
         }
 

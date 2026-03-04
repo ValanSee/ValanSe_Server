@@ -43,6 +43,8 @@ public class MemberProfile extends BaseEntity {
 
     private String mbti;
 
+    private long point;
+
     public void update(String nickname, Gender gender, Age age, MbtiIe mbtiIe, MbtiTf mbtiTf, String mbti) {
         this.nickname = nickname;
         this.gender = gender;
@@ -50,6 +52,10 @@ public class MemberProfile extends BaseEntity {
         this.mbtiIe = mbtiIe;
         this.mbtiTf = mbtiTf;
         this.mbti = mbti;
+    }
+
+    public void addPoint(long point) {
+        this.point += point;
     }
 
 }

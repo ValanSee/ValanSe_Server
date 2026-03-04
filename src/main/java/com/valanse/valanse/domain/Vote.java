@@ -46,6 +46,8 @@ public class Vote extends BaseEntity {
     private PinType pinType = PinType.NONE;
 
 
+    private boolean HotIssueVoted;
+
     @Builder.Default
     @OneToMany(mappedBy = "vote", cascade = CascadeType.ALL)
     private List<VoteOption> voteOptions = new ArrayList<>();
@@ -85,6 +87,10 @@ public class Vote extends BaseEntity {
 
     public void unpin() {
         this.pinType = PinType.NONE;
+    }
+
+    public void markAsHotIssueVoted() {
+        this.HotIssueVoted = true;
     }
 
 }
