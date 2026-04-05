@@ -35,7 +35,6 @@ public class MemberServiceImpl implements MemberService {
                 .kakaoAccessToken(access_token)
                 .kakaoRefreshToken(refresh_token)
                 .build();
-        pointService.givePoint(member, PointType.CREATE_OAUTH, 100L);
         memberRepository.save(member);
         return member;
     }
