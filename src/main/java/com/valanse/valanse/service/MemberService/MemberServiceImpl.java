@@ -2,9 +2,7 @@ package com.valanse.valanse.service.MemberService;
 
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.Member;
-import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.repository.MemberRepository;
-import com.valanse.valanse.service.PointService.PointService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class MemberServiceImpl implements MemberService {
     private final MemberRepository memberRepository;
-    private final PointService pointService;
 
     @Transactional(readOnly = true)
     @Override
@@ -35,7 +32,6 @@ public class MemberServiceImpl implements MemberService {
                 .kakaoAccessToken(access_token)
                 .kakaoRefreshToken(refresh_token)
                 .build();
-        pointService.givePoint(member, PointType.CREATE_OAUTH, 100L);
         memberRepository.save(member);
         return member;
     }
