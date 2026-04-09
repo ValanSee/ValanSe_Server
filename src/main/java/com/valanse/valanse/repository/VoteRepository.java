@@ -59,6 +59,9 @@ public interface VoteRepository extends JpaRepository<Vote, Long>, VoteRepositor
             LocalDateTime start, LocalDateTime end
     );
 
+    Optional<Vote> findTopByCreatedAtBetweenOrderByReactivityScoreDescCreatedAtDesc(
+            LocalDateTime start, LocalDateTime end);
+
     // 추가: 전체 기간 중 반응성이 가장 높은 투표 조회 (작일 데이터 없을 때 사용)
     Optional<Vote> findTopByOrderByReactivityScoreDescCreatedAtDesc();
 
