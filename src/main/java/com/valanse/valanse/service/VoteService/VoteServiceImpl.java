@@ -107,7 +107,7 @@ public class VoteServiceImpl implements VoteService {
 
         // 2. 작일 동안 반응성이 가장 높은 투표 조회 시도
         Optional<Vote> yesterdayHotIssue = voteRepository
-                .findTopByReactivityUpdatedAtBetweenOrderByReactivityScoreDescCreatedAtDesc(yesterdayStart, now);
+                .findTopByCreatedAtBetweenOrderByReactivityScoreDescCreatedAtDesc(yesterdayStart, now);
 
         Vote hotIssueVote;
         if (yesterdayHotIssue.isPresent()) {
@@ -149,7 +149,7 @@ public class VoteServiceImpl implements VoteService {
 
         // 2. 최근 7일 내 반응성이 가장 높은 투표 조회
         Optional<Vote> recentTrendingVote = voteRepository
-                .findTopByReactivityUpdatedAtBetweenOrderByReactivityScoreDescCreatedAtDesc(sevenDaysAgo, LocalDateTime.now());
+                .findTopByCreatedAtBetweenOrderByReactivityScoreDescCreatedAtDesc(sevenDaysAgo, LocalDateTime.now());
 
         Vote trendingVote;
         if (recentTrendingVote.isPresent()) {
