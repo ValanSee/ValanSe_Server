@@ -29,6 +29,7 @@ public class VoteListResponse {
     public static class VoteDto {
         private Long id;
         private String title;
+        private String content;
         private String category; // ENUM 이름을 String으로 반환
         private Long member_id;
         private String nickname;
@@ -37,6 +38,7 @@ public class VoteListResponse {
         private Integer total_vote_count;
         private Integer total_comment_count; // 댓글 그룹의 총 댓글 수
         private List<VoteOptionListDto> options; // 옵션 목록
+        private Boolean canDelete;
 
     }
 

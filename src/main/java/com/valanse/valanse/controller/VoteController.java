@@ -1,18 +1,17 @@
 // src/main/java/com/valanse/valanse/controller/VoteController.java
 package com.valanse.valanse.controller;
+import com.valanse.valanse.domain.Member;
+import com.valanse.valanse.domain.enums.PinType;
+import com.valanse.valanse.service.MemberService.MemberService;
 import com.valanse.valanse.service.VoteService.VoteService;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.dto.Vote.VoteResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -21,6 +20,7 @@ import com.valanse.valanse.domain.enums.VoteCategory;
 
 import java.util.List;
 
+@Slf4j
 @Tag(name = "투표 API", description = "투표 관련 API")
 @RestController
 @RequestMapping("/votes") // 투표 관련 API의 기본 경로
@@ -28,6 +28,7 @@ import java.util.List;
 public class VoteController {
 
     private final VoteService voteService;
+    private final MemberService memberService;
 
     @GetMapping("/mine/created")
     @Operation(
@@ -98,6 +99,25 @@ public class VoteController {
         return ResponseEntity.ok(response);
     }
 
+    // 인기 급상승 토픽
+    @Operation(
+            summary = "인기 급상승 밸런스 게임 선택지들 반환",
+            description = "최근 7일 이내 반응성(투표수 + 댓글수)이 가장 높은 밸런스 게임을 반환합니다. " +
+                    "7일 이내 새로 추가되는 반응이 없을 경우 이전 데이터를 유지합니다.\n" +
+                    "  voteId -> 7일 내 반응성이 가장 높은 투표의 id\n" +
+                    "  title -> 7일 내 반응성이 가장 높은 투표의 제목\n" +
+                    "  category -> 7일 내 반응성이 가장 높은 투표의 카테고리\n" +
+                    "  totalParticipants -> 7일 내 반응성이 가장 높은 투표의 총 투표 수\n" +
+                    "  createdBy -> 7일 내 반응성이 가장 높은 투표를 생성한 사람의 닉네임\n" +
+                    "  createdAt -> 투표 생성 날짜\n" +
+                    "  options -> 투표 옵션 리스트 (content, vote_count)"
+    )
+    @GetMapping("/trending")
+    public ResponseEntity<HotIssueVoteResponse> getTrendingVote() {
+        HotIssueVoteResponse response = voteService.getTrendingVote();
+        return ResponseEntity.ok(response);
+    }
+
 
     @Operation(
             summary = "투표 선택, 취소, 재선택",
@@ -147,19 +167,6 @@ public class VoteController {
         return ResponseEntity.ok(new VoteCreateResponse(voteId));
     }
 
-//    @Operation(
-//            summary = "카테고리별/정렬 방식별 투표 목록 조회",
-//            description = "카테고리와 정렬 기준에 따라 투표 목록을 조회합니다. 'category' 파라미터는 'ETC', 'FOOD', 'LOVE', 'ALL' 중 하나를 받을 수 있으며, 'sort' 파라미터는 'popular' (인기순) 또는 'latest' (최신순) 중 하나를 받습니다. 페이징을 지원합니다."
-//    )
-//    @GetMapping // 새로운 엔드포인트: /votes?category={category}&sort={sort}
-//    public ResponseEntity<VoteListResponse> getVotes(
-//            @RequestParam(value = "category", required = false, defaultValue = "ALL") String category, // 카테고리 (ALL 포함)
-//            @RequestParam(value = "sort", required = false, defaultValue = "latest") String sort, // 정렬 기준 (popular, latest)
-//            @PageableDefault(size = 10, page = 0) Pageable pageable // 페이징 정보 (기본 10개, 0페이지)
-//    ) {
-//        VoteListResponse response = voteService.getVotesByCategoryAndSort(category, sort, pageable);
-//        return ResponseEntity.ok(response);
-//    }
 @Operation(
         summary = "카테고리별/정렬 방식별 투표 목록 조회",
         description = "카테고리와 정렬 기준에 따라 투표 목록을 조회합니다. 'category' 파라미터는 'ETC', 'FOOD', 'LOVE', 'ALL' 중 하나를 받을 수 있으며, 'sort' 파라미터는 'popular' (인기순) 또는 'latest' (최신순) 중 하나를 받습니다. 페이징을 지원합니다. \n" +
@@ -174,7 +181,14 @@ public ResponseEntity<VoteListResponse> getVotes(
         @RequestParam(value = "size", defaultValue = "10") int size
 ) {
     // Pageable 객체 대신 cursor, size를 직접 전달
-    VoteListResponse response = voteService.getVotesByCategoryAndSort(category, sort, cursor, size);
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    Member member = null;
+    if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+        Long loginId = Long.parseLong(auth.getName());
+        member = memberService.findById(loginId);
+    }
+
+    VoteListResponse response = voteService.getVotesByCategoryAndSort(member, category, sort, cursor, size);
     return ResponseEntity.ok(response);
 }
 
@@ -184,6 +198,26 @@ public ResponseEntity<VoteListResponse> getVotes(
             return "totalVoteCount"; // 또는 "totalVoteCount,createdAt" 등으로 복합 정렬 지정
         }
         return "createdAt"; // 기본은 최신순
+    }
+
+    @DeleteMapping("/{voteId}")
+    @Operation(summary = "투표 삭제", description = "내가 작성한 투표를 삭제합니다.")
+    public ResponseEntity<Void> deleteVote(@PathVariable("voteId") Long voteId) {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        voteService.deleteVote(userId, voteId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/{voteId}/pin")
+    @Operation(summary = "고정", description = "관리자 권한으로 게시물을 고정합니다.")
+    public ResponseEntity<Void> updatePinStatus(
+            @PathVariable Long voteId,
+            @RequestBody PinRequest request)
+    {
+        Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        var member = memberService.findById(loginId);
+        voteService.updatePinStatus(member, voteId, request.getPinType());
+        return ResponseEntity.ok().build();
     }
 
 }

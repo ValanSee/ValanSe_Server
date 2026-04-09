@@ -7,14 +7,15 @@ import com.valanse.valanse.dto.Comment.CommentLikeResponseDto;
 import com.valanse.valanse.repository.CommentLikeRepository;
 import com.valanse.valanse.repository.CommentRepository;
 import com.valanse.valanse.repository.MemberRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class CommentLikeServiceImpl implements CommentLikeService {
 
     private final CommentRepository commentRepository;
@@ -22,7 +23,6 @@ public class CommentLikeServiceImpl implements CommentLikeService {
     private final MemberRepository memberRepository;
 
     @Override
-    @Transactional
     public CommentLikeResponseDto likeComment(Long voteId, Long commentId) {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
 

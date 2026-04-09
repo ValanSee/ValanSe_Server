@@ -1,11 +1,13 @@
 package com.valanse.valanse.domain;
 
 import com.valanse.valanse.domain.common.BaseEntity;
+import com.valanse.valanse.domain.enums.PinType;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 import org.hibernate.annotations.Where;
+import org.springframework.security.core.parameters.P;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,8 +29,22 @@ public class Vote extends BaseEntity {
 
     private String title;
 
+    @Column(columnDefinition = "TEXT")
+    private String content; // 투표 상세 내용 (nullable)
+
     @Builder.Default
     private Integer totalVoteCount = 0; //Builder.Default 설정이 없으면 null값이 기본값이라 오류가 발생한다.
+
+    // 반응성 관련 필드들
+    @Builder.Default
+    private Integer reactivityScore = 0; // 계산된 반응성 점수 (투표수 + 댓글수 + 공유수)
+
+    private LocalDateTime reactivityUpdatedAt;// 반응성 마지막 계산 시점
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PinType pinType = PinType.NONE;
+
 
     @Builder.Default
     @OneToMany(mappedBy = "vote", cascade = CascadeType.ALL)
@@ -41,15 +57,34 @@ public class Vote extends BaseEntity {
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
 
+    // 추가
+
     // totalVoteCount에 대한 Setter 추가
     public void setTotalVoteCount(Integer totalVoteCount) {
         this.totalVoteCount = totalVoteCount;
+    }
+
+    // 추가 : 반응성 점수 업데이트 메서드
+    public void updateReactivityScore(){
+        Integer commentCount = (commentGroup != null) ? commentGroup.getTotalCommentCount() : 0;
+        Integer shareCount = 0; // 향후 확장용
+
+        this.reactivityScore = this.totalVoteCount + commentCount + shareCount;
+        this.reactivityUpdatedAt = LocalDateTime.now();
     }
 
     // 편의 메서드: VoteOption 추가
     public void addVoteOption(VoteOption voteOption) {
         this.voteOptions.add(voteOption);
         voteOption.setVote(this);
+    }
+
+    public void pin(PinType pinType) {
+        this.pinType = pinType;
+    }
+
+    public void unpin() {
+        this.pinType = PinType.NONE;
     }
 
 }

@@ -22,3 +22,7 @@ spring:
 jwt:
   secret: ZHVtbXktc2VjcmV0LWZvci10ZXN0
   expiration: 3000
+oauth:
+  kakao:
+    client-id: test-client-id
+    redirect-uri: http://localhost

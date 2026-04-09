@@ -2,24 +2,31 @@ package com.valanse.valanse.service.CommentService;
 
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberTemplate;
+import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.*;
+import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.dto.Comment.*;
 import com.valanse.valanse.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
 import java.time.LocalDateTime;
 
 
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class CommentServiceImpl implements CommentService {
 
     private final MemberRepository memberRepository;
@@ -29,7 +36,6 @@ public class CommentServiceImpl implements CommentService {
     private final MemberProfileRepository memberProfileRepository;
 
     @Override
-    @Transactional
     public void deleteMyComment(Member member, Long commentId) {
         commentRepository.findById(commentId).ifPresentOrElse(comment -> {
             Long writerId = comment.getMember().getId();
@@ -38,15 +44,31 @@ public class CommentServiceImpl implements CommentService {
             System.out.println("[삭제 시도] 댓글 ID: " + commentId);
             System.out.println("작성자 ID: " + writerId + ", 요청자 ID: " + loginId);
 
-            if (!writerId.equals(loginId)) {
-                System.out.println("삭제 권한 없음: 요청자 ≠ 작성자");
+            if (!writerId.equals(loginId) && member.getRole() != Role.ADMIN) {
+                System.out.println("삭제 권한 없음: 요청자 ≠ 작성자, 관리자 x");
                 throw new IllegalArgumentException("삭제 권한 없음");
             }
 
+            // Soft delete 처리
             comment.setDeletedAt(LocalDateTime.now());
             commentRepository.save(comment);
 
-            System.out.println("댓글 ID " + commentId + " → isDeleted=true 저장 완료");
+            // ✅ 추가: 카운트 감소 로직
+            if (comment.getParent() == null) {
+                // 부모 댓글인 경우: totalCommentCount 감소
+                CommentGroup commentGroup = comment.getCommentGroup();
+                commentGroup.setTotalCommentCount(commentGroup.getTotalCommentCount() - 1);
+                commentGroupRepository.save(commentGroup);
+                System.out.println("부모 댓글 삭제 → totalCommentCount 감소: " + commentGroup.getTotalCommentCount());
+            } else {
+                // 대댓글인 경우: 부모 댓글의 replyCount 감소
+                Comment parent = comment.getParent();
+                parent.updateReplyCount(parent.getReplyCount() - 1);
+                commentRepository.save(parent);
+                System.out.println("대댓글 삭제 → 부모 댓글 replyCount 감소: " + parent.getReplyCount());
+            }
+
+            System.out.println("댓글 ID " + commentId + " → 삭제 완료");
 
         }, () -> {
             System.out.println("삭제 실패: 해당 댓글 ID " + commentId + " 없음");
@@ -73,7 +95,6 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    @Transactional
     public Long createComment(Long voteId, Long userId, CommentPostRequest request) {
         Vote vote = voteRepository.findById(voteId)
                 .orElseThrow(() -> new IllegalArgumentException("Vote not found"));
@@ -96,6 +117,7 @@ public class CommentServiceImpl implements CommentService {
             parent = commentRepository.findById(request.getParentId())
                     .orElseThrow(() -> new IllegalArgumentException("해당 id에 해당하는 부모 댓글이 존재하지 않습니다."));
             parent.updateReplyCount(parent.getReplyCount() + 1); // replyCount 증가
+            commentRepository.save(parent);
         }
 
         // 3. 댓글 저장
@@ -108,15 +130,21 @@ public class CommentServiceImpl implements CommentService {
                 .replyCount(0)
                 .deletedAt(null)
                 .build();
-        commentGroup.setTotalCommentCount(commentGroup.getTotalCommentCount() + 1); // 총 댓글 수 증가
-        commentGroupRepository.save(commentGroup);
+
+        // ✅ 수정: 부모 댓글일 때만 totalCommentCount 증가
+        if (request.getParentId() == null) {
+            commentGroup.setTotalCommentCount(commentGroup.getTotalCommentCount() + 1);
+            commentGroupRepository.save(commentGroup);
+        }
 
         return commentRepository.save(comment).getId();
     }
 
     @Override
-    public PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable) {
-        Slice<CommentResponseDto> slice = commentRepository.findCommentsByVoteIdSlice(voteId, sort, pageable);
+    @Transactional(readOnly = true)
+    public PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable, Long loginId, Boolean isAdmin) {
+
+        Slice<CommentResponseDto> slice = commentRepository.findCommentsByVoteIdSlice(voteId, sort, pageable, loginId, isAdmin);
         return PagedCommentResponse.builder() // 인덱스 , 쿼리
                 .comments(slice.getContent())
                 .page(pageable.getPageNumber())
@@ -126,6 +154,7 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public BestCommentResponseDto getBestCommentByVoteId(Long voteId) {
         // commentGroup이 없으면 아예 댓글도 없다고 판단하고 빈 응답 반환
         CommentGroup group = commentGroupRepository.findByVoteId(voteId).orElse(null);
@@ -135,15 +164,16 @@ public class CommentServiceImpl implements CommentService {
                     .content(null)
                     .build();
         }
+        Long actualCommentCount = commentRepository.countActiveCommentsByVoteId(voteId);
 
         return commentRepository.findMostLikedCommentByVoteId(voteId)
                 .map(comment -> BestCommentResponseDto.builder()
-                        .totalCommentCount(group.getTotalCommentCount())
+                        .totalCommentCount(actualCommentCount.intValue())
                         .content(comment.getContent())
                         .build())
                 .orElse( // 댓글이 없을 경우에도 빈 응답 반환
                         BestCommentResponseDto.builder()
-                                .totalCommentCount(group.getTotalCommentCount())
+                                .totalCommentCount(actualCommentCount.intValue())
                                 .content(null)
                                 .build()
                 );
@@ -151,7 +181,8 @@ public class CommentServiceImpl implements CommentService {
 
 
     @Override
-    public List<CommentReplyResponseDto> getReplies(Long voteId, Long parentCommentId) {
+    @Transactional(readOnly = true)
+    public List<CommentReplyResponseDto> getReplies(Member loginUser, Long voteId, Long parentCommentId) {
         // 유효한 투표인지 확인
         Vote vote = voteRepository.findById(voteId)
                 .orElseThrow(() -> new IllegalArgumentException("투표가 존재하지 않습니다."));
@@ -177,6 +208,12 @@ public class CommentServiceImpl implements CommentService {
                     long daysAgo = totalHours / 24;
                     long hoursAgo = totalHours % 24;
 
+                    boolean isAdmin = loginUser != null && loginUser.getRole() == Role.ADMIN;
+                    boolean canDelete = false;
+                    if (loginUser != null && vote.getMember() != null) {
+                        canDelete = isAdmin || vote.getMember().getId().equals(loginUser.getId());
+                    }
+
                     return CommentReplyResponseDto.builder()
                             .id(reply.getId())
                             .nickname(profile.getNickname())
@@ -188,6 +225,7 @@ public class CommentServiceImpl implements CommentService {
                             .label(label)
                             .daysAgo(daysAgo)
                             .hoursAgo(hoursAgo)
+                            .canDelete(canDelete)
                             .build();
                 })
                 .collect(Collectors.toList());

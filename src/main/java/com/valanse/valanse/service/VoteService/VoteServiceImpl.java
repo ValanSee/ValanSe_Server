@@ -2,17 +2,14 @@ package com.valanse.valanse.service.VoteService;
 
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.*;
+import com.valanse.valanse.domain.enums.PinType;
+import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.repository.*;
-import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -25,7 +22,7 @@ import java.util.stream.Collectors; // 기존 코드에 있었으므로 유지
 
 @Service
 @RequiredArgsConstructor
-@Transactional // 클래스 레벨에서 기본적으로 읽기 전용 트랜잭션으로 설정
+@Transactional(readOnly = true) // 클래스 레벨에서 기본적으로 읽기 전용 트랜잭션으로 설정
 public class VoteServiceImpl implements VoteService {
 
     private final VoteRepository voteRepository;
@@ -88,48 +85,85 @@ public class VoteServiceImpl implements VoteService {
 
     //여기서부터 영서 코드
     @Override
+    @Transactional
     public HotIssueVoteResponse getHotIssueVote() { // 파라미터 없음
-        // 현재 시간으로부터 7일 이전의 시간을 계산합니다. (하드코딩된 7일)
-        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
-
-        // 1. 7일 이내에 생성된 투표 중, 가장 많이 참여한 투표 조회 (totalVoteCount 기준, 동률일 경우 최신 생성일시 기준)
-        Vote hotIssueVote = voteRepository.findTopByCreatedAtAfterOrderByTotalVoteCountDescCreatedAtDesc(sevenDaysAgo)
-                .orElseThrow(() -> new ApiException("7일 이내의 핫이슈 투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
-
-        // 2. 투표 생성자 정보 조회 (닉네임)
-        String createdByNickname = "익명"; // 기본값 설정
-        if (hotIssueVote.getMember() != null) { // Member가 null이 아닌 경우
-            Member creatorMember = hotIssueVote.getMember(); // 생성자 Member 객체 가져오기
-            MemberProfile profile = memberProfileRepository.findByMemberId(creatorMember.getId()).orElse(null); // MemberProfile 조회
-            if (profile != null && profile.getNickname() != null) { // 프로필이 있고 닉네임이 있는 경우
-                createdByNickname = profile.getNickname(); // 닉네임 설정
-            } else {
-                // MemberProfile이 없거나 닉네임이 없는 경우, Member의 기본 이름 사용 (카카오 이름 등)
-                if (creatorMember.getName() != null) { // Member의 이름이 있는 경우
-                    createdByNickname = creatorMember.getName(); // 이름으로 닉네임 설정
-                }
-            }
+        // 0. 고정 게시물이 있다면 반환.
+        Optional<Vote> pinnedHot = voteRepository.findByPinType(PinType.HOT);
+        if (pinnedHot.isPresent()) {
+            Vote hotIssueVote = pinnedHot.get();
+            return getHotIssueVoteResponse(hotIssueVote);
         }
 
-        // 3. 투표 옵션 정보 DTO로 변환
-        List<HotIssueVoteOptionDto> options = hotIssueVote.getVoteOptions().stream()
-                .map(option -> HotIssueVoteOptionDto.builder() // HotIssueVoteOptionDto 빌더 사용
-                        .optionId(option.getId())  //option ID넣기
-                        .content(option.getContent()) // 옵션 내용 설정
-                        .vote_count(option.getVoteCount()) // 투표 수 설정
-                        .build())
-                .collect(Collectors.toList()); // 리스트로 수집
+        // 수정: 작일 반응성 기준으로 변경
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime yesterdayStart = now.minusDays(1).withHour(0).withMinute(0).withSecond(0);
 
-        // 4. HotIssueVoteResponse DTO 생성 및 반환
-        return HotIssueVoteResponse.builder()
-                .voteId(hotIssueVote.getId()) // 투표 ID 설정
-                .title(hotIssueVote.getTitle()) // 제목 설정
-                .category(hotIssueVote.getCategory() != null ? hotIssueVote.getCategory().name() : null) // 카테고리 설정
-                .totalParticipants(hotIssueVote.getTotalVoteCount()) // 총 참여자 수 설정
-                .createdBy(createdByNickname) // 생성자 닉네임 설정
-                .createdAt(hotIssueVote.getCreatedAt()) // 추가된 부분: createdAt 설정
-                .options(options) // 옵션 리스트 설정
-                .build();
+        // 1. 먼저 모든 투표의 반응성 점수를 업데이트 (실시간 계산)
+        List<Vote> allVotes = voteRepository.findAll();
+        for(Vote vote : allVotes) {
+            vote.updateReactivityScore(); // Vote 엔티티에 추가한 메서드
+            voteRepository.save(vote);
+        }
+
+        // 2. 작일 동안 반응성이 가장 높은 투표 조회 시도
+        Optional<Vote> yesterdayHotIssue = voteRepository
+                .findTopByReactivityUpdatedAtBetweenOrderByReactivityScoreDescCreatedAtDesc(yesterdayStart, now);
+
+        Vote hotIssueVote;
+        if (yesterdayHotIssue.isPresent()) {
+            // 작일 반응성 데이터가 있는 경우
+            hotIssueVote = yesterdayHotIssue.get();
+        } else {
+            // 작일 반응성 데이터가 없는 경우 → 전체 누적 반응성 기준 조회
+            hotIssueVote = voteRepository.findTopByOrderByReactivityScoreDescCreatedAtDesc()
+                    .orElseThrow(() -> new ApiException("핫이슈 투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+        }
+
+        // 3. 투표 생성자 정보 조회 (닉네임) - 기존 로직 유지
+        return getHotIssueVoteResponse(hotIssueVote);
+    }
+
+    // 인기 급상승 토픽
+    @Override
+    @Transactional
+    public HotIssueVoteResponse getTrendingVote() {
+       // 0. 고정 게시물이 있다면 반환.
+        Optional<Vote> pinnedTrending = voteRepository.findByPinType(PinType.TRENDING);
+        if (pinnedTrending.isPresent()) {
+
+            Vote trendingVote = pinnedTrending.get();
+
+            return getHotIssueVoteResponse(trendingVote);
+
+        }
+
+       // 7일 이전 시간 계산
+       LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+
+       // 1. 모든 투표의 반응성 점수 업데이트
+        List<Vote> allVotes = voteRepository.findAll();
+        for(Vote vote : allVotes) {
+            vote.updateReactivityScore();
+            voteRepository.save(vote);
+        }
+
+        // 2. 최근 7일 내 반응성이 가장 높은 투표 조회
+        Optional<Vote> recentTrendingVote = voteRepository
+                .findTopByReactivityUpdatedAtBetweenOrderByReactivityScoreDescCreatedAtDesc(sevenDaysAgo, LocalDateTime.now());
+
+        Vote trendingVote;
+        if (recentTrendingVote.isPresent()) {
+            // 7일 내 데이터가 있는 경우 - 새로 업데이트
+            trendingVote = recentTrendingVote.get();
+        } else {
+            // 7일 내 데이터가 없는 경우 - 이전 데이터 유지 (전체 기간에서 가장 높은 반응성)
+            trendingVote = voteRepository.findTopByOrderByReactivityScoreDescCreatedAtDesc()
+                    .orElseThrow(() -> new ApiException("인기 급상승 투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+        }
+
+        // 3. 투표 생성자 정보 조회 (닉네임) - 기존 로직 유지
+        return getHotIssueVoteResponse(trendingVote);
+
     }
 
     @Override
@@ -288,6 +322,7 @@ public class VoteServiceImpl implements VoteService {
         return VoteDetailResponse.builder()
                 .voteId(vote.getId())
                 .title(vote.getTitle())
+                .content(vote.getContent())
                 .category(vote.getCategory())
                 .totalVoteCount(vote.getTotalVoteCount())
                 .creatorNickname(creatorNickname) // 수정된 닉네임 사용
@@ -302,6 +337,7 @@ public class VoteServiceImpl implements VoteService {
 
 
     @Override
+    @Transactional
     public Long createVote(Long userId, VoteCreateRequest request) {
         // 1. 회원 검증
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
@@ -317,8 +353,10 @@ public class VoteServiceImpl implements VoteService {
         // 2. 투표 생성 (아직 데이터베이스에 저장되지 않은 비영속 상태)
         Vote vote = Vote.builder()
                 .title(request.getTitle())
+                .content(request.getContent())
                 .category(request.getCategory())
                 .member(member)
+                .pinType(PinType.NONE)
                 .build();
 
         // 3. 투표 옵션 생성 및 추가 (최대 4개 옵션 제한)
@@ -352,7 +390,7 @@ public class VoteServiceImpl implements VoteService {
     }
 
     @Override
-    public VoteListResponse getVotesByCategoryAndSort(String category, String sort, String cursor, int size) {
+    public VoteListResponse getVotesByCategoryAndSort(Member loginUser, String category, String sort, String cursor, int size) {
         List<Vote> votes = voteRepository.findVotesByCursor(category, sort, cursor, size);
 
         boolean hasNext = votes.size() > size;
@@ -389,9 +427,15 @@ public class VoteServiceImpl implements VoteService {
                         totalCommentCount = vote.getCommentGroup().getTotalCommentCount();
                     }
 
+                    boolean isAdmin = loginUser != null && loginUser.getRole() == Role.ADMIN;
+                    boolean canDelete = false;
+                    if (loginUser != null && vote.getMember() != null) {
+                        canDelete = isAdmin || vote.getMember().getId().equals(loginUser.getId());
+                    }
                     return VoteListResponse.VoteDto.builder()
                             .id(vote.getId())
                             .title(vote.getTitle())
+                            .content(vote.getContent())
                             .category(vote.getCategory().name())
                             .member_id(vote.getMember() != null ? vote.getMember().getId() : null)
                             .nickname(creatorNickname)
@@ -399,6 +443,7 @@ public class VoteServiceImpl implements VoteService {
                             .total_vote_count(vote.getTotalVoteCount())
                             .total_comment_count(totalCommentCount)
                             .options(optionListDtos)
+                            .canDelete(canDelete)
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -409,4 +454,86 @@ public class VoteServiceImpl implements VoteService {
                 .next_cursor(nextCursor)
                 .build();
     }
+
+    @Override
+    @Transactional
+    public void deleteVote(Long userId, Long voteId) {
+        Vote vote = voteRepository.findById(voteId)
+                .orElseThrow(() -> new ApiException("투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+
+        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new ApiException("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+
+        // 권한 확인 - 자기 자신 혹은 관리자
+        if (!vote.getMember().getId().equals(userId) && member.getRole() != Role.ADMIN) {
+            throw new ApiException("삭제 권한이 없습니다.", HttpStatus.FORBIDDEN);
+        }
+
+        // BaseEntity의 softDelete() 메서드 사용
+        vote.softDelete();
+        voteRepository.save(vote);
+    }
+
+    @Override
+    @Transactional
+    // 고정 , 고정 해제 기능은 vote 엔티티에 메서드로 존재
+    public void updatePinStatus(Member member, Long voteId, PinType pinType) {
+        if (member.getRole() != Role.ADMIN) {
+            throw new ApiException("권한이 없습니다.", HttpStatus.FORBIDDEN);
+        }
+        Vote vote = voteRepository.findById(voteId)
+                .orElseThrow(() -> new ApiException("게시물이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+        if (pinType != PinType.NONE) {
+            // 이미 고정된 다른 게시물이 존재한다면 해당 게시물의 고정 해제
+            voteRepository.findByPinType(pinType).ifPresent(existing ->
+                    {if (!existing.getId().equals(voteId))
+                    {
+                        existing.unpin();
+                        voteRepository.save(existing);
+                    }});
+            vote.pin(pinType);
+        }
+        else {
+            vote.unpin();
+        }
+        voteRepository.save(vote);
+    }
+
+    // 핫이슈 발런스 게임을 뽑아내는 메서드
+    private HotIssueVoteResponse getHotIssueVoteResponse(Vote hotIssueVote) {
+        String createdByNickname = "익명"; // 기본값 설정
+        if (hotIssueVote.getMember() != null) { // Member가 null이 아닌 경우
+            Member creatorMember = hotIssueVote.getMember(); // 생성자 Member 객체 가져오기
+            MemberProfile profile = memberProfileRepository.findByMemberId(creatorMember.getId()).orElse(null); // MemberProfile 조회
+            if (profile != null && profile.getNickname() != null) { // 프로필이 있고 닉네임이 있는 경우
+                createdByNickname = profile.getNickname(); // 닉네임 설정
+            } else {
+                // MemberProfile이 없거나 닉네임이 없는 경우, Member의 기본 이름 사용 (카카오 이름 등)
+                if (creatorMember.getName() != null) { // Member의 이름이 있는 경우
+                    createdByNickname = creatorMember.getName(); // 이름으로 닉네임 설정
+                }
+            }
+        }
+
+        List<HotIssueVoteOptionDto> options = hotIssueVote.getVoteOptions().stream()
+                .map(option -> HotIssueVoteOptionDto.builder() // HotIssueVoteOptionDto 빌더 사용
+                        .optionId(option.getId())  //option ID넣기
+                        .content(option.getContent()) // 옵션 내용 설정
+                        .vote_count(option.getVoteCount()) // 투표 수 설정
+                        .build())
+                .collect(Collectors.toList()); // 리스트로 수집
+
+        return HotIssueVoteResponse.builder()
+                .voteId(hotIssueVote.getId()) // 투표 ID 설정
+                .title(hotIssueVote.getTitle()) // 제목 설정
+                .content(hotIssueVote.getContent())
+                .category(hotIssueVote.getCategory() != null ? hotIssueVote.getCategory().name() : null) // 카테고리 설정
+                .totalParticipants(hotIssueVote.getTotalVoteCount()) // 총 참여자 수 설정
+                .createdBy(createdByNickname) // 생성자 닉네임 설정
+                .createdAt(hotIssueVote.getCreatedAt()) // 추가된 부분: createdAt 설정
+                .pinType(hotIssueVote.getPinType())
+                .options(options) // 옵션 리스트 설정
+                .build();
+    }
+
 }

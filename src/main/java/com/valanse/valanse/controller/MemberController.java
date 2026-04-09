@@ -23,10 +23,33 @@ public class MemberController {
 
     @Operation(
             summary = "회원 프로필 정보 저장",
-            description = "닉네임, 성별, 나이, MBTI 정보를 저장하거나 수정합니다. 모든 필드가 채워진 경우에만 저장됩니다. 만약 아직 프로필 정보가 없는 경우 null 을 반환하니 식별에 사용하시면 됩니다."
+            description = "닉네임, 성별, 나이, MBTI 정보를 저장하거나 수정합니다. 모든 필드가 채워진 경우에만 저장됩니다. " +
+                    "MBTI는 IE와 TF를 모두 선택해야 하며, 최종 MBTI는 4자리여야 합니다 (예: ENFP)."
     )
     @PostMapping("/profile")
     public ResponseEntity<Void> saveProfile(@RequestBody MemberProfileRequest dto) {
+        // ✅ 추가: 입력값 기본 검증
+        if (dto.nickname() == null || dto.nickname().trim().isEmpty()) {
+            throw new IllegalArgumentException("닉네임을 입력해주세요");
+        }
+
+        if (dto.gender() == null) {
+            throw new IllegalArgumentException("성별을 선택해주세요");
+        }
+
+        if (dto.age() == null) {
+            throw new IllegalArgumentException("나이를 선택해주세요");
+        }
+
+        // MBTI 검증 (Service에서도 한 번 더 검증)
+        if (dto.mbtiIe() == null || dto.mbtiTf() == null) {
+            throw new IllegalArgumentException("MBTI를 모두 선택해주세요");
+        }
+
+        if (dto.mbti() == null || dto.mbti().length() != 4) {
+            throw new IllegalArgumentException("MBTI는 4자리여야 합니다 (예: ENFP)");
+        }
+
         memberProfileService.saveOrUpdateProfile(dto);
         return ResponseEntity.ok().build();
     }

@@ -2,10 +2,13 @@ package com.valanse.valanse.repository.CommentRepositoryCustom;
 
 //import com.querydsl.core.types.dsl.CaseBuilder;
 //import static com.querydsl.core.types.dsl.Expressions.constant;
+import com.querydsl.core.types.Expression;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberTemplate;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.valanse.valanse.domain.*;
+import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.mapping.QMemberVoteOption;
 import com.valanse.valanse.dto.Comment.CommentResponseDto;
 import com.valanse.valanse.dto.Comment.QCommentResponseDto;
@@ -24,7 +27,7 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public Slice<CommentResponseDto> findCommentsByVoteIdSlice(Long voteId, String sort, Pageable pageable) {
+    public Slice<CommentResponseDto> findCommentsByVoteIdSlice(Long voteId, String sort, Pageable pageable, Long loginId,boolean isAdmin) {
         QComment comment = QComment.comment;
         QMember member = QMember.member;
         QVote vote = QVote.vote;
@@ -50,6 +53,15 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                 comment.createdAt
         );
 
+        BooleanExpression canDelete = Expressions.asBoolean(false);
+        if (loginId != null) {
+            canDelete = isAdmin
+                    ? Expressions.asBoolean(true)  // 관리자면 무조건 true
+                    : comment.member.id.eq(loginId);
+
+        }
+
+
         List<CommentResponseDto> result = queryFactory
                 .select(new QCommentResponseDto(
                         comment.id,
@@ -63,7 +75,8 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                         comment.deletedAt,
                         voteOption.label.stringValue(),
                         daysAgo,
-                        hoursAgo
+                        hoursAgo,
+                        canDelete
                         ))
                 .from(comment)
                 .join(comment.member, member)
@@ -94,9 +107,29 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                 queryFactory
                         .selectFrom(comment)
                         .join(comment.commentGroup, group)
-                        .where(group.vote.id.eq(voteId))
+                        .where(
+                                group.vote.id.eq(voteId),
+                                comment.deletedAt.isNull()
+                        )
                         .orderBy(comment.likeCount.desc())
                         .fetchFirst()
         );
+    }
+
+    @Override
+    public Long countActiveCommentsByVoteId(Long voteId) {
+        QComment comment = QComment.comment;
+        QCommentGroup group = QCommentGroup.commentGroup;
+
+        return queryFactory
+                .select(comment.count())
+                .from(comment)
+                .join(comment.commentGroup, group)
+                .where(
+                        group.vote.id.eq(voteId),
+                        comment.deletedAt.isNull(),
+                        comment.parent.isNull()  // 최상위 댓글만 카운트
+                )
+                .fetchOne();
     }
 }
