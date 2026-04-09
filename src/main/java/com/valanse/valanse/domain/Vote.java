@@ -68,9 +68,12 @@ public class Vote extends BaseEntity {
     public void updateReactivityScore(){
         Integer commentCount = (commentGroup != null) ? commentGroup.getTotalCommentCount() : 0;
         Integer shareCount = 0; // 향후 확장용
+        Integer newScore = this.totalVoteCount + commentCount + shareCount;
 
-        this.reactivityScore = this.totalVoteCount + commentCount + shareCount;
-        this.reactivityUpdatedAt = LocalDateTime.now();
+        if (!newScore.equals(this.reactivityScore)) {
+            this.reactivityScore = newScore;
+            this.reactivityUpdatedAt = LocalDateTime.now();
+        }
     }
 
     // 편의 메서드: VoteOption 추가
