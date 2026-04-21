@@ -48,7 +48,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
 
             // 닉네임이 변경되었을 때만 중복 체크
             if (!profile.getNickname().equals(dto.nickname())) {
-                if (memberProfileRepository.existsByNickname(dto.nickname())) {
+                if (memberProfileRepository.existsByNicknameAndDeletedAtIsNull(dto.nickname())) {
                     throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
                 }
             }
@@ -57,8 +57,8 @@ public class MemberProfileServiceImpl implements MemberProfileService {
             profile.update(dto.nickname(), dto.gender(), dto.age(), dto.mbtiIe(), dto.mbtiTf(), dto.mbti());
             memberProfileRepository.save(profile);
         } else {
-            // ✅ 신규 생성: 무조건 중복 체크
-            if (memberProfileRepository.existsByNickname(dto.nickname())) {
+            // ✅ 신규 생성: 무조건 중복 체크 (soft delete된 회원 닉네임 제외)
+            if (memberProfileRepository.existsByNicknameAndDeletedAtIsNull(dto.nickname())) {
                 throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
             }
 
@@ -107,7 +107,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
 
     @Override
     public boolean isAvailableNickname(String nickname) {
-        return !memberProfileRepository.existsByNickname(nickname);
+        return !memberProfileRepository.existsByNicknameAndDeletedAtIsNull(nickname);
     }
 
     @Override
