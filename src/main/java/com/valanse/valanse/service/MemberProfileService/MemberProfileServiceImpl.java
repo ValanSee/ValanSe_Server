@@ -2,18 +2,23 @@ package com.valanse.valanse.service.MemberProfileService;
 
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
+import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
+import com.valanse.valanse.dto.MemberProfile.MemberPointRankingResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberRepository;
+import com.valanse.valanse.service.PointService.PointService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +27,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
 
     private final MemberRepository memberRepository;
     private final MemberProfileRepository memberProfileRepository;
+    private final PointService pointService;
 
     @Override
     public void saveOrUpdateProfile(MemberProfileRequest dto) {
@@ -74,6 +80,9 @@ public class MemberProfileServiceImpl implements MemberProfileService {
                     .build();
 
             memberProfileRepository.save(newProfile);
+
+            // 신규 프로필 생성 시 회원가입 포인트 지급
+            pointService.givePoint(userId, PointType.SIGN_UP);
         }
     }
 
@@ -213,5 +222,19 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         );
 
         return new MemberMyPageResponse(info);
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<MemberPointRankingResponse> getPointRanking() {
+        AtomicInteger rank = new AtomicInteger(1);
+        return memberProfileRepository.findAllByDeletedAtIsNullOrderByPointDesc()
+                .stream()
+                .map(profile -> new MemberPointRankingResponse(
+                        profile.getNickname(),
+                        profile.getPoint(),
+                        rank.getAndIncrement()
+                ))
+                .toList();
     }
 }

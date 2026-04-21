@@ -4,10 +4,12 @@ import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberTemplate;
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.*;
+import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.dto.Comment.*;
 import com.valanse.valanse.repository.*;
+import com.valanse.valanse.service.PointService.PointService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -34,6 +36,7 @@ public class CommentServiceImpl implements CommentService {
     private final CommentGroupRepository commentGroupRepository;
     private final CommentRepository commentRepository;
     private final MemberProfileRepository memberProfileRepository;
+    private final PointService pointService;
 
     @Override
     public void deleteMyComment(Member member, Long commentId) {
@@ -137,7 +140,14 @@ public class CommentServiceImpl implements CommentService {
             commentGroupRepository.save(commentGroup);
         }
 
-        return commentRepository.save(comment).getId();
+        Long savedCommentId = commentRepository.save(comment).getId();
+
+        // 댓글 작성 포인트 지급 (부모 댓글일 때만)
+        if (request.getParentId() == null) {
+            pointService.givePoint(userId, PointType.COMMENT_CREATE);
+        }
+
+        return savedCommentId;
     }
 
     @Override

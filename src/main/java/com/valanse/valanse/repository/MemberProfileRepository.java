@@ -3,6 +3,7 @@ package com.valanse.valanse.repository;
 import com.valanse.valanse.domain.MemberProfile;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface MemberProfileRepository extends JpaRepository<MemberProfile, Long> {
@@ -10,5 +11,7 @@ public interface MemberProfileRepository extends JpaRepository<MemberProfile, Lo
     Optional<MemberProfile> findByMemberId(Long id);
 
     boolean existsByNicknameAndDeletedAtIsNull(String nickname);
+
+    List<MemberProfile> findAllByDeletedAtIsNullOrderByPointDesc();
 
 }

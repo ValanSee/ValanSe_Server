@@ -3,17 +3,19 @@ package com.valanse.valanse.service.VoteService;
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.*;
 import com.valanse.valanse.domain.enums.PinType;
+import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.repository.*;
+import com.valanse.valanse.service.PointService.PointService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // import 추가
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime; // 기존 코드에 있었으므로 유지
 import java.util.List; // 기존 코드에 있었으므로 유지
@@ -26,11 +28,12 @@ import java.util.stream.Collectors; // 기존 코드에 있었으므로 유지
 public class VoteServiceImpl implements VoteService {
 
     private final VoteRepository voteRepository;
-    private final MemberProfileRepository memberProfileRepository; // MemberProfile 정보 조회를 위해 필요
-    private final MemberRepository memberRepository; // processVote 메서드에서 Member 조회를 위해 추가
-    private final VoteOptionRepository voteOptionRepository; // processVote 메서드에서 VoteOption 조회를 위해 추가
-    private final MemberVoteOptionRepository memberVoteOptionRepository; // processVote 메서드에서 MemberVoteOption 조회를 위해 추가
+    private final MemberProfileRepository memberProfileRepository;
+    private final MemberRepository memberRepository;
+    private final VoteOptionRepository voteOptionRepository;
+    private final MemberVoteOptionRepository memberVoteOptionRepository;
     private final CommentGroupRepository commentGroupRepository;
+    private final PointService pointService;
 
    //작은 민지가 구현한 것
    @Override
@@ -229,19 +232,21 @@ public class VoteServiceImpl implements VoteService {
             }
         } else {
             // 4. 이전에 투표한 기록이 없는 경우: 새로운 투표 기록
-            // 새로운 member_vote_option 기록 생성 및 저장
             MemberVoteOption newMemberVoteOption = MemberVoteOption.builder()
                     .member(member)
                     .vote(vote)
                     .voteOption(newVoteOption)
                     .build();
             memberVoteOptionRepository.save(newMemberVoteOption);
-            // 선택지 투표 수 증가
             newVoteOption.setVoteCount(newVoteOption.getVoteCount() + 1);
-            // 전체 투표 수 증가
             vote.setTotalVoteCount(vote.getTotalVoteCount() + 1);
 
-            isVoted = true; // 새로운 옵션에 투표했으므로 true
+            // 게시물 작성자에게 투표 참여 포인트 지급
+            if (vote.getMember() != null && !vote.getMember().getId().equals(userId)) {
+                pointService.givePoint(vote.getMember().getId(), PointType.POST_VOTED);
+            }
+
+            isVoted = true;
             updatedTotalVoteCount = vote.getTotalVoteCount();
             updatedVoteOptionCount = newVoteOption.getVoteCount();
         }
@@ -385,6 +390,9 @@ public class VoteServiceImpl implements VoteService {
                 .build();
 
         commentGroupRepository.save(commentGroup); // CommentGroup 저장
+
+        // 게시물 작성 포인트 지급
+        pointService.givePoint(userId, PointType.POST_CREATE);
 
         return savedVote.getId(); // 저장된 투표의 ID를 반환
     }
