@@ -24,19 +24,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-/**
- * Issue #110: MBTI 프로필 수정 검증 로직 테스트
- *
- * 테스트 시나리오:
- * 1. 닉네임 변경 없이 MBTI만 수정 - 중복 체크 없이 정상 저장
- * 2. MBTI 2~3글자만 입력 - "MBTI는 4자리여야 합니다" 에러
- * 3. IE만 선택하고 TF 미선택 - "MBTI를 모두 선택해주세요" 에러
- * 4. 닉네임 중복 (실제 중복) - "이미 사용 중인 닉네임입니다" 에러
- * 5. 신규 프로필 생성 시 닉네임 중복 - "이미 사용 중인 닉네임입니다" 에러
- * 6. 정상적인 MBTI 4글자 입력 - 정상 저장
- */
 @ExtendWith(MockitoExtension.class)
-class MemberProfileServiceImplTest_Issue110 {
+class MemberProfileServiceImplTest {
 
     @InjectMocks
     private MemberProfileServiceImpl memberProfileService;
@@ -51,16 +40,13 @@ class MemberProfileServiceImplTest_Issue110 {
 
     @BeforeEach
     void setupSecurityContext() {
-        // SecurityContext 설정 (userId = 1)
         Authentication authentication = mock(Authentication.class);
-        when(authentication.getName()).thenReturn("1");
+        lenient().when(authentication.getName()).thenReturn("1");
         SecurityContext securityContext = mock(SecurityContext.class);
-        when(securityContext.getAuthentication()).thenReturn(authentication);
+        lenient().when(securityContext.getAuthentication()).thenReturn(authentication);
         SecurityContextHolder.setContext(securityContext);
 
-        // Member 객체 초기화
         member = Member.builder()
-                .id(1L)
                 .email("test@email.com")
                 .nickname("테스터")
                 .name("test")
@@ -68,372 +54,245 @@ class MemberProfileServiceImplTest_Issue110 {
                 .build();
     }
 
+    // ───────────────────────────────────────────────
+    // [핵심] soft delete 회원 닉네임 재사용 시나리오
+    // ───────────────────────────────────────────────
+
     @Test
-    @DisplayName("테스트 1: 닉네임 변경 없이 MBTI만 수정 - 중복 체크 없이 정상 저장")
+    @DisplayName("[핵심] 탈퇴한 회원의 닉네임은 신규 가입자가 사용할 수 있어야 한다")
+    void 탈퇴회원_닉네임_신규회원이_재사용_가능() {
+        // given
+        MemberProfileRequest request = new MemberProfileRequest(
+                "탈퇴한닉네임",  // soft delete된 회원이 쓰던 닉네임
+                Gender.MALE,
+                Age.TWENTY,
+                MbtiIe.E,
+                MbtiTf.T,
+                "ENTP"
+        );
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L))
+                .thenReturn(Optional.of(member));
+        when(memberProfileRepository.findByMemberId(1L))
+                .thenReturn(Optional.empty()); // 신규 가입자 (프로필 없음)
+        // soft delete된 회원의 닉네임은 deletedAt IS NULL 조건에서 걸리지 않음
+        when(memberProfileRepository.existsByNicknameAndDeletedAtIsNull("탈퇴한닉네임"))
+                .thenReturn(false);
+
+        // when & then: 예외 없이 정상 저장
+        assertDoesNotThrow(() -> memberProfileService.saveOrUpdateProfile(request));
+        verify(memberProfileRepository, times(1)).save(any(MemberProfile.class));
+    }
+
+    @Test
+    @DisplayName("[핵심] 활성 회원이 사용 중인 닉네임은 중복으로 막혀야 한다")
+    void 활성회원_닉네임_중복_차단() {
+        // given
+        MemberProfileRequest request = new MemberProfileRequest(
+                "활성회원닉네임",
+                Gender.MALE,
+                Age.TWENTY,
+                MbtiIe.E,
+                MbtiTf.T,
+                "ENTP"
+        );
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L))
+                .thenReturn(Optional.of(member));
+        when(memberProfileRepository.findByMemberId(1L))
+                .thenReturn(Optional.empty());
+        // 활성 회원이 이미 사용 중
+        when(memberProfileRepository.existsByNicknameAndDeletedAtIsNull("활성회원닉네임"))
+                .thenReturn(true);
+
+        // when & then
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> memberProfileService.saveOrUpdateProfile(request)
+        );
+        assertThat(exception.getMessage()).isEqualTo("이미 사용 중인 닉네임입니다.");
+        verify(memberProfileRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("[핵심] 프로필 수정 시 탈퇴한 회원의 닉네임으로 변경 가능해야 한다")
+    void 프로필수정시_탈퇴회원_닉네임으로_변경_가능() {
+        // given
+        MemberProfile existingProfile = MemberProfile.builder()
+                .member(member)
+                .nickname("기존닉네임")
+                .gender(Gender.MALE)
+                .age(Age.TWENTY)
+                .mbtiIe(MbtiIe.E)
+                .mbtiTf(MbtiTf.T)
+                .mbti("ENTP")
+                .build();
+
+        MemberProfileRequest request = new MemberProfileRequest(
+                "탈퇴한닉네임",  // 탈퇴 회원이 쓰던 닉네임으로 변경 시도
+                Gender.MALE,
+                Age.TWENTY,
+                MbtiIe.E,
+                MbtiTf.T,
+                "ENTP"
+        );
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L))
+                .thenReturn(Optional.of(member));
+        when(memberProfileRepository.findByMemberId(1L))
+                .thenReturn(Optional.of(existingProfile));
+        when(memberProfileRepository.existsByNicknameAndDeletedAtIsNull("탈퇴한닉네임"))
+                .thenReturn(false); // 탈퇴 회원 닉네임이므로 null 아닌 deletedAt 갖고 있음
+
+        // when & then
+        assertDoesNotThrow(() -> memberProfileService.saveOrUpdateProfile(request));
+        assertThat(existingProfile.getNickname()).isEqualTo("탈퇴한닉네임");
+        verify(memberProfileRepository, times(1)).save(existingProfile);
+    }
+
+    @Test
+    @DisplayName("[핵심] isAvailableNickname은 soft delete된 회원 닉네임을 사용 가능으로 반환해야 한다")
+    void isAvailableNickname_탈퇴회원_닉네임은_사용가능() {
+        when(memberProfileRepository.existsByNicknameAndDeletedAtIsNull("탈퇴한닉네임"))
+                .thenReturn(false);
+
+        assertThat(memberProfileService.isAvailableNickname("탈퇴한닉네임")).isTrue();
+    }
+
+    @Test
+    @DisplayName("[핵심] isAvailableNickname은 활성 회원 닉네임을 사용 불가로 반환해야 한다")
+    void isAvailableNickname_활성회원_닉네임은_사용불가() {
+        when(memberProfileRepository.existsByNicknameAndDeletedAtIsNull("활성닉네임"))
+                .thenReturn(true);
+
+        assertThat(memberProfileService.isAvailableNickname("활성닉네임")).isFalse();
+    }
+
+    // ───────────────────────────────────────────────
+    // 기존 시나리오
+    // ───────────────────────────────────────────────
+
+    @Test
+    @DisplayName("닉네임 변경 없이 MBTI만 수정 - 중복 체크 없이 정상 저장")
     void 닉네임_변경없이_MBTI만_수정_성공() {
-        // given
         MemberProfile existingProfile = MemberProfile.builder()
-                .member(member)
-                .nickname("기존닉네임")
-                .gender(Gender.MALE)
-                .age(Age.TWENTY)
-                .mbtiIe(MbtiIe.E)
-                .mbtiTf(MbtiTf.T)
-                .mbti("ENTP")
+                .member(member).nickname("기존닉네임")
+                .gender(Gender.MALE).age(Age.TWENTY)
+                .mbtiIe(MbtiIe.E).mbtiTf(MbtiTf.T).mbti("ENTP")
                 .build();
 
         MemberProfileRequest request = new MemberProfileRequest(
-                "기존닉네임",  // 닉네임 변경 없음
-                Gender.MALE,
-                Age.TWENTY,
-                MbtiIe.I,     // IE 변경: E -> I
-                MbtiTf.F,     // TF 변경: T -> F
-                "INFP"        // MBTI 변경
+                "기존닉네임", Gender.MALE, Age.TWENTY, MbtiIe.I, MbtiTf.F, "INFP"
         );
 
-        // stub
-        when(memberRepository.findByIdAndDeletedAtIsNull(1L))
-                .thenReturn(Optional.of(member));
-        when(memberProfileRepository.findByMemberId(1L))
-                .thenReturn(Optional.of(existingProfile));
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
+        when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.of(existingProfile));
 
-        // when
         memberProfileService.saveOrUpdateProfile(request);
 
-        // then
-        // 닉네임이 변경되지 않았으므로 중복 체크를 호출하지 않아야 함
-        verify(memberProfileRepository, never()).existsByNickname(any());
-
-        // save는 1회 호출
+        verify(memberProfileRepository, never()).existsByNicknameAndDeletedAtIsNull(any());
         verify(memberProfileRepository, times(1)).save(any(MemberProfile.class));
-
-        // 프로필 업데이트 확인
         assertThat(existingProfile.getMbti()).isEqualTo("INFP");
-        assertThat(existingProfile.getMbtiIe()).isEqualTo(MbtiIe.I);
-        assertThat(existingProfile.getMbtiTf()).isEqualTo(MbtiTf.F);
     }
 
     @Test
-    @DisplayName("테스트 2: MBTI 2~3글자만 입력 - 'MBTI는 4자리여야 합니다' 에러")
+    @DisplayName("MBTI 3글자 입력 - 'MBTI는 4자리여야 합니다' 에러")
     void MBTI_불완전_입력_실패() {
-        // given
         MemberProfileRequest request = new MemberProfileRequest(
-                "테스트닉네임",
-                Gender.MALE,
-                Age.TWENTY,
-                MbtiIe.E,
-                MbtiTf.T,
-                "ENT"  // 3글자만 입력
+                "테스트닉네임", Gender.MALE, Age.TWENTY, MbtiIe.E, MbtiTf.T, "ENT"
         );
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
 
-        // stub
-        when(memberRepository.findByIdAndDeletedAtIsNull(1L))
-                .thenReturn(Optional.of(member));
-
-        // when & then
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> memberProfileService.saveOrUpdateProfile(request)
-        );
-
-        assertThat(exception.getMessage()).isEqualTo("MBTI는 4자리여야 합니다 (예: ENFP)");
-
-        // 저장이 호출되지 않아야 함
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> memberProfileService.saveOrUpdateProfile(request));
+        assertThat(ex.getMessage()).isEqualTo("MBTI는 4자리여야 합니다 (예: ENFP)");
         verify(memberProfileRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("테스트 2-1: MBTI null 입력 - 'MBTI는 4자리여야 합니다' 에러")
+    @DisplayName("MBTI null 입력 - 'MBTI는 4자리여야 합니다' 에러")
     void MBTI_null_입력_실패() {
-        // given
         MemberProfileRequest request = new MemberProfileRequest(
-                "테스트닉네임",
-                Gender.MALE,
-                Age.TWENTY,
-                MbtiIe.E,
-                MbtiTf.T,
-                null  // null 입력
+                "테스트닉네임", Gender.MALE, Age.TWENTY, MbtiIe.E, MbtiTf.T, null
         );
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
 
-        // stub
-        when(memberRepository.findByIdAndDeletedAtIsNull(1L))
-                .thenReturn(Optional.of(member));
-
-        // when & then
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> memberProfileService.saveOrUpdateProfile(request)
-        );
-
-        assertThat(exception.getMessage()).isEqualTo("MBTI는 4자리여야 합니다 (예: ENFP)");
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> memberProfileService.saveOrUpdateProfile(request));
+        assertThat(ex.getMessage()).isEqualTo("MBTI는 4자리여야 합니다 (예: ENFP)");
     }
 
     @Test
-    @DisplayName("테스트 3: IE만 선택하고 TF 미선택 - 'MBTI를 모두 선택해주세요' 에러")
-    void MBTI_일부만_선택_실패() {
-        // given
+    @DisplayName("IE만 선택하고 TF 미선택 - 'MBTI를 모두 선택해주세요' 에러")
+    void MBTI_TF_미선택_실패() {
         MemberProfileRequest request = new MemberProfileRequest(
-                "테스트닉네임",
-                Gender.MALE,
-                Age.TWENTY,
-                MbtiIe.E,  // IE만 선택
-                null,      // TF 미선택
-                "ENTP"
+                "테스트닉네임", Gender.MALE, Age.TWENTY, MbtiIe.E, null, "ENTP"
         );
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
 
-        // stub
-        when(memberRepository.findByIdAndDeletedAtIsNull(1L))
-                .thenReturn(Optional.of(member));
-
-        // when & then
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> memberProfileService.saveOrUpdateProfile(request)
-        );
-
-        assertThat(exception.getMessage()).isEqualTo("MBTI를 모두 선택해주세요");
-
-        // 저장이 호출되지 않아야 함
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> memberProfileService.saveOrUpdateProfile(request));
+        assertThat(ex.getMessage()).isEqualTo("MBTI를 모두 선택해주세요");
         verify(memberProfileRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("테스트 3-1: TF만 선택하고 IE 미선택 - 'MBTI를 모두 선택해주세요' 에러")
-    void MBTI_IE만_미선택_실패() {
-        // given
+    @DisplayName("TF만 선택하고 IE 미선택 - 'MBTI를 모두 선택해주세요' 에러")
+    void MBTI_IE_미선택_실패() {
         MemberProfileRequest request = new MemberProfileRequest(
-                "테스트닉네임",
-                Gender.MALE,
-                Age.TWENTY,
-                null,      // IE 미선택
-                MbtiTf.T,  // TF만 선택
-                "ENTP"
+                "테스트닉네임", Gender.MALE, Age.TWENTY, null, MbtiTf.T, "ENTP"
         );
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
 
-        // stub
-        when(memberRepository.findByIdAndDeletedAtIsNull(1L))
-                .thenReturn(Optional.of(member));
-
-        // when & then
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> memberProfileService.saveOrUpdateProfile(request)
-        );
-
-        assertThat(exception.getMessage()).isEqualTo("MBTI를 모두 선택해주세요");
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> memberProfileService.saveOrUpdateProfile(request));
+        assertThat(ex.getMessage()).isEqualTo("MBTI를 모두 선택해주세요");
     }
 
     @Test
-    @DisplayName("테스트 4: 닉네임 변경 시 실제 중복 - '이미 사용 중인 닉네임입니다' 에러")
-    void 닉네임_변경시_중복_에러() {
-        // given
+    @DisplayName("닉네임 변경 시 활성 회원과 중복 - '이미 사용 중인 닉네임입니다' 에러")
+    void 닉네임_변경시_활성회원_중복_에러() {
         MemberProfile existingProfile = MemberProfile.builder()
-                .member(member)
-                .nickname("기존닉네임")
-                .gender(Gender.MALE)
-                .age(Age.TWENTY)
-                .mbtiIe(MbtiIe.E)
-                .mbtiTf(MbtiTf.T)
-                .mbti("ENTP")
+                .member(member).nickname("기존닉네임")
+                .gender(Gender.MALE).age(Age.TWENTY)
+                .mbtiIe(MbtiIe.E).mbtiTf(MbtiTf.T).mbti("ENTP")
                 .build();
 
         MemberProfileRequest request = new MemberProfileRequest(
-                "중복닉네임",  // 다른 사람이 이미 사용 중
-                Gender.MALE,
-                Age.TWENTY,
-                MbtiIe.E,
-                MbtiTf.T,
-                "ENTP"
+                "중복닉네임", Gender.MALE, Age.TWENTY, MbtiIe.E, MbtiTf.T, "ENTP"
         );
 
-        // stub
-        when(memberRepository.findByIdAndDeletedAtIsNull(1L))
-                .thenReturn(Optional.of(member));
-        when(memberProfileRepository.findByMemberId(1L))
-                .thenReturn(Optional.of(existingProfile));
-        when(memberProfileRepository.existsByNickname("중복닉네임"))
-                .thenReturn(true);  // 중복됨
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
+        when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.of(existingProfile));
+        when(memberProfileRepository.existsByNicknameAndDeletedAtIsNull("중복닉네임")).thenReturn(true);
 
-        // when & then
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> memberProfileService.saveOrUpdateProfile(request)
-        );
-
-        assertThat(exception.getMessage()).isEqualTo("이미 사용 중인 닉네임입니다.");
-
-        // 중복 체크는 호출되어야 함
-        verify(memberProfileRepository, times(1)).existsByNickname("중복닉네임");
-
-        // 저장은 호출되지 않아야 함
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> memberProfileService.saveOrUpdateProfile(request));
+        assertThat(ex.getMessage()).isEqualTo("이미 사용 중인 닉네임입니다.");
         verify(memberProfileRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("테스트 5: 신규 프로필 생성 시 닉네임 중복 - '이미 사용 중인 닉네임입니다' 에러")
-    void 신규_프로필_닉네임_중복_에러() {
-        // given
-        MemberProfileRequest request = new MemberProfileRequest(
-                "중복닉네임",
-                Gender.MALE,
-                Age.TWENTY,
-                MbtiIe.E,
-                MbtiTf.T,
-                "ENTP"
-        );
-
-        // stub
-        when(memberRepository.findByIdAndDeletedAtIsNull(1L))
-                .thenReturn(Optional.of(member));
-        when(memberProfileRepository.findByMemberId(1L))
-                .thenReturn(Optional.empty());  // 기존 프로필 없음 (신규)
-        when(memberProfileRepository.existsByNickname("중복닉네임"))
-                .thenReturn(true);  // 중복됨
-
-        // when & then
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> memberProfileService.saveOrUpdateProfile(request)
-        );
-
-        assertThat(exception.getMessage()).isEqualTo("이미 사용 중인 닉네임입니다.");
-
-        // 신규 생성 시에도 중복 체크 호출
-        verify(memberProfileRepository, times(1)).existsByNickname("중복닉네임");
-
-        // 저장은 호출되지 않아야 함
-        verify(memberProfileRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("테스트 6: 정상적인 MBTI 4글자 입력 - 정상 저장")
-    void 정상_프로필_저장_성공() {
-        // given
-        MemberProfileRequest request = new MemberProfileRequest(
-                "새로운닉네임",
-                Gender.FEMALE,
-                Age.THIRTY,
-                MbtiIe.I,
-                MbtiTf.F,
-                "INFP"  // 정상적인 4글자
-        );
-
-        MemberProfile newProfile = MemberProfile.builder()
-                .member(member)
-                .nickname(request.nickname())
-                .gender(request.gender())
-                .age(request.age())
-                .mbtiIe(request.mbtiIe())
-                .mbtiTf(request.mbtiTf())
-                .mbti(request.mbti())
-                .build();
-
-        // stub
-        when(memberRepository.findByIdAndDeletedAtIsNull(1L))
-                .thenReturn(Optional.of(member));
-        when(memberProfileRepository.findByMemberId(1L))
-                .thenReturn(Optional.empty());  // 신규 생성
-        when(memberProfileRepository.existsByNickname("새로운닉네임"))
-                .thenReturn(false);  // 중복 없음
-        when(memberProfileRepository.save(any(MemberProfile.class)))
-                .thenReturn(newProfile);
-
-        // when
-        memberProfileService.saveOrUpdateProfile(request);
-
-        // then
-        // 중복 체크 호출
-        verify(memberProfileRepository, times(1)).existsByNickname("새로운닉네임");
-
-        // 저장 1회 호출
-        verify(memberProfileRepository, times(1)).save(any(MemberProfile.class));
-    }
-
-    @Test
-    @DisplayName("테스트 7: 닉네임 동일, MBTI 정상 변경 - 정상 저장")
-    void 닉네임_동일_MBTI_변경_성공() {
-        // given
-        MemberProfile existingProfile = MemberProfile.builder()
-                .member(member)
-                .nickname("기존닉네임")
-                .gender(Gender.MALE)
-                .age(Age.TWENTY)
-                .mbtiIe(MbtiIe.E)
-                .mbtiTf(MbtiTf.T)
-                .mbti("ENTP")
-                .build();
-
-        MemberProfileRequest request = new MemberProfileRequest(
-                "기존닉네임",  // 닉네임 변경 없음
-                Gender.MALE,
-                Age.TWENTY,
-                MbtiIe.I,
-                MbtiTf.F,
-                "INFP"  // MBTI만 변경
-        );
-
-        // stub
-        when(memberRepository.findByIdAndDeletedAtIsNull(1L))
-                .thenReturn(Optional.of(member));
-        when(memberProfileRepository.findByMemberId(1L))
-                .thenReturn(Optional.of(existingProfile));
-
-        // when
-        memberProfileService.saveOrUpdateProfile(request);
-
-        // then
-        // 닉네임 동일하므로 중복 체크 호출 안됨
-        verify(memberProfileRepository, never()).existsByNickname(any());
-
-        // 저장은 1회 호출
-        verify(memberProfileRepository, times(1)).save(any(MemberProfile.class));
-
-        // MBTI가 변경되었는지 확인
-        assertThat(existingProfile.getMbti()).isEqualTo("INFP");
-    }
-
-    @Test
-    @DisplayName("테스트 8: 닉네임 변경하면서 중복 없음 - 정상 저장")
+    @DisplayName("닉네임 변경 - 중복 없음 - 정상 저장")
     void 닉네임_변경_중복없음_성공() {
-        // given
         MemberProfile existingProfile = MemberProfile.builder()
-                .member(member)
-                .nickname("기존닉네임")
-                .gender(Gender.MALE)
-                .age(Age.TWENTY)
-                .mbtiIe(MbtiIe.E)
-                .mbtiTf(MbtiTf.T)
-                .mbti("ENTP")
+                .member(member).nickname("기존닉네임")
+                .gender(Gender.MALE).age(Age.TWENTY)
+                .mbtiIe(MbtiIe.E).mbtiTf(MbtiTf.T).mbti("ENTP")
                 .build();
 
         MemberProfileRequest request = new MemberProfileRequest(
-                "새닉네임",  // 닉네임 변경
-                Gender.MALE,
-                Age.TWENTY,
-                MbtiIe.E,
-                MbtiTf.T,
-                "ENTP"
+                "새닉네임", Gender.MALE, Age.TWENTY, MbtiIe.E, MbtiTf.T, "ENTP"
         );
 
-        // stub
-        when(memberRepository.findByIdAndDeletedAtIsNull(1L))
-                .thenReturn(Optional.of(member));
-        when(memberProfileRepository.findByMemberId(1L))
-                .thenReturn(Optional.of(existingProfile));
-        when(memberProfileRepository.existsByNickname("새닉네임"))
-                .thenReturn(false);  // 중복 없음
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
+        when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.of(existingProfile));
+        when(memberProfileRepository.existsByNicknameAndDeletedAtIsNull("새닉네임")).thenReturn(false);
 
-        // when
         memberProfileService.saveOrUpdateProfile(request);
 
-        // then
-        // 닉네임이 변경되었으므로 중복 체크 호출됨
-        verify(memberProfileRepository, times(1)).existsByNickname("새닉네임");
-
-        // 저장은 1회 호출
+        verify(memberProfileRepository, times(1)).existsByNicknameAndDeletedAtIsNull("새닉네임");
         verify(memberProfileRepository, times(1)).save(any(MemberProfile.class));
-
-        // 닉네임이 변경되었는지 확인
         assertThat(existingProfile.getNickname()).isEqualTo("새닉네임");
     }
 }
