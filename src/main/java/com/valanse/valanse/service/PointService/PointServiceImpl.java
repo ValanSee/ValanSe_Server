@@ -4,6 +4,7 @@ import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.PointHistory;
 import com.valanse.valanse.domain.enums.PointType;
+import com.valanse.valanse.dto.PointHistory.PointHistoryResponse;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberRepository;
 import com.valanse.valanse.repository.PointHistoryRepository;
@@ -13,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +35,9 @@ public class PointServiceImpl implements PointService {
 
     // 댓글 포인트 일일 최대 획득 횟수
     private static final long COMMENT_DAILY_LIMIT = 3L;
+
+    // 날짜 포맷터
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Override
     public void givePoint(Long memberId, PointType type) {
@@ -71,5 +77,53 @@ public class PointServiceImpl implements PointService {
                     .build();
             pointHistoryRepository.save(history);
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PointHistoryResponse getPointHistory(Long memberId) {
+        // 회원 존재 여부 확인
+        memberRepository.findByIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+
+        // 포인트 히스토리 조회 (최신순으로 정렬)
+        List<PointHistory> histories = pointHistoryRepository.findByMemberId(memberId);
+
+        // DTO로 변환
+        List<PointHistoryResponse.PointHistoryItem> historyItems = histories.stream()
+                .sorted((h1, h2) -> {
+                    // null 값 처리: null은 가장 오래된 것으로 간주
+                    if (h1.getCreatedAt() == null && h2.getCreatedAt() == null) return 0;
+                    if (h1.getCreatedAt() == null) return 1;
+                    if (h2.getCreatedAt() == null) return -1;
+                    return h2.getCreatedAt().compareTo(h1.getCreatedAt()); // 최신순 정렬
+                })
+                .map(history -> new PointHistoryResponse.PointHistoryItem(
+                        history.getId(),
+                        history.getAmount(),
+                        history.getType(),
+                        getPointTypeDescription(history.getType()),
+                        formatCreatedAt(history.getCreatedAt())
+                ))
+                .toList();
+
+        return new PointHistoryResponse(historyItems);
+    }
+
+    private String getPointTypeDescription(PointType type) {
+        return switch (type) {
+            case SIGN_UP -> "회원가입";
+            case POST_CREATE -> "게시글 작성";
+            case COMMENT_CREATE -> "댓글 작성";
+            case POST_VOTED -> "투표 참여";
+            case HOT_ISSUE -> "핫이슈";
+        };
+    }
+
+    private String formatCreatedAt(LocalDateTime createdAt) {
+        if (createdAt == null) {
+            return null;
+        }
+        return createdAt.format(DATE_TIME_FORMATTER);
     }
 }
