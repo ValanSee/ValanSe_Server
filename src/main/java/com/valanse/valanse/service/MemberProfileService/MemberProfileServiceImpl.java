@@ -4,7 +4,6 @@ import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
-import com.valanse.valanse.dto.MemberProfile.MemberPointRankingResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 import com.valanse.valanse.repository.MemberProfileRepository;
@@ -15,10 +14,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @RequiredArgsConstructor
@@ -224,17 +221,4 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         return new MemberMyPageResponse(info);
     }
 
-    @Transactional(readOnly = true)
-    @Override
-    public List<MemberPointRankingResponse> getPointRanking() {
-        AtomicInteger rank = new AtomicInteger(1);
-        return memberProfileRepository.findAllByDeletedAtIsNullOrderByPointDesc()
-                .stream()
-                .map(profile -> new MemberPointRankingResponse(
-                        profile.getNickname(),
-                        profile.getPoint(),
-                        rank.getAndIncrement()
-                ))
-                .toList();
-    }
 }
