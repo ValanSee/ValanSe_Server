@@ -80,9 +80,6 @@ public class SecurityConfig {
                         // 회원 관련
                         .requestMatchers("/member/**").authenticated()
 
-                        // 포인트 랭킹 (공개)
-                        .requestMatchers(HttpMethod.GET, "/point/ranking").permitAll()
-
                         // 나머지 모든 요청
                         .anyRequest().authenticated()
                 )
