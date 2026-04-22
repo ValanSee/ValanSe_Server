@@ -6,6 +6,7 @@ import com.valanse.valanse.domain.enums.*;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberRepository;
+import com.valanse.valanse.service.PointService.PointService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,8 @@ class MemberProfileServiceImplTest {
 
     @Mock
     private MemberRepository memberRepository;
+    @Mock
+    private PointService pointService;
 
     private Member member;
 

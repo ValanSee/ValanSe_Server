@@ -11,6 +11,7 @@ import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import com.valanse.valanse.dto.Vote.VoteCancleResponseDto;
 import com.valanse.valanse.dto.Vote.VoteCreateRequest;
 import com.valanse.valanse.repository.*;
+import com.valanse.valanse.service.PointService.PointService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,6 +45,8 @@ class VoteServiceImplTest {
     private CommentGroupRepository commentGroupRepository;
     @Mock
     private VoteOptionRepository voteOptionRepository;
+    @Mock
+    private PointService pointService;
 
     @Test
     @DisplayName("투표 제목은 너무 길거나 너무 짧으면 안된다.")

@@ -5,6 +5,7 @@ import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.dto.Comment.BestCommentResponseDto;
 import com.valanse.valanse.dto.Comment.CommentPostRequest;
 import com.valanse.valanse.repository.*;
+import com.valanse.valanse.service.PointService.PointService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,8 @@ class CommentServiceImplTest {
     private CommentGroupRepository commentGroupRepository;
     @Mock
     private MemberProfileRepository memberProfileRepository;
+    @Mock
+    private PointService pointService;
 
     private Member member;
     private Vote vote;
