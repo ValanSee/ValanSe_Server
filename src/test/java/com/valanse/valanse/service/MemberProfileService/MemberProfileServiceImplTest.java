@@ -298,4 +298,60 @@ class MemberProfileServiceImplTest {
         verify(memberProfileRepository, times(1)).save(any(MemberProfile.class));
         assertThat(existingProfile.getNickname()).isEqualTo("새닉네임");
     }
+
+    @Test
+    @DisplayName("getProfile() 메서드가 포인트 정보를 포함해서 반환하는지 확인")
+    void getProfile_포인트_정보_포함_확인() {
+        // given
+        MemberProfile profile = MemberProfile.builder()
+                .member(member)
+                .nickname("테스트닉네임")
+                .gender(Gender.MALE)
+                .age(Age.TWENTY)
+                .mbtiIe(MbtiIe.E)
+                .mbtiTf(MbtiTf.T)
+                .mbti("ENTP")
+                .point(100L)
+                .build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
+        when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.of(profile));
+
+        // when
+        var response = memberProfileService.getProfile();
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.profile()).isNotNull();
+        assertThat(response.profile().point()).isEqualTo(100L);
+        assertThat(response.profile().nickname()).isEqualTo("테스트닉네임");
+    }
+
+    @Test
+    @DisplayName("getMyProfile() 메서드가 포인트 정보를 포함해서 반환하는지 확인")
+    void getMyProfile_포인트_정보_포함_확인() {
+        // given
+        MemberProfile profile = MemberProfile.builder()
+                .member(member)
+                .nickname("테스트닉네임")
+                .gender(Gender.MALE)
+                .age(Age.TWENTY)
+                .mbtiIe(MbtiIe.E)
+                .mbtiTf(MbtiTf.T)
+                .mbti("ENTP")
+                .point(150L)
+                .build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
+        when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.of(profile));
+
+        // when
+        var response = memberProfileService.getMyProfile();
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.profile()).isNotNull();
+        assertThat(response.profile().point()).isEqualTo(150L);
+        assertThat(response.profile().nickname()).isEqualTo("테스트닉네임");
+    }
 }

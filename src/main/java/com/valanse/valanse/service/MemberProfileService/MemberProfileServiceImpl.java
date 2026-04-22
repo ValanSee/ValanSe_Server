@@ -105,7 +105,8 @@ public class MemberProfileServiceImpl implements MemberProfileService {
                 profile.getMbtiIe() != null ? profile.getMbtiIe().name() : null,
                 profile.getMbtiTf() != null ? profile.getMbtiTf().name() : null,
                 profile.getMbti() != null ? profile.getMbti() : null,
-                member.getRole() != null ? member.getRole() : null
+                member.getRole() != null ? member.getRole() : null,
+                profile.getPoint()
         );
 
         return new MemberProfileResponse(info);
@@ -215,7 +216,8 @@ public class MemberProfileServiceImpl implements MemberProfileService {
                 profile.getNickname(),
                 profile.getGender() != null ? profile.getGender().name() : null,
                 profile.getAge() != null ? profile.getAge().name() : null,
-                profile.getMbti() != null ? profile.getMbti() : null
+                profile.getMbti() != null ? profile.getMbti() : null,
+                profile.getPoint()
         );
 
         return new MemberMyPageResponse(info);
