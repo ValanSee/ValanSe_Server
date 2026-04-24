@@ -2,11 +2,13 @@ package com.valanse.valanse.service.MemberProfileService;
 
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
+import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberRepository;
+import com.valanse.valanse.service.PointService.PointService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
 
     private final MemberRepository memberRepository;
     private final MemberProfileRepository memberProfileRepository;
+    private final PointService pointService;
 
     @Override
     public void saveOrUpdateProfile(MemberProfileRequest dto) {
@@ -74,6 +77,9 @@ public class MemberProfileServiceImpl implements MemberProfileService {
                     .build();
 
             memberProfileRepository.save(newProfile);
+
+            // 신규 프로필 생성 시 회원가입 포인트 지급
+            pointService.givePoint(userId, PointType.SIGN_UP);
         }
     }
 
@@ -99,7 +105,8 @@ public class MemberProfileServiceImpl implements MemberProfileService {
                 profile.getMbtiIe() != null ? profile.getMbtiIe().name() : null,
                 profile.getMbtiTf() != null ? profile.getMbtiTf().name() : null,
                 profile.getMbti() != null ? profile.getMbti() : null,
-                member.getRole() != null ? member.getRole() : null
+                member.getRole() != null ? member.getRole() : null,
+                profile.getPoint()
         );
 
         return new MemberProfileResponse(info);
@@ -209,9 +216,11 @@ public class MemberProfileServiceImpl implements MemberProfileService {
                 profile.getNickname(),
                 profile.getGender() != null ? profile.getGender().name() : null,
                 profile.getAge() != null ? profile.getAge().name() : null,
-                profile.getMbti() != null ? profile.getMbti() : null
+                profile.getMbti() != null ? profile.getMbti() : null,
+                profile.getPoint()
         );
 
         return new MemberMyPageResponse(info);
     }
+
 }

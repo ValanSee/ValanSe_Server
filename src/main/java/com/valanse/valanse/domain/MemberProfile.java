@@ -43,6 +43,9 @@ public class MemberProfile extends BaseEntity {
 
     private String mbti;
 
+    @Builder.Default
+    private long point = 0L;
+
     public void update(String nickname, Gender gender, Age age, MbtiIe mbtiIe, MbtiTf mbtiTf, String mbti) {
         this.nickname = nickname;
         this.gender = gender;
@@ -52,4 +55,7 @@ public class MemberProfile extends BaseEntity {
         this.mbti = mbti;
     }
 
+    public void addPoint(long amount) {
+        this.point += amount;
+    }
 }

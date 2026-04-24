@@ -6,6 +6,7 @@ import com.valanse.valanse.domain.enums.*;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberRepository;
+import com.valanse.valanse.service.PointService.PointService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,8 @@ class MemberProfileServiceImplTest {
 
     @Mock
     private MemberRepository memberRepository;
+    @Mock
+    private PointService pointService;
 
     private Member member;
 
@@ -294,5 +297,61 @@ class MemberProfileServiceImplTest {
         verify(memberProfileRepository, times(1)).existsByNicknameAndDeletedAtIsNull("새닉네임");
         verify(memberProfileRepository, times(1)).save(any(MemberProfile.class));
         assertThat(existingProfile.getNickname()).isEqualTo("새닉네임");
+    }
+
+    @Test
+    @DisplayName("getProfile() 메서드가 포인트 정보를 포함해서 반환하는지 확인")
+    void getProfile_포인트_정보_포함_확인() {
+        // given
+        MemberProfile profile = MemberProfile.builder()
+                .member(member)
+                .nickname("테스트닉네임")
+                .gender(Gender.MALE)
+                .age(Age.TWENTY)
+                .mbtiIe(MbtiIe.E)
+                .mbtiTf(MbtiTf.T)
+                .mbti("ENTP")
+                .point(100L)
+                .build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
+        when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.of(profile));
+
+        // when
+        var response = memberProfileService.getProfile();
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.profile()).isNotNull();
+        assertThat(response.profile().point()).isEqualTo(100L);
+        assertThat(response.profile().nickname()).isEqualTo("테스트닉네임");
+    }
+
+    @Test
+    @DisplayName("getMyProfile() 메서드가 포인트 정보를 포함해서 반환하는지 확인")
+    void getMyProfile_포인트_정보_포함_확인() {
+        // given
+        MemberProfile profile = MemberProfile.builder()
+                .member(member)
+                .nickname("테스트닉네임")
+                .gender(Gender.MALE)
+                .age(Age.TWENTY)
+                .mbtiIe(MbtiIe.E)
+                .mbtiTf(MbtiTf.T)
+                .mbti("ENTP")
+                .point(150L)
+                .build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
+        when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.of(profile));
+
+        // when
+        var response = memberProfileService.getMyProfile();
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.profile()).isNotNull();
+        assertThat(response.profile().point()).isEqualTo(150L);
+        assertThat(response.profile().nickname()).isEqualTo("테스트닉네임");
     }
 }

@@ -3,11 +3,14 @@ package com.valanse.valanse.controller;
 import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
+import com.valanse.valanse.dto.PointHistory.PointHistoryResponse;
 import com.valanse.valanse.service.MemberProfileService.MemberProfileService;
+import com.valanse.valanse.service.PointService.PointService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -20,6 +23,7 @@ import java.util.Map;
 public class MemberController {
 
     private final MemberProfileService memberProfileService;
+    private final PointService pointService;
 
     @Operation(
             summary = "회원 프로필 정보 저장",
@@ -90,6 +94,17 @@ public class MemberController {
     @GetMapping("/mypage")
     public ResponseEntity<MemberMyPageResponse> getMyProfile() {
         MemberMyPageResponse response = memberProfileService.getMyProfile();
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "포인트 지급 내역 조회",
+            description = "현재 로그인한 회원의 포인트 지급 내역을 조회합니다. 최신순으로 정렬되어 반환됩니다."
+    )
+    @GetMapping("/point-history")
+    public ResponseEntity<PointHistoryResponse> getPointHistory() {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        PointHistoryResponse response = pointService.getPointHistory(userId);
         return ResponseEntity.ok(response);
     }
 }
