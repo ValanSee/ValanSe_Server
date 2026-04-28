@@ -88,7 +88,7 @@ public class VoteServiceImpl implements VoteService {
 
     //여기서부터 영서 코드
     @Override
-    @Transactional
+//    @Transactional
     public HotIssueVoteResponse getHotIssueVote() { // 파라미터 없음
         // 0. 고정 게시물이 있다면 반환.
         Optional<Vote> pinnedHot = voteRepository.findByPinType(PinType.HOT);
@@ -101,24 +101,14 @@ public class VoteServiceImpl implements VoteService {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime yesterdayStart = now.minusDays(1).withHour(0).withMinute(0).withSecond(0);
 
-        // 1. 먼저 모든 투표의 반응성 점수를 업데이트 (실시간 계산)
-        List<Vote> allVotes = voteRepository.findAll();
-        for(Vote vote : allVotes) {
-            vote.updateReactivityScore(); // Vote 엔티티에 추가한 메서드
-            voteRepository.save(vote);
-        }
-
-        // 2. 작일 동안 반응성이 가장 높은 투표 조회 시도
-        Optional<Vote> yesterdayHotIssue = voteRepository
-                .findTopByCreatedAtBetweenOrderByReactivityScoreDescCreatedAtDesc(yesterdayStart, now);
-
+        //  작일 동안 반응성이 가장 높은 투표 조회 시도
+        Optional<Vote> yesterdayHotIssue = voteRepository.findTrendingVote(yesterdayStart, now);
         Vote hotIssueVote;
         if (yesterdayHotIssue.isPresent()) {
             // 작일 반응성 데이터가 있는 경우
             hotIssueVote = yesterdayHotIssue.get();
         } else {
-            // 작일 반응성 데이터가 없는 경우 → 전체 누적 반응성 기준 조회
-            hotIssueVote = voteRepository.findTopByOrderByReactivityScoreDescCreatedAtDesc()
+            hotIssueVote = voteRepository.findHotIssueVote()
                     .orElseThrow(() -> new ApiException("핫이슈 투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
         }
 
@@ -140,19 +130,13 @@ public class VoteServiceImpl implements VoteService {
 
         }
 
-       // 7일 이전 시간 계산
-       LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+        // 7일 이전 시간 계산
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+        LocalDateTime now = LocalDateTime.now();
 
-       // 1. 모든 투표의 반응성 점수 업데이트
-        List<Vote> allVotes = voteRepository.findAll();
-        for(Vote vote : allVotes) {
-            vote.updateReactivityScore();
-            voteRepository.save(vote);
-        }
-
-        // 2. 최근 7일 내 반응성이 가장 높은 투표 조회
+        // 최근 7일 내 반응성이 가장 높은 투표 조회
         Optional<Vote> recentTrendingVote = voteRepository
-                .findTopByCreatedAtBetweenOrderByReactivityScoreDescCreatedAtDesc(sevenDaysAgo, LocalDateTime.now());
+                .findTrendingVote(sevenDaysAgo, now);
 
         Vote trendingVote;
         if (recentTrendingVote.isPresent()) {
@@ -160,7 +144,7 @@ public class VoteServiceImpl implements VoteService {
             trendingVote = recentTrendingVote.get();
         } else {
             // 7일 내 데이터가 없는 경우 - 이전 데이터 유지 (전체 기간에서 가장 높은 반응성)
-            trendingVote = voteRepository.findTopByOrderByReactivityScoreDescCreatedAtDesc()
+            trendingVote = voteRepository.findHotIssueVote()
                     .orElseThrow(() -> new ApiException("인기 급상승 투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
         }
 

@@ -2,7 +2,9 @@ package com.valanse.valanse.repository;
 
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Predicate;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import com.valanse.valanse.domain.QCommentGroup;
 import com.valanse.valanse.domain.QVote;
 import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.enums.VoteCategory;
@@ -13,6 +15,11 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+
+import static com.valanse.valanse.domain.QComment.comment;
+import static com.valanse.valanse.domain.QVoteOption.voteOption;
+import static com.valanse.valanse.domain.mapping.QMemberVoteOption.memberVoteOption;
 
 @Repository
 @RequiredArgsConstructor
@@ -20,6 +27,7 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
     private final QVote vote = QVote.vote;
+    private final QCommentGroup commentGroup = QCommentGroup.commentGroup;
 
     @Override
     public List<Vote> findVotesByCursor(String category, String sort, String cursor, int size) {
@@ -62,4 +70,62 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                 .limit(size + 1) // 다음 페이지 존재 여부 확인
                 .fetch();
     }
+
+    @Override
+    public Optional<Vote> findHotIssueVote() {
+        return Optional.ofNullable(
+                queryFactory
+                        .selectFrom(vote)
+                        .leftJoin(vote.commentGroup, commentGroup)
+                        .fetchJoin()
+                        .orderBy(
+                        vote.totalVoteCount
+                                .add(commentGroup.totalCommentCount.coalesce(0))
+                                .desc(),
+                        vote.createdAt.desc()  // 점수 같을 때 최신순
+                        )
+                        .fetchFirst());
+    }
+
+    @Override
+    public Optional<Vote> findTrendingVote(LocalDateTime from, LocalDateTime to) {
+        return Optional.ofNullable(
+                queryFactory
+                        .selectFrom(vote)
+                        .leftJoin(vote.commentGroup, commentGroup)
+                        .fetchJoin()
+                        .where(
+                                // 기간 내 댓글 존재
+                                JPAExpressions
+                                        .selectOne()
+                                        .from(comment)
+                                        .where(
+                                                comment.commentGroup.eq(commentGroup),
+                                                comment.createdAt.between(from, to),
+                                                comment.deletedAt.isNull()
+                                        )
+                                        .exists()
+                                        .or(
+                                                // 기간 내 투표 존재
+                                                JPAExpressions
+                                                        .selectOne()
+                                                        .from(memberVoteOption)
+                                                        .join(memberVoteOption.voteOption, voteOption)
+                                                        .where(
+                                                                voteOption.vote.eq(vote),
+                                                                memberVoteOption.createdAt.between(from, to)
+                                                        )
+                                                        .exists()
+                                        )
+                        )
+                        .orderBy(
+                                vote.totalVoteCount
+                                        .add(commentGroup.totalCommentCount.coalesce(0))
+                                        .desc(),
+                                vote.createdAt.desc()  // 점수 같을 때 최신순
+                        )
+                        .fetchFirst());
+
+    }
+
 }
