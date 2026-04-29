@@ -282,16 +282,8 @@ public class VoteServiceImpl implements VoteService {
                     SecurityContextHolder.getContext().getAuthentication().getName() != null &&
                     !SecurityContextHolder.getContext().getAuthentication().getName().equals("anonymousUser")) {
                 currentUserId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
-                // --- 디버깅 로그 추가 시작 ---
-                System.out.println("DEBUG: Authenticated user ID: " + currentUserId);
-                // --- 디버깅 로그 추가 끝 ---
-            } else {
-                // --- 디버깅 로그 추가 시작 ---
-                System.out.println("DEBUG: User is not authenticated or is anonymous.");
-                // --- 디버깅 로그 추가 끝 ---
             }
         } catch (NumberFormatException e) {
-            System.out.println("DEBUG: Error parsing user ID from SecurityContext: " + e.getMessage());
             currentUserId = null;
         }
 
