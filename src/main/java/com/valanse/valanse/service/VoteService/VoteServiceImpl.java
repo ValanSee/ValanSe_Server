@@ -88,7 +88,6 @@ public class VoteServiceImpl implements VoteService {
 
     //여기서부터 영서 코드
     @Override
-//    @Transactional
     public HotIssueVoteResponse getHotIssueVote() { // 파라미터 없음
         // 0. 고정 게시물이 있다면 반환.
         Optional<Vote> pinnedHot = voteRepository.findByPinType(PinType.HOT);
