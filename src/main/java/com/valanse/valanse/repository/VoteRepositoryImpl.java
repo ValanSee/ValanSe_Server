@@ -77,7 +77,6 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                 queryFactory
                         .selectFrom(vote)
                         .leftJoin(vote.commentGroup, commentGroup)
-                        .fetchJoin()
                         .orderBy(
                         vote.totalVoteCount
                                 .add(commentGroup.totalCommentCount.coalesce(0))
@@ -93,7 +92,6 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                 queryFactory
                         .selectFrom(vote)
                         .leftJoin(vote.commentGroup, commentGroup)
-                        .fetchJoin()
                         .where(
                                 // 기간 내 댓글 존재
                                 JPAExpressions
