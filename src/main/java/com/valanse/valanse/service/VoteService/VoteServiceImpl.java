@@ -178,11 +178,11 @@ public class VoteServiceImpl implements VoteService {
 
             if (oldVoteOption.getId().equals(voteOptionId)) {
                 // 3-1. 동일한 선택지를 다시 클릭한 경우: 투표 취소
-                // member_vote_option에서 해당 기록을 삭제 [cite: image_0268de.png]
+                // member_vote_option에서 해당 기록을 삭제
                 memberVoteOptionRepository.delete(oldMemberVoteOption);
-                // 기존 선택지의 투표 수 감소 [cite: image_0268de.png]
+                // 기존 선택지의 투표 수 감소
                 oldVoteOption.setVoteCount(oldVoteOption.getVoteCount() - 1);
-                // 전체 투표 수 감소 [cite: image_0268de.png]
+                // 전체 투표 수 감소a
                 vote.setTotalVoteCount(vote.getTotalVoteCount() - 1);
 
                 isVoted = false; // 투표가 취소되었으므로 false
