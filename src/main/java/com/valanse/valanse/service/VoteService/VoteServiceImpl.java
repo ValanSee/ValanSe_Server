@@ -165,7 +165,6 @@ public class VoteServiceImpl implements VoteService {
                 .orElseThrow(() -> new ApiException("투표 선택지가 존재하지 않습니다.", HttpStatus.NOT_FOUND));
 
         // 2. 사용자가 이 투표에 대해 이전에 투표한 선택지가 있는지 확인합니다.
-        // ERD의 member_vote_option 테이블을 활용 [cite: image_02691a.jpg]
         Optional<MemberVoteOption> existingVote = memberVoteOptionRepository.findByMemberIdAndVoteId(userId, voteId);
 
         boolean isVoted; // 최종적으로 투표가 되어 있는지 여부 (응답 DTO에 사용)
