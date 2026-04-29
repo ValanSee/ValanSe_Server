@@ -118,7 +118,6 @@ public class VoteServiceImpl implements VoteService {
 
     // 인기 급상승 토픽
     @Override
-    @Transactional
     public HotIssueVoteResponse getTrendingVote() {
        // 0. 고정 게시물이 있다면 반환.
         Optional<Vote> pinnedTrending = voteRepository.findByPinType(PinType.TRENDING);
