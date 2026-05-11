@@ -107,7 +107,14 @@ public class SecurityConfig {
                 "http://backendbase.store:8082",
                 "https://backendbase.store:8080",
                 "https://backendbase.store:8081",
-                "https://backendbase.store:8082"
+                "https://backendbase.store:8082",
+                "http://valanserver.store",
+                "http://valanserver.store:8080",
+                "http://valanserver.store:8081",
+                "http://valanserver.store:8082",
+                "https://valanserver.store:8080",
+                "https://valanserver.store:8081",
+                "https://valanserver.store:8082"
         ));
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
