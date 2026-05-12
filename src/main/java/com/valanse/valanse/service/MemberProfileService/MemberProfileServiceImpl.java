@@ -2,6 +2,7 @@ package com.valanse.valanse.service.MemberProfileService;
 
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
+import com.valanse.valanse.domain.MemberProfileTitle;
 import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
@@ -106,6 +107,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
                 profile.getMbtiTf() != null ? profile.getMbtiTf().name() : null,
                 profile.getMbti() != null ? profile.getMbti() : null,
                 member.getRole() != null ? member.getRole() : null,
+                getEquippedTitleName(profile),
                 profile.getPoint()
         );
 
@@ -217,10 +219,21 @@ public class MemberProfileServiceImpl implements MemberProfileService {
                 profile.getGender() != null ? profile.getGender().name() : null,
                 profile.getAge() != null ? profile.getAge().name() : null,
                 profile.getMbti() != null ? profile.getMbti() : null,
+                getEquippedTitleName(profile),
                 profile.getPoint()
         );
 
         return new MemberMyPageResponse(info);
+    }
+
+    private String getEquippedTitleName(MemberProfile profile) {
+        return profile.getMemberProfileTitles().stream()
+                .filter(MemberProfileTitle::isEquipped)
+                .map(MemberProfileTitle::getTitle)
+                .filter(title -> title != null)
+                .map(title -> title.getName())
+                .findFirst()
+                .orElse(null);
     }
 
 }
