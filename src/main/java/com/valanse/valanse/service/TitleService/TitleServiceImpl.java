@@ -114,8 +114,7 @@ public class TitleServiceImpl implements TitleService {
                 locked,
                 title.getPrice(),
                 title.getRequirementText(),
-                locked ? getLockReason(title) : null,
-                title.getColorHex()
+                locked ? getLockReason(title) : null
         );
     }
 

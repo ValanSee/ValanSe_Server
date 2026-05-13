@@ -21,8 +21,7 @@ public record TitleListResponse(
             boolean locked,
             Long price,
             String requirementText,
-            String lockReason,
-            String colorHex
+            String lockReason
     ) {
     }
 }
