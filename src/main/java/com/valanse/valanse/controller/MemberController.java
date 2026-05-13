@@ -4,8 +4,11 @@ import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 import com.valanse.valanse.dto.PointHistory.PointHistoryResponse;
+import com.valanse.valanse.dto.Title.TitleEquipResponse;
+import com.valanse.valanse.dto.Title.TitleListResponse;
 import com.valanse.valanse.service.MemberProfileService.MemberProfileService;
 import com.valanse.valanse.service.PointService.PointService;
+import com.valanse.valanse.service.TitleService.TitleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +27,7 @@ public class MemberController {
 
     private final MemberProfileService memberProfileService;
     private final PointService pointService;
+    private final TitleService titleService;
 
     @Operation(
             summary = "회원 프로필 정보 저장",
@@ -105,6 +109,28 @@ public class MemberController {
     public ResponseEntity<PointHistoryResponse> getPointHistory() {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         PointHistoryResponse response = pointService.getPointHistory(userId);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "칭호 선택 목록 조회",
+            description = "현재 로그인한 회원 기준으로 기본, 보유, 미보유 칭호를 분리해서 조회합니다."
+    )
+    @GetMapping("/titles")
+    public ResponseEntity<TitleListResponse> getTitles() {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        TitleListResponse response = titleService.getTitleList(userId);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "칭호 장착",
+            description = "현재 로그인한 회원이 보유한 칭호를 대표 칭호로 선택합니다."
+    )
+    @PostMapping("/titles/{titleId}/equip")
+    public ResponseEntity<TitleEquipResponse> equipTitle(@PathVariable Long titleId) {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        TitleEquipResponse response = titleService.equipTitle(userId, titleId);
         return ResponseEntity.ok(response);
     }
 }

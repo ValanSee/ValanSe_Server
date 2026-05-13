@@ -10,4 +10,6 @@ public interface MemberProfileTitleRepository extends JpaRepository<MemberProfil
     Optional<MemberProfileTitle> findByMemberProfileMemberIdAndTitleId(Long memberId, Long titleId);
 
     List<MemberProfileTitle> findAllByMemberProfileMemberIdAndEquippedTrue(Long memberId);
+
+    List<MemberProfileTitle> findAllByMemberProfileMemberId(Long memberId);
 }

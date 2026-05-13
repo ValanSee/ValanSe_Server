@@ -8,6 +8,7 @@ import com.valanse.valanse.domain.enums.TitleAcquisitionType;
 import com.valanse.valanse.domain.enums.TitleTier;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberProfileTitleRepository;
+import com.valanse.valanse.repository.TitleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,9 @@ class TitleServiceImplTest {
     @Mock
     private MemberProfileTitleRepository memberProfileTitleRepository;
 
+    @Mock
+    private TitleRepository titleRepository;
+
     private Member member;
     private MemberProfile profile;
 
@@ -52,6 +56,65 @@ class TitleServiceImplTest {
                 .member(member)
                 .nickname("테스트닉네임")
                 .build();
+    }
+
+    @Test
+    @DisplayName("getTitleList()는 기본, 보유, 미보유 칭호를 분리해서 반환한다")
+    void getTitleList_기본_보유_미보유_분리() {
+        Title defaultTitle = title(1L, "밸런스 새싹", TitleAcquisitionType.DEFAULT, 0L, null);
+        Title ownedTitle = title(2L, "싸움 구경꾼", TitleAcquisitionType.ACHIEVEMENT, 0L, "투표 10회 참여");
+        Title pointTitle = title(3L, "선택의 신", TitleAcquisitionType.POINT_PURCHASE, 300L, null);
+        Title seasonTitle = title(4L, "2026 봄 논쟁왕", TitleAcquisitionType.SEASON, 0L, "시즌한정");
+        MemberProfileTitle ownedProfileTitle = MemberProfileTitle.builder()
+                .memberProfile(profile)
+                .title(ownedTitle)
+                .build();
+        ownedProfileTitle.equip();
+
+        when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.of(profile));
+        when(titleRepository.findAllByActiveTrueOrderByDisplayOrderAscIdAsc())
+                .thenReturn(List.of(defaultTitle, ownedTitle, pointTitle, seasonTitle));
+        when(memberProfileTitleRepository.findAllByMemberProfileMemberId(1L))
+                .thenReturn(List.of(ownedProfileTitle));
+        when(memberProfileTitleRepository.saveAll(org.mockito.ArgumentMatchers.anyList()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = titleService.getTitleList(1L);
+
+        assertThat(response.defaultTitles()).hasSize(1);
+        assertThat(response.defaultTitles().get(0).title()).isEqualTo("밸런스 새싹");
+        assertThat(response.defaultTitles().get(0).owned()).isTrue();
+        assertThat(response.defaultTitles().get(0).locked()).isFalse();
+
+        assertThat(response.ownedTitles()).hasSize(1);
+        assertThat(response.ownedTitles().get(0).title()).isEqualTo("싸움 구경꾼");
+        assertThat(response.ownedTitles().get(0).equipped()).isTrue();
+
+        assertThat(response.lockedTitles()).hasSize(2);
+        assertThat(response.lockedTitles().get(0).title()).isEqualTo("선택의 신");
+        assertThat(response.lockedTitles().get(0).lockReason()).isEqualTo("300P 필요");
+        assertThat(response.lockedTitles().get(1).title()).isEqualTo("2026 봄 논쟁왕");
+        assertThat(response.lockedTitles().get(1).lockReason()).isEqualTo("시즌한정");
+    }
+
+    @Test
+    @DisplayName("getTitleList()는 누락된 기본 칭호를 자동 지급한다")
+    void getTitleList_기본칭호_자동지급() {
+        Title defaultTitle = title(1L, "밸런스 새싹", TitleAcquisitionType.DEFAULT, 0L, null);
+
+        when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.of(profile));
+        when(titleRepository.findAllByActiveTrueOrderByDisplayOrderAscIdAsc()).thenReturn(List.of(defaultTitle));
+        when(memberProfileTitleRepository.findAllByMemberProfileMemberId(1L)).thenReturn(List.of());
+        when(memberProfileTitleRepository.saveAll(org.mockito.ArgumentMatchers.anyList()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = titleService.getTitleList(1L);
+
+        assertThat(response.defaultTitles()).hasSize(1);
+        assertThat(response.defaultTitles().get(0).owned()).isTrue();
+        verify(memberProfileTitleRepository).saveAll(org.mockito.ArgumentMatchers.argThat(savedTitles ->
+                containsOnlyTitle(savedTitles, defaultTitle.getId())
+        ));
     }
 
     @Test
@@ -112,17 +175,39 @@ class TitleServiceImplTest {
     }
 
     private MemberProfileTitle profileTitle(Long titleId, String titleName) {
-        Title title = Title.builder()
-                .id(titleId)
-                .code("TITLE_" + titleId)
-                .name(titleName)
-                .tier(TitleTier.BASIC)
-                .acquisitionType(TitleAcquisitionType.DEFAULT)
-                .build();
+        Title title = title(titleId, titleName, TitleAcquisitionType.DEFAULT, 0L, null);
 
         return MemberProfileTitle.builder()
                 .memberProfile(profile)
                 .title(title)
                 .build();
+    }
+
+    private Title title(
+            Long titleId,
+            String titleName,
+            TitleAcquisitionType acquisitionType,
+            long price,
+            String requirementText
+    ) {
+        return Title.builder()
+                .id(titleId)
+                .code("TITLE_" + titleId)
+                .name(titleName)
+                .tier(TitleTier.BASIC)
+                .acquisitionType(acquisitionType)
+                .price(price)
+                .requirementText(requirementText)
+                .build();
+    }
+
+    private boolean containsOnlyTitle(Iterable<MemberProfileTitle> savedTitles, Long titleId) {
+        int count = 0;
+        boolean matched = false;
+        for (MemberProfileTitle savedTitle : savedTitles) {
+            count++;
+            matched = savedTitle.getTitle().getId().equals(titleId);
+        }
+        return count == 1 && matched;
     }
 }
