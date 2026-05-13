@@ -116,12 +116,19 @@ public class SecurityConfig {
                 "https://valanserver.store:8081",
                 "https://valanserver.store:8082"
         ));
+        configuration.setAllowedOriginPatterns(Arrays.asList(
+                "http://localhost:*",
+                "http://127.0.0.1:*"
+        ));
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/member/titles", configuration);
+        source.registerCorsConfiguration("/member/titles/**", configuration);
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
