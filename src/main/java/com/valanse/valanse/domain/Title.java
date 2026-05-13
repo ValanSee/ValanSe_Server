@@ -47,8 +47,6 @@ public class Title extends BaseEntity {
 
     private String requirementText;
 
-    private String colorHex;
-
     @Builder.Default
     private boolean active = true;
 
