@@ -1,13 +1,17 @@
 package com.valanse.valanse.service.TitleService;
 
+import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.MemberProfileTitle;
 import com.valanse.valanse.domain.Title;
+import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.TitleAcquisitionType;
 import com.valanse.valanse.domain.enums.TitleTier;
+import com.valanse.valanse.dto.Title.TitleCreateRequest;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberProfileTitleRepository;
+import com.valanse.valanse.repository.MemberRepository;
 import com.valanse.valanse.repository.TitleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +26,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -31,6 +36,9 @@ class TitleServiceImplTest {
 
     @InjectMocks
     private TitleServiceImpl titleService;
+
+    @Mock
+    private MemberRepository memberRepository;
 
     @Mock
     private MemberProfileRepository memberProfileRepository;
@@ -212,6 +220,116 @@ class TitleServiceImplTest {
         verify(memberProfileTitleRepository, never()).save(org.mockito.ArgumentMatchers.any());
     }
 
+    @Test
+    @DisplayName("createTitle()은 관리자가 새로운 칭호를 생성한다")
+    void createTitle_관리자_칭호생성() {
+        Member admin = Member.builder().id(1L).role(Role.ADMIN).build();
+        TitleCreateRequest request = new TitleCreateRequest(
+                "  CHOICE_MASTER  ",
+                "  선택의 달인  ",
+                "투표 참여 고수",
+                300L,
+                TitleTier.RARE,
+                TitleAcquisitionType.POINT_PURCHASE,
+                "300P 필요",
+                true,
+                10
+        );
+        Title savedTitle = Title.builder()
+                .id(10L)
+                .code("CHOICE_MASTER")
+                .name("선택의 달인")
+                .description("투표 참여 고수")
+                .price(300L)
+                .tier(TitleTier.RARE)
+                .acquisitionType(TitleAcquisitionType.POINT_PURCHASE)
+                .requirementText("300P 필요")
+                .active(true)
+                .displayOrder(10)
+                .build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(admin));
+        when(titleRepository.existsByCode("CHOICE_MASTER")).thenReturn(false);
+        when(titleRepository.save(any(Title.class))).thenReturn(savedTitle);
+
+        var response = titleService.createTitle(1L, request);
+
+        assertThat(response.titleId()).isEqualTo(10L);
+        assertThat(response.code()).isEqualTo("CHOICE_MASTER");
+        assertThat(response.title()).isEqualTo("선택의 달인");
+        assertThat(response.price()).isEqualTo(300L);
+        assertThat(response.acquisitionType()).isEqualTo(TitleAcquisitionType.POINT_PURCHASE);
+        verify(titleRepository).save(org.mockito.ArgumentMatchers.argThat(title ->
+                title.getCode().equals("CHOICE_MASTER")
+                        && title.getName().equals("선택의 달인")
+                        && title.getPrice() == 300L
+                        && title.getTier() == TitleTier.RARE
+                        && title.getAcquisitionType() == TitleAcquisitionType.POINT_PURCHASE
+                        && title.getDisplayOrder() == 10
+        ));
+    }
+
+    @Test
+    @DisplayName("createTitle()은 관리자가 아니면 예외를 던진다")
+    void createTitle_관리자아님_예외() {
+        Member user = Member.builder().id(1L).role(Role.USER).build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(user));
+
+        ApiException exception = assertThrows(
+                ApiException.class,
+                () -> titleService.createTitle(1L, validCreateRequest())
+        );
+
+        assertThat(exception.getMessage()).isEqualTo("관리자만 접근 가능합니다.");
+        verify(titleRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createTitle()은 중복된 칭호 코드를 생성할 수 없다")
+    void createTitle_중복코드_예외() {
+        Member admin = Member.builder().id(1L).role(Role.ADMIN).build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(admin));
+        when(titleRepository.existsByCode("CHOICE_MASTER")).thenReturn(true);
+
+        ApiException exception = assertThrows(
+                ApiException.class,
+                () -> titleService.createTitle(1L, validCreateRequest())
+        );
+
+        assertThat(exception.getMessage()).isEqualTo("이미 존재하는 칭호 코드입니다.");
+        verify(titleRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createTitle()은 필수값이 없으면 예외를 던진다")
+    void createTitle_필수값없음_예외() {
+        Member admin = Member.builder().id(1L).role(Role.ADMIN).build();
+        TitleCreateRequest request = new TitleCreateRequest(
+                "CHOICE_MASTER",
+                " ",
+                null,
+                null,
+                TitleTier.BASIC,
+                TitleAcquisitionType.ACHIEVEMENT,
+                null,
+                null,
+                null
+        );
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(admin));
+
+        ApiException exception = assertThrows(
+                ApiException.class,
+                () -> titleService.createTitle(1L, request)
+        );
+
+        assertThat(exception.getMessage()).isEqualTo("칭호 이름을 입력해주세요.");
+        verify(titleRepository, never()).existsByCode("CHOICE_MASTER");
+        verify(titleRepository, never()).save(any());
+    }
+
     private MemberProfileTitle equippedProfileTitle(Long titleId, String titleName) {
         MemberProfileTitle profileTitle = profileTitle(titleId, titleName);
         profileTitle.equip();
@@ -243,6 +361,20 @@ class TitleServiceImplTest {
                 .price(price)
                 .requirementText(requirementText)
                 .build();
+    }
+
+    private TitleCreateRequest validCreateRequest() {
+        return new TitleCreateRequest(
+                "CHOICE_MASTER",
+                "선택의 달인",
+                "투표 참여 고수",
+                300L,
+                TitleTier.RARE,
+                TitleAcquisitionType.POINT_PURCHASE,
+                "300P 필요",
+                true,
+                10
+        );
     }
 
     private boolean containsOnlyTitle(Iterable<MemberProfileTitle> savedTitles, Long titleId) {

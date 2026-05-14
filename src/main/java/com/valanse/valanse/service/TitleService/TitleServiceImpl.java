@@ -1,15 +1,22 @@
 package com.valanse.valanse.service.TitleService;
 
+import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.MemberProfileTitle;
 import com.valanse.valanse.domain.Title;
+import com.valanse.valanse.domain.enums.Role;
+import com.valanse.valanse.dto.Title.TitleCreateRequest;
+import com.valanse.valanse.dto.Title.TitleCreateResponse;
 import com.valanse.valanse.dto.Title.TitleEquipResponse;
 import com.valanse.valanse.dto.Title.TitleListResponse;
 import com.valanse.valanse.dto.Title.TitlePurchaseResponse;
+import com.valanse.valanse.repository.MemberRepository;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberProfileTitleRepository;
 import com.valanse.valanse.repository.TitleRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +31,7 @@ import java.util.stream.Collectors;
 @Transactional
 public class TitleServiceImpl implements TitleService {
 
+    private final MemberRepository memberRepository;
     private final MemberProfileRepository memberProfileRepository;
     private final MemberProfileTitleRepository memberProfileTitleRepository;
     private final TitleRepository titleRepository;
@@ -133,6 +141,37 @@ public class TitleServiceImpl implements TitleService {
         );
     }
 
+    @Override
+    public TitleCreateResponse createTitle(Long adminUserId, TitleCreateRequest request) {
+        Member admin = memberRepository.findByIdAndDeletedAtIsNull(adminUserId)
+                .orElseThrow(() -> new ApiException("회원을 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+        if (admin.getRole() != Role.ADMIN) {
+            throw new ApiException("관리자만 접근 가능합니다.", HttpStatus.FORBIDDEN);
+        }
+
+        validateCreateRequest(request);
+
+        String code = request.code().trim();
+        if (titleRepository.existsByCode(code)) {
+            throw new ApiException("이미 존재하는 칭호 코드입니다.", HttpStatus.BAD_REQUEST);
+        }
+
+        Title title = Title.builder()
+                .code(code)
+                .name(request.title().trim())
+                .description(trimToNull(request.description()))
+                .price(request.price() == null ? 0L : request.price())
+                .tier(request.tier())
+                .acquisitionType(request.acquisitionType())
+                .requirementText(trimToNull(request.requirementText()))
+                .active(request.active() == null || request.active())
+                .displayOrder(request.displayOrder() == null ? 0 : request.displayOrder())
+                .build();
+
+        Title savedTitle = titleRepository.save(title);
+        return toTitleCreateResponse(savedTitle);
+    }
+
     private TitleListResponse.TitleSummaryResponse toTitleSummary(
             Title title,
             MemberProfileTitle profileTitle,
@@ -162,5 +201,55 @@ public class TitleServiceImpl implements TitleService {
             return title.getPrice() + "P 필요";
         }
         return "획득 조건을 달성해야 합니다.";
+    }
+
+    private void validateCreateRequest(TitleCreateRequest request) {
+        if (request == null) {
+            throw new ApiException("칭호 생성 요청이 비어있습니다.", HttpStatus.BAD_REQUEST);
+        }
+        if (isBlank(request.code())) {
+            throw new ApiException("칭호 코드를 입력해주세요.", HttpStatus.BAD_REQUEST);
+        }
+        if (isBlank(request.title())) {
+            throw new ApiException("칭호 이름을 입력해주세요.", HttpStatus.BAD_REQUEST);
+        }
+        if (request.tier() == null) {
+            throw new ApiException("칭호 등급을 입력해주세요.", HttpStatus.BAD_REQUEST);
+        }
+        if (request.acquisitionType() == null) {
+            throw new ApiException("칭호 획득 방식을 입력해주세요.", HttpStatus.BAD_REQUEST);
+        }
+        if (request.price() != null && request.price() < 0) {
+            throw new ApiException("칭호 가격은 0 이상이어야 합니다.", HttpStatus.BAD_REQUEST);
+        }
+        if (request.displayOrder() != null && request.displayOrder() < 0) {
+            throw new ApiException("칭호 표시 순서는 0 이상이어야 합니다.", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private String trimToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private TitleCreateResponse toTitleCreateResponse(Title title) {
+        return new TitleCreateResponse(
+                title.getId(),
+                title.getCode(),
+                title.getName(),
+                title.getDescription(),
+                title.getPrice(),
+                title.getTier(),
+                title.getAcquisitionType(),
+                title.getRequirementText(),
+                title.isActive(),
+                title.getDisplayOrder()
+        );
     }
 }

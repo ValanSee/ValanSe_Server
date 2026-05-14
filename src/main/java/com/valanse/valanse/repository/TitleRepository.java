@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface TitleRepository extends JpaRepository<Title, Long> {
     List<Title> findAllByActiveTrueOrderByDisplayOrderAscIdAsc();
+
+    boolean existsByCode(String code);
 }

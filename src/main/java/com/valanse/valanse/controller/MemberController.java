@@ -4,6 +4,8 @@ import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 import com.valanse.valanse.dto.PointHistory.PointHistoryResponse;
+import com.valanse.valanse.dto.Title.TitleCreateRequest;
+import com.valanse.valanse.dto.Title.TitleCreateResponse;
 import com.valanse.valanse.dto.Title.TitleEquipResponse;
 import com.valanse.valanse.dto.Title.TitleListResponse;
 import com.valanse.valanse.dto.Title.TitlePurchaseResponse;
@@ -121,6 +123,17 @@ public class MemberController {
     public ResponseEntity<TitleListResponse> getTitles() {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         TitleListResponse response = titleService.getTitleList(userId);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "관리자 칭호 생성",
+            description = "관리자 권한으로 새로운 칭호 마스터 데이터를 생성합니다."
+    )
+    @PostMapping("/titles")
+    public ResponseEntity<TitleCreateResponse> createTitle(@RequestBody TitleCreateRequest request) {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        TitleCreateResponse response = titleService.createTitle(userId, request);
         return ResponseEntity.ok(response);
     }
 
