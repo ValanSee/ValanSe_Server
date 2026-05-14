@@ -6,6 +6,7 @@ import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 import com.valanse.valanse.dto.PointHistory.PointHistoryResponse;
 import com.valanse.valanse.dto.Title.TitleEquipResponse;
 import com.valanse.valanse.dto.Title.TitleListResponse;
+import com.valanse.valanse.dto.Title.TitlePurchaseResponse;
 import com.valanse.valanse.service.MemberProfileService.MemberProfileService;
 import com.valanse.valanse.service.PointService.PointService;
 import com.valanse.valanse.service.TitleService.TitleService;
@@ -131,6 +132,17 @@ public class MemberController {
     public ResponseEntity<TitleEquipResponse> equipTitle(@PathVariable Long titleId) {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         TitleEquipResponse response = titleService.equipTitle(userId, titleId);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "칭호 구매",
+            description = "현재 로그인한 회원이 포인트로 구매 가능한 칭호를 구매합니다."
+    )
+    @PostMapping("/titles/{titleId}/purchase")
+    public ResponseEntity<TitlePurchaseResponse> purchaseTitle(@PathVariable Long titleId) {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        TitlePurchaseResponse response = titleService.purchaseTitle(userId, titleId);
         return ResponseEntity.ok(response);
     }
 }
