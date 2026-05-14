@@ -5,6 +5,7 @@ import com.valanse.valanse.domain.MemberProfileTitle;
 import com.valanse.valanse.domain.Title;
 import com.valanse.valanse.dto.Title.TitleEquipResponse;
 import com.valanse.valanse.dto.Title.TitleListResponse;
+import com.valanse.valanse.dto.Title.TitlePurchaseResponse;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberProfileTitleRepository;
 import com.valanse.valanse.repository.TitleRepository;
@@ -94,6 +95,41 @@ public class TitleServiceImpl implements TitleService {
                 targetTitle.getTitle().getId(),
                 targetTitle.getTitle().getName(),
                 targetTitle.isEquipped()
+        );
+    }
+
+    @Override
+    public TitlePurchaseResponse purchaseTitle(Long userId, Long titleId) {
+        MemberProfile profile = memberProfileRepository.findByMemberId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("프로필이 존재하지 않습니다."));
+
+        Title title = titleRepository.findById(titleId)
+                .orElseThrow(() -> new IllegalArgumentException("칭호가 존재하지 않습니다."));
+
+        if (!title.isPointPurchaseTitle() || !title.isActive()) {
+            throw new IllegalArgumentException("구매할 수 없는 칭호입니다.");
+        }
+
+        memberProfileTitleRepository.findByMemberProfileMemberIdAndTitleId(userId, titleId)
+                .ifPresent(ownedTitle -> {
+                    throw new IllegalArgumentException("이미 보유한 칭호입니다.");
+                });
+
+        if (!profile.hasEnoughPoint(title.getPrice())) {
+            throw new IllegalArgumentException("포인트가 부족합니다. (필요포인트 " + title.getPrice() + "P 필요)");
+        }
+
+        profile.subtractPoint(title.getPrice());
+        memberProfileTitleRepository.save(MemberProfileTitle.builder()
+                .memberProfile(profile)
+                .title(title)
+                .build());
+
+        return new TitlePurchaseResponse(
+                title.getId(),
+                title.getName(),
+                true,
+                profile.getPoint()
         );
     }
 

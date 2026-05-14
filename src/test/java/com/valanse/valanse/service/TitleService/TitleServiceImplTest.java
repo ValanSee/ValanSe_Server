@@ -168,6 +168,50 @@ class TitleServiceImplTest {
         verify(memberProfileTitleRepository, never()).findByMemberProfileMemberIdAndTitleId(1L, 1L);
     }
 
+    @Test
+    @DisplayName("purchaseTitle()은 포인트 구매형 칭호를 구매하고 포인트를 차감한다")
+    void purchaseTitle_구매성공_포인트차감() {
+        profile.addPoint(500L);
+        Title pointTitle = title(3L, "선택의 신", TitleAcquisitionType.POINT_PURCHASE, 300L, null);
+
+        when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.of(profile));
+        when(titleRepository.findById(3L)).thenReturn(Optional.of(pointTitle));
+        when(memberProfileTitleRepository.findByMemberProfileMemberIdAndTitleId(1L, 3L))
+                .thenReturn(Optional.empty());
+
+        var response = titleService.purchaseTitle(1L, 3L);
+
+        assertThat(profile.getPoint()).isEqualTo(200L);
+        assertThat(response.titleId()).isEqualTo(3L);
+        assertThat(response.title()).isEqualTo("선택의 신");
+        assertThat(response.owned()).isTrue();
+        assertThat(response.remainingPoint()).isEqualTo(200L);
+        verify(memberProfileTitleRepository).save(org.mockito.ArgumentMatchers.argThat(savedTitle ->
+                savedTitle.getMemberProfile() == profile && savedTitle.getTitle().getId().equals(3L)
+        ));
+    }
+
+    @Test
+    @DisplayName("purchaseTitle()은 포인트가 부족하면 필요 포인트와 함께 예외를 던진다")
+    void purchaseTitle_포인트부족_예외() {
+        profile.addPoint(100L);
+        Title pointTitle = title(3L, "선택의 신", TitleAcquisitionType.POINT_PURCHASE, 300L, null);
+
+        when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.of(profile));
+        when(titleRepository.findById(3L)).thenReturn(Optional.of(pointTitle));
+        when(memberProfileTitleRepository.findByMemberProfileMemberIdAndTitleId(1L, 3L))
+                .thenReturn(Optional.empty());
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> titleService.purchaseTitle(1L, 3L)
+        );
+
+        assertThat(exception.getMessage()).isEqualTo("포인트가 부족합니다. (필요포인트 300P 필요)");
+        assertThat(profile.getPoint()).isEqualTo(100L);
+        verify(memberProfileTitleRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
     private MemberProfileTitle equippedProfileTitle(Long titleId, String titleName) {
         MemberProfileTitle profileTitle = profileTitle(titleId, titleName);
         profileTitle.equip();
