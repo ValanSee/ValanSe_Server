@@ -9,6 +9,7 @@ import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.TitleAcquisitionType;
 import com.valanse.valanse.domain.enums.TitleTier;
 import com.valanse.valanse.dto.Title.TitleCreateRequest;
+import com.valanse.valanse.dto.Title.TitleUpdateRequest;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberProfileTitleRepository;
 import com.valanse.valanse.repository.MemberRepository;
@@ -61,6 +62,7 @@ class TitleServiceImplTest {
                 .name("test")
                 .build();
         profile = MemberProfile.builder()
+                .id(1L)
                 .member(member)
                 .nickname("테스트닉네임")
                 .build();
@@ -159,6 +161,35 @@ class TitleServiceImplTest {
         );
 
         assertThat(exception.getMessage()).isEqualTo("보유하지 않은 칭호입니다.");
+        verify(memberProfileTitleRepository, never()).findAllByMemberProfileMemberIdAndEquippedTrue(1L);
+    }
+
+    @Test
+    @DisplayName("equipTitle()은 삭제된 칭호를 장착할 수 없다")
+    void equipTitle_삭제된칭호_예외() {
+        Title inactiveTitle = Title.builder()
+                .id(99L)
+                .code("DELETED_TITLE")
+                .name("삭제된 칭호")
+                .tier(TitleTier.BASIC)
+                .acquisitionType(TitleAcquisitionType.ACHIEVEMENT)
+                .active(false)
+                .build();
+        MemberProfileTitle inactiveProfileTitle = MemberProfileTitle.builder()
+                .memberProfile(profile)
+                .title(inactiveTitle)
+                .build();
+
+        when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.of(profile));
+        when(memberProfileTitleRepository.findByMemberProfileMemberIdAndTitleId(1L, 99L))
+                .thenReturn(Optional.of(inactiveProfileTitle));
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> titleService.equipTitle(1L, 99L)
+        );
+
+        assertThat(exception.getMessage()).isEqualTo("장착할 수 없는 칭호입니다.");
         verify(memberProfileTitleRepository, never()).findAllByMemberProfileMemberIdAndEquippedTrue(1L);
     }
 
@@ -330,6 +361,149 @@ class TitleServiceImplTest {
         verify(titleRepository, never()).save(any());
     }
 
+    @Test
+    @DisplayName("updateTitle()은 관리자가 칭호를 수정한다")
+    void updateTitle_관리자_칭호수정() {
+        Member admin = Member.builder().id(1L).role(Role.ADMIN).build();
+        Title targetTitle = title(2L, "기존 칭호", TitleAcquisitionType.ACHIEVEMENT, 0L, null);
+        TitleUpdateRequest request = new TitleUpdateRequest(
+                "  UPDATED_TITLE  ",
+                "  수정된 칭호  ",
+                "수정된 설명",
+                500L,
+                TitleTier.RARE,
+                TitleAcquisitionType.POINT_PURCHASE,
+                "500P 필요",
+                false,
+                20
+        );
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(admin));
+        when(titleRepository.findById(2L)).thenReturn(Optional.of(targetTitle));
+        when(titleRepository.existsByCodeAndIdNot("UPDATED_TITLE", 2L)).thenReturn(false);
+
+        var response = titleService.updateTitle(1L, 2L, request);
+
+        assertThat(response.titleId()).isEqualTo(2L);
+        assertThat(response.code()).isEqualTo("UPDATED_TITLE");
+        assertThat(response.title()).isEqualTo("수정된 칭호");
+        assertThat(response.description()).isEqualTo("수정된 설명");
+        assertThat(response.price()).isEqualTo(500L);
+        assertThat(response.tier()).isEqualTo(TitleTier.RARE);
+        assertThat(response.acquisitionType()).isEqualTo(TitleAcquisitionType.POINT_PURCHASE);
+        assertThat(response.requirementText()).isEqualTo("500P 필요");
+        assertThat(response.active()).isFalse();
+        assertThat(response.displayOrder()).isEqualTo(20);
+        assertThat(targetTitle.getCode()).isEqualTo("UPDATED_TITLE");
+        assertThat(targetTitle.getName()).isEqualTo("수정된 칭호");
+    }
+
+    @Test
+    @DisplayName("updateTitle()은 중복된 칭호 코드로 수정할 수 없다")
+    void updateTitle_중복코드_예외() {
+        Member admin = Member.builder().id(1L).role(Role.ADMIN).build();
+        Title targetTitle = title(2L, "기존 칭호", TitleAcquisitionType.ACHIEVEMENT, 0L, null);
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(admin));
+        when(titleRepository.findById(2L)).thenReturn(Optional.of(targetTitle));
+        when(titleRepository.existsByCodeAndIdNot("CHOICE_MASTER", 2L)).thenReturn(true);
+
+        ApiException exception = assertThrows(
+                ApiException.class,
+                () -> titleService.updateTitle(1L, 2L, validUpdateRequest())
+        );
+
+        assertThat(exception.getMessage()).isEqualTo("이미 존재하는 칭호 코드입니다.");
+        assertThat(targetTitle.getCode()).isEqualTo("TITLE_2");
+    }
+
+    @Test
+    @DisplayName("updateTitle()은 관리자가 아니면 예외를 던진다")
+    void updateTitle_관리자아님_예외() {
+        Member user = Member.builder().id(1L).role(Role.USER).build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(user));
+
+        ApiException exception = assertThrows(
+                ApiException.class,
+                () -> titleService.updateTitle(1L, 2L, validUpdateRequest())
+        );
+
+        assertThat(exception.getMessage()).isEqualTo("관리자만 접근 가능합니다.");
+        verify(titleRepository, never()).findById(2L);
+    }
+
+    @Test
+    @DisplayName("deleteTitle()은 관리자가 칭호를 삭제하고 장착 회원을 기본 칭호로 변경한다")
+    void deleteTitle_관리자_장착회원_기본칭호변경() {
+        Member admin = Member.builder().id(1L).role(Role.ADMIN).build();
+        Title targetTitle = title(2L, "시즌 칭호", TitleAcquisitionType.SEASON, 0L, null);
+        Title defaultTitle = title(1L, "밸런스 새싹", TitleAcquisitionType.DEFAULT, 0L, null);
+        MemberProfileTitle equippedTitle = MemberProfileTitle.builder()
+                .memberProfile(profile)
+                .title(targetTitle)
+                .build();
+        equippedTitle.equip();
+        MemberProfileTitle fallbackProfileTitle = MemberProfileTitle.builder()
+                .memberProfile(profile)
+                .title(defaultTitle)
+                .build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(admin));
+        when(titleRepository.findById(2L)).thenReturn(Optional.of(targetTitle));
+        when(titleRepository.findFirstByActiveTrueAndAcquisitionTypeOrderByDisplayOrderAscIdAsc(TitleAcquisitionType.DEFAULT))
+                .thenReturn(Optional.of(defaultTitle));
+        when(memberProfileTitleRepository.findAllByTitleIdAndEquippedTrue(2L))
+                .thenReturn(List.of(equippedTitle));
+        when(memberProfileTitleRepository.findByMemberProfileIdAndTitleId(1L, 1L))
+                .thenReturn(Optional.of(fallbackProfileTitle));
+
+        var response = titleService.deleteTitle(1L, 2L);
+
+        assertThat(targetTitle.isActive()).isFalse();
+        assertThat(equippedTitle.isEquipped()).isFalse();
+        assertThat(fallbackProfileTitle.isEquipped()).isTrue();
+        assertThat(response.deletedTitleId()).isEqualTo(2L);
+        assertThat(response.fallbackTitleId()).isEqualTo(1L);
+        assertThat(response.reassignedCount()).isEqualTo(1);
+        assertThat(response.active()).isFalse();
+    }
+
+    @Test
+    @DisplayName("deleteTitle()은 기본 칭호를 삭제할 수 없다")
+    void deleteTitle_기본칭호_예외() {
+        Member admin = Member.builder().id(1L).role(Role.ADMIN).build();
+        Title defaultTitle = title(1L, "밸런스 새싹", TitleAcquisitionType.DEFAULT, 0L, null);
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(admin));
+        when(titleRepository.findById(1L)).thenReturn(Optional.of(defaultTitle));
+
+        ApiException exception = assertThrows(
+                ApiException.class,
+                () -> titleService.deleteTitle(1L, 1L)
+        );
+
+        assertThat(exception.getMessage()).isEqualTo("기본 칭호는 삭제할 수 없습니다.");
+        assertThat(defaultTitle.isActive()).isTrue();
+        verify(memberProfileTitleRepository, never()).findAllByTitleIdAndEquippedTrue(1L);
+    }
+
+    @Test
+    @DisplayName("deleteTitle()은 관리자가 아니면 예외를 던진다")
+    void deleteTitle_관리자아님_예외() {
+        Member user = Member.builder().id(1L).role(Role.USER).build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(user));
+
+        ApiException exception = assertThrows(
+                ApiException.class,
+                () -> titleService.deleteTitle(1L, 2L)
+        );
+
+        assertThat(exception.getMessage()).isEqualTo("관리자만 접근 가능합니다.");
+        verify(titleRepository, never()).findById(2L);
+    }
+
     private MemberProfileTitle equippedProfileTitle(Long titleId, String titleName) {
         MemberProfileTitle profileTitle = profileTitle(titleId, titleName);
         profileTitle.equip();
@@ -365,6 +539,20 @@ class TitleServiceImplTest {
 
     private TitleCreateRequest validCreateRequest() {
         return new TitleCreateRequest(
+                "CHOICE_MASTER",
+                "선택의 달인",
+                "투표 참여 고수",
+                300L,
+                TitleTier.RARE,
+                TitleAcquisitionType.POINT_PURCHASE,
+                "300P 필요",
+                true,
+                10
+        );
+    }
+
+    private TitleUpdateRequest validUpdateRequest() {
+        return new TitleUpdateRequest(
                 "CHOICE_MASTER",
                 "선택의 달인",
                 "투표 참여 고수",

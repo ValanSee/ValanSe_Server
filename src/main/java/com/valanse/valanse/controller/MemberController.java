@@ -6,9 +6,12 @@ import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 import com.valanse.valanse.dto.PointHistory.PointHistoryResponse;
 import com.valanse.valanse.dto.Title.TitleCreateRequest;
 import com.valanse.valanse.dto.Title.TitleCreateResponse;
+import com.valanse.valanse.dto.Title.TitleDeleteResponse;
 import com.valanse.valanse.dto.Title.TitleEquipResponse;
 import com.valanse.valanse.dto.Title.TitleListResponse;
 import com.valanse.valanse.dto.Title.TitlePurchaseResponse;
+import com.valanse.valanse.dto.Title.TitleUpdateRequest;
+import com.valanse.valanse.dto.Title.TitleUpdateResponse;
 import com.valanse.valanse.service.MemberProfileService.MemberProfileService;
 import com.valanse.valanse.service.PointService.PointService;
 import com.valanse.valanse.service.TitleService.TitleService;
@@ -134,6 +137,31 @@ public class MemberController {
     public ResponseEntity<TitleCreateResponse> createTitle(@RequestBody TitleCreateRequest request) {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         TitleCreateResponse response = titleService.createTitle(userId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "관리자 칭호 수정",
+            description = "관리자 권한으로 칭호 마스터 데이터를 수정합니다."
+    )
+    @PatchMapping("/titles/{titleId}")
+    public ResponseEntity<TitleUpdateResponse> updateTitle(
+            @PathVariable Long titleId,
+            @RequestBody TitleUpdateRequest request
+    ) {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        TitleUpdateResponse response = titleService.updateTitle(userId, titleId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "관리자 칭호 삭제",
+            description = "관리자 권한으로 칭호를 비활성화합니다. 삭제 대상 칭호를 장착 중인 회원은 활성 기본 칭호로 변경됩니다."
+    )
+    @DeleteMapping("/titles/{titleId}")
+    public ResponseEntity<TitleDeleteResponse> deleteTitle(@PathVariable Long titleId) {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        TitleDeleteResponse response = titleService.deleteTitle(userId, titleId);
         return ResponseEntity.ok(response);
     }
 

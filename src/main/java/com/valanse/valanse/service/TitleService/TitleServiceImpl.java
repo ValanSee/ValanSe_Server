@@ -6,11 +6,15 @@ import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.MemberProfileTitle;
 import com.valanse.valanse.domain.Title;
 import com.valanse.valanse.domain.enums.Role;
+import com.valanse.valanse.domain.enums.TitleAcquisitionType;
 import com.valanse.valanse.dto.Title.TitleCreateRequest;
 import com.valanse.valanse.dto.Title.TitleCreateResponse;
+import com.valanse.valanse.dto.Title.TitleDeleteResponse;
 import com.valanse.valanse.dto.Title.TitleEquipResponse;
 import com.valanse.valanse.dto.Title.TitleListResponse;
 import com.valanse.valanse.dto.Title.TitlePurchaseResponse;
+import com.valanse.valanse.dto.Title.TitleUpdateRequest;
+import com.valanse.valanse.dto.Title.TitleUpdateResponse;
 import com.valanse.valanse.repository.MemberRepository;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberProfileTitleRepository;
@@ -95,6 +99,10 @@ public class TitleServiceImpl implements TitleService {
                 .findByMemberProfileMemberIdAndTitleId(userId, titleId)
                 .orElseThrow(() -> new IllegalArgumentException("보유하지 않은 칭호입니다."));
 
+        if (!targetTitle.getTitle().isActive()) {
+            throw new IllegalArgumentException("장착할 수 없는 칭호입니다.");
+        }
+
         memberProfileTitleRepository.findAllByMemberProfileMemberIdAndEquippedTrue(userId)
                 .forEach(MemberProfileTitle::unequip);
         targetTitle.equip();
@@ -143,11 +151,7 @@ public class TitleServiceImpl implements TitleService {
 
     @Override
     public TitleCreateResponse createTitle(Long adminUserId, TitleCreateRequest request) {
-        Member admin = memberRepository.findByIdAndDeletedAtIsNull(adminUserId)
-                .orElseThrow(() -> new ApiException("회원을 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
-        if (admin.getRole() != Role.ADMIN) {
-            throw new ApiException("관리자만 접근 가능합니다.", HttpStatus.FORBIDDEN);
-        }
+        validateAdmin(adminUserId);
 
         validateCreateRequest(request);
 
@@ -170,6 +174,85 @@ public class TitleServiceImpl implements TitleService {
 
         Title savedTitle = titleRepository.save(title);
         return toTitleCreateResponse(savedTitle);
+    }
+
+    @Override
+    public TitleUpdateResponse updateTitle(Long adminUserId, Long titleId, TitleUpdateRequest request) {
+        validateAdmin(adminUserId);
+
+        validateUpdateRequest(request);
+
+        Title title = titleRepository.findById(titleId)
+                .orElseThrow(() -> new ApiException("칭호가 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+
+        String code = request.code().trim();
+        if (titleRepository.existsByCodeAndIdNot(code, titleId)) {
+            throw new ApiException("이미 존재하는 칭호 코드입니다.", HttpStatus.BAD_REQUEST);
+        }
+
+        title.update(
+                code,
+                request.title().trim(),
+                trimToNull(request.description()),
+                request.price() == null ? 0L : request.price(),
+                request.tier(),
+                request.acquisitionType(),
+                trimToNull(request.requirementText()),
+                request.active() == null || request.active(),
+                request.displayOrder() == null ? 0 : request.displayOrder()
+        );
+
+        return toTitleUpdateResponse(title);
+    }
+
+    @Override
+    public TitleDeleteResponse deleteTitle(Long adminUserId, Long titleId) {
+        validateAdmin(adminUserId);
+
+        Title title = titleRepository.findById(titleId)
+                .orElseThrow(() -> new ApiException("칭호가 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+
+        if (!title.isActive()) {
+            throw new ApiException("이미 삭제된 칭호입니다.", HttpStatus.BAD_REQUEST);
+        }
+        if (title.isDefaultTitle()) {
+            throw new ApiException("기본 칭호는 삭제할 수 없습니다.", HttpStatus.BAD_REQUEST);
+        }
+
+        Title fallbackTitle = titleRepository
+                .findFirstByActiveTrueAndAcquisitionTypeOrderByDisplayOrderAscIdAsc(TitleAcquisitionType.DEFAULT)
+                .orElseThrow(() -> new ApiException("기본 칭호가 존재하지 않습니다.", HttpStatus.INTERNAL_SERVER_ERROR));
+
+        List<MemberProfileTitle> equippedTitles = memberProfileTitleRepository.findAllByTitleIdAndEquippedTrue(titleId);
+        for (MemberProfileTitle equippedTitle : equippedTitles) {
+            equippedTitle.unequip();
+            MemberProfile profile = equippedTitle.getMemberProfile();
+            MemberProfileTitle fallbackProfileTitle = memberProfileTitleRepository
+                    .findByMemberProfileIdAndTitleId(profile.getId(), fallbackTitle.getId())
+                    .orElseGet(() -> memberProfileTitleRepository.save(MemberProfileTitle.builder()
+                            .memberProfile(profile)
+                            .title(fallbackTitle)
+                            .build()));
+            fallbackProfileTitle.equip();
+        }
+        title.deactivate();
+
+        return new TitleDeleteResponse(
+                title.getId(),
+                title.getName(),
+                fallbackTitle.getId(),
+                fallbackTitle.getName(),
+                equippedTitles.size(),
+                title.isActive()
+        );
+    }
+
+    private void validateAdmin(Long adminUserId) {
+        Member admin = memberRepository.findByIdAndDeletedAtIsNull(adminUserId)
+                .orElseThrow(() -> new ApiException("회원을 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+        if (admin.getRole() != Role.ADMIN) {
+            throw new ApiException("관리자만 접근 가능합니다.", HttpStatus.FORBIDDEN);
+        }
     }
 
     private TitleListResponse.TitleSummaryResponse toTitleSummary(
@@ -227,6 +310,30 @@ public class TitleServiceImpl implements TitleService {
         }
     }
 
+    private void validateUpdateRequest(TitleUpdateRequest request) {
+        if (request == null) {
+            throw new ApiException("칭호 수정 요청이 비어있습니다.", HttpStatus.BAD_REQUEST);
+        }
+        if (isBlank(request.code())) {
+            throw new ApiException("칭호 코드를 입력해주세요.", HttpStatus.BAD_REQUEST);
+        }
+        if (isBlank(request.title())) {
+            throw new ApiException("칭호 이름을 입력해주세요.", HttpStatus.BAD_REQUEST);
+        }
+        if (request.tier() == null) {
+            throw new ApiException("칭호 등급을 입력해주세요.", HttpStatus.BAD_REQUEST);
+        }
+        if (request.acquisitionType() == null) {
+            throw new ApiException("칭호 획득 방식을 입력해주세요.", HttpStatus.BAD_REQUEST);
+        }
+        if (request.price() != null && request.price() < 0) {
+            throw new ApiException("칭호 가격은 0 이상이어야 합니다.", HttpStatus.BAD_REQUEST);
+        }
+        if (request.displayOrder() != null && request.displayOrder() < 0) {
+            throw new ApiException("칭호 표시 순서는 0 이상이어야 합니다.", HttpStatus.BAD_REQUEST);
+        }
+    }
+
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
     }
@@ -240,6 +347,21 @@ public class TitleServiceImpl implements TitleService {
 
     private TitleCreateResponse toTitleCreateResponse(Title title) {
         return new TitleCreateResponse(
+                title.getId(),
+                title.getCode(),
+                title.getName(),
+                title.getDescription(),
+                title.getPrice(),
+                title.getTier(),
+                title.getAcquisitionType(),
+                title.getRequirementText(),
+                title.isActive(),
+                title.getDisplayOrder()
+        );
+    }
+
+    private TitleUpdateResponse toTitleUpdateResponse(Title title) {
+        return new TitleUpdateResponse(
                 title.getId(),
                 title.getCode(),
                 title.getName(),

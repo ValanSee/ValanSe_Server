@@ -9,7 +9,11 @@ import java.util.Optional;
 public interface MemberProfileTitleRepository extends JpaRepository<MemberProfileTitle, Long> {
     Optional<MemberProfileTitle> findByMemberProfileMemberIdAndTitleId(Long memberId, Long titleId);
 
+    Optional<MemberProfileTitle> findByMemberProfileIdAndTitleId(Long memberProfileId, Long titleId);
+
     List<MemberProfileTitle> findAllByMemberProfileMemberIdAndEquippedTrue(Long memberId);
 
     List<MemberProfileTitle> findAllByMemberProfileMemberId(Long memberId);
+
+    List<MemberProfileTitle> findAllByTitleIdAndEquippedTrue(Long titleId);
 }

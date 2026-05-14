@@ -68,4 +68,26 @@ public class Title extends BaseEntity {
     public void deactivate() {
         this.active = false;
     }
+
+    public void update(
+            String code,
+            String name,
+            String description,
+            long price,
+            TitleTier tier,
+            TitleAcquisitionType acquisitionType,
+            String requirementText,
+            boolean active,
+            int displayOrder
+    ) {
+        this.code = code;
+        this.name = name;
+        this.description = description;
+        this.price = price;
+        this.tier = tier;
+        this.acquisitionType = acquisitionType;
+        this.requirementText = requirementText;
+        this.active = active;
+        this.displayOrder = displayOrder;
+    }
 }
