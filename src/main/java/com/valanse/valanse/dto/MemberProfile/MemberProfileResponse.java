@@ -13,6 +13,7 @@ public record MemberProfileResponse(
             String mbtiTf,
             String mbti,
             Role role,
+            String title,
             long point
     ) {}
 }

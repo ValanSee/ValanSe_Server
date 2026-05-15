@@ -11,6 +11,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
@@ -46,6 +49,10 @@ public class MemberProfile extends BaseEntity {
     @Builder.Default
     private long point = 0L;
 
+    @Builder.Default
+    @OneToMany(mappedBy = "memberProfile", cascade = CascadeType.ALL)
+    private List<MemberProfileTitle> memberProfileTitles = new ArrayList<>();
+
     public void update(String nickname, Gender gender, Age age, MbtiIe mbtiIe, MbtiTf mbtiTf, String mbti) {
         this.nickname = nickname;
         this.gender = gender;
@@ -57,5 +64,19 @@ public class MemberProfile extends BaseEntity {
 
     public void addPoint(long amount) {
         this.point += amount;
+    }
+
+    public boolean hasEnoughPoint(long amount) {
+        return this.point >= amount;
+    }
+
+    public void subtractPoint(long amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("차감할 포인트는 0 이상이어야 합니다.");
+        }
+        if (!hasEnoughPoint(amount)) {
+            throw new IllegalArgumentException("포인트가 부족합니다.");
+        }
+        this.point -= amount;
     }
 }

@@ -2,6 +2,8 @@ package com.valanse.valanse.service.MemberProfileService;
 
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
+import com.valanse.valanse.domain.MemberProfileTitle;
+import com.valanse.valanse.domain.Title;
 import com.valanse.valanse.domain.enums.*;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.repository.MemberProfileRepository;
@@ -313,6 +315,7 @@ class MemberProfileServiceImplTest {
                 .mbti("ENTP")
                 .point(100L)
                 .build();
+        profile.getMemberProfileTitles().add(equippedProfileTitle(profile, "균형의 달인"));
 
         when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
         when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.of(profile));
@@ -325,6 +328,7 @@ class MemberProfileServiceImplTest {
         assertThat(response.profile()).isNotNull();
         assertThat(response.profile().point()).isEqualTo(100L);
         assertThat(response.profile().nickname()).isEqualTo("테스트닉네임");
+        assertThat(response.profile().title()).isEqualTo("균형의 달인");
     }
 
     @Test
@@ -341,6 +345,7 @@ class MemberProfileServiceImplTest {
                 .mbti("ENTP")
                 .point(150L)
                 .build();
+        profile.getMemberProfileTitles().add(equippedProfileTitle(profile, "선택의 신"));
 
         when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
         when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.of(profile));
@@ -353,5 +358,23 @@ class MemberProfileServiceImplTest {
         assertThat(response.profile()).isNotNull();
         assertThat(response.profile().point()).isEqualTo(150L);
         assertThat(response.profile().nickname()).isEqualTo("테스트닉네임");
+        assertThat(response.profile().title()).isEqualTo("선택의 신");
+    }
+
+    private MemberProfileTitle equippedProfileTitle(MemberProfile profile, String titleName) {
+        Title title = Title.builder()
+                .code(titleName)
+                .name(titleName)
+                .tier(TitleTier.BASIC)
+                .acquisitionType(TitleAcquisitionType.DEFAULT)
+                .build();
+
+        MemberProfileTitle profileTitle = MemberProfileTitle.builder()
+                .memberProfile(profile)
+                .title(title)
+                .build();
+        profileTitle.equip();
+
+        return profileTitle;
     }
 }

@@ -4,8 +4,18 @@ import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 import com.valanse.valanse.dto.PointHistory.PointHistoryResponse;
+import com.valanse.valanse.dto.Title.TitleCreateRequest;
+import com.valanse.valanse.dto.Title.TitleCreateResponse;
+import com.valanse.valanse.dto.Title.TitleAdminResponse;
+import com.valanse.valanse.dto.Title.TitleDeleteResponse;
+import com.valanse.valanse.dto.Title.TitleEquipResponse;
+import com.valanse.valanse.dto.Title.TitleListResponse;
+import com.valanse.valanse.dto.Title.TitlePurchaseResponse;
+import com.valanse.valanse.dto.Title.TitleUpdateRequest;
+import com.valanse.valanse.dto.Title.TitleUpdateResponse;
 import com.valanse.valanse.service.MemberProfileService.MemberProfileService;
 import com.valanse.valanse.service.PointService.PointService;
+import com.valanse.valanse.service.TitleService.TitleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +24,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Tag(name = "회원 정보 API", description = "프로필 조회 등 회원 정보 관련 기능")
@@ -24,6 +35,7 @@ public class MemberController {
 
     private final MemberProfileService memberProfileService;
     private final PointService pointService;
+    private final TitleService titleService;
 
     @Operation(
             summary = "회원 프로필 정보 저장",
@@ -105,6 +117,86 @@ public class MemberController {
     public ResponseEntity<PointHistoryResponse> getPointHistory() {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         PointHistoryResponse response = pointService.getPointHistory(userId);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "칭호 선택 목록 조회",
+            description = "현재 로그인한 회원 기준으로 기본, 보유, 미보유 칭호를 분리해서 조회합니다."
+    )
+    @GetMapping("/titles")
+    public ResponseEntity<TitleListResponse> getTitles() {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        TitleListResponse response = titleService.getTitleList(userId);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "관리자 칭호 목록 조회",
+            description = "관리자 권한으로 잠김/보유 여부와 상관없이 칭호 마스터 데이터 목록을 조회합니다."
+    )
+    @GetMapping("/titles/admin")
+    public ResponseEntity<List<TitleAdminResponse>> getTitlesForAdmin() {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        List<TitleAdminResponse> response = titleService.getTitleListForAdmin(userId);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "관리자 칭호 생성",
+            description = "관리자 권한으로 새로운 칭호 마스터 데이터를 생성합니다."
+    )
+    @PostMapping("/titles")
+    public ResponseEntity<TitleCreateResponse> createTitle(@RequestBody TitleCreateRequest request) {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        TitleCreateResponse response = titleService.createTitle(userId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "관리자 칭호 수정",
+            description = "관리자 권한으로 칭호 마스터 데이터를 수정합니다."
+    )
+    @PatchMapping("/titles/{titleId}")
+    public ResponseEntity<TitleUpdateResponse> updateTitle(
+            @PathVariable Long titleId,
+            @RequestBody TitleUpdateRequest request
+    ) {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        TitleUpdateResponse response = titleService.updateTitle(userId, titleId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "관리자 칭호 삭제",
+            description = "관리자 권한으로 칭호를 비활성화합니다. 삭제 대상 칭호를 장착 중인 회원은 활성 기본 칭호로 변경됩니다."
+    )
+    @DeleteMapping("/titles/{titleId}")
+    public ResponseEntity<TitleDeleteResponse> deleteTitle(@PathVariable Long titleId) {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        TitleDeleteResponse response = titleService.deleteTitle(userId, titleId);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "칭호 장착",
+            description = "현재 로그인한 회원이 보유한 칭호를 대표 칭호로 선택합니다."
+    )
+    @PostMapping("/titles/{titleId}/equip")
+    public ResponseEntity<TitleEquipResponse> equipTitle(@PathVariable Long titleId) {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        TitleEquipResponse response = titleService.equipTitle(userId, titleId);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "칭호 구매",
+            description = "현재 로그인한 회원이 포인트로 구매 가능한 칭호를 구매합니다."
+    )
+    @PostMapping("/titles/{titleId}/purchase")
+    public ResponseEntity<TitlePurchaseResponse> purchaseTitle(@PathVariable Long titleId) {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        TitlePurchaseResponse response = titleService.purchaseTitle(userId, titleId);
         return ResponseEntity.ok(response);
     }
 }
