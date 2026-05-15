@@ -6,6 +6,7 @@ import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 import com.valanse.valanse.dto.PointHistory.PointHistoryResponse;
 import com.valanse.valanse.dto.Title.TitleCreateRequest;
 import com.valanse.valanse.dto.Title.TitleCreateResponse;
+import com.valanse.valanse.dto.Title.TitleAdminResponse;
 import com.valanse.valanse.dto.Title.TitleDeleteResponse;
 import com.valanse.valanse.dto.Title.TitleEquipResponse;
 import com.valanse.valanse.dto.Title.TitleListResponse;
@@ -23,6 +24,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Tag(name = "회원 정보 API", description = "프로필 조회 등 회원 정보 관련 기능")
@@ -126,6 +128,17 @@ public class MemberController {
     public ResponseEntity<TitleListResponse> getTitles() {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         TitleListResponse response = titleService.getTitleList(userId);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "관리자 칭호 목록 조회",
+            description = "관리자 권한으로 잠김/보유 여부와 상관없이 칭호 마스터 데이터 목록을 조회합니다."
+    )
+    @GetMapping("/titles/admin")
+    public ResponseEntity<List<TitleAdminResponse>> getTitlesForAdmin() {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        List<TitleAdminResponse> response = titleService.getTitleListForAdmin(userId);
         return ResponseEntity.ok(response);
     }
 

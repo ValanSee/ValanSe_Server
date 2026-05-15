@@ -9,6 +9,7 @@ import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.TitleAcquisitionType;
 import com.valanse.valanse.dto.Title.TitleCreateRequest;
 import com.valanse.valanse.dto.Title.TitleCreateResponse;
+import com.valanse.valanse.dto.Title.TitleAdminResponse;
 import com.valanse.valanse.dto.Title.TitleDeleteResponse;
 import com.valanse.valanse.dto.Title.TitleEquipResponse;
 import com.valanse.valanse.dto.Title.TitleListResponse;
@@ -150,6 +151,16 @@ public class TitleServiceImpl implements TitleService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<TitleAdminResponse> getTitleListForAdmin(Long adminUserId) {
+        validateAdmin(adminUserId);
+
+        return titleRepository.findAllByOrderByDisplayOrderAscIdAsc().stream()
+                .map(this::toTitleAdminResponse)
+                .toList();
+    }
+
+    @Override
     public TitleCreateResponse createTitle(Long adminUserId, TitleCreateRequest request) {
         validateAdmin(adminUserId);
 
@@ -284,6 +295,20 @@ public class TitleServiceImpl implements TitleService {
             return title.getPrice() + "P 필요";
         }
         return "획득 조건을 달성해야 합니다.";
+    }
+
+    private TitleAdminResponse toTitleAdminResponse(Title title) {
+        return new TitleAdminResponse(
+                title.getId(),
+                title.getCode(),
+                title.getName(),
+                title.getDescription(),
+                title.getPrice(),
+                title.getTier(),
+                title.getAcquisitionType(),
+                title.getRequirementText(),
+                title.getDisplayOrder()
+        );
     }
 
     private void validateCreateRequest(TitleCreateRequest request) {

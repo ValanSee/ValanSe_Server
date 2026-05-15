@@ -12,6 +12,8 @@ import java.util.Optional;
 public interface TitleRepository extends JpaRepository<Title, Long> {
     List<Title> findAllByActiveTrueOrderByDisplayOrderAscIdAsc();
 
+    List<Title> findAllByOrderByDisplayOrderAscIdAsc();
+
     Optional<Title> findFirstByActiveTrueAndAcquisitionTypeOrderByDisplayOrderAscIdAsc(
             TitleAcquisitionType acquisitionType
     );

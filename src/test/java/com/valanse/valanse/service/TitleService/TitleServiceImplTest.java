@@ -301,6 +301,26 @@ class TitleServiceImplTest {
     }
 
     @Test
+    @DisplayName("getTitleListForAdmin()은 관리자에게 칭호 마스터 데이터 목록을 반환한다")
+    void getTitleListForAdmin_관리자_칭호목록조회() {
+        Member admin = Member.builder().id(1L).role(Role.ADMIN).build();
+        Title firstTitle = title(1L, "밸런스 새싹", TitleAcquisitionType.DEFAULT, 0L, null);
+        Title secondTitle = title(2L, "선택의 달인", TitleAcquisitionType.POINT_PURCHASE, 300L, "300P 필요");
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(admin));
+        when(titleRepository.findAllByOrderByDisplayOrderAscIdAsc()).thenReturn(List.of(firstTitle, secondTitle));
+
+        var response = titleService.getTitleListForAdmin(1L);
+
+        assertThat(response).hasSize(2);
+        assertThat(response.get(0).titleId()).isEqualTo(1L);
+        assertThat(response.get(0).titleName()).isEqualTo("밸런스 새싹");
+        assertThat(response.get(1).titleId()).isEqualTo(2L);
+        assertThat(response.get(1).price()).isEqualTo(300L);
+        assertThat(response.get(1).requirementText()).isEqualTo("300P 필요");
+    }
+
+    @Test
     @DisplayName("createTitle()은 관리자가 아니면 예외를 던진다")
     void createTitle_관리자아님_예외() {
         Member user = Member.builder().id(1L).role(Role.USER).build();
