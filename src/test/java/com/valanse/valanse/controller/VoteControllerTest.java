@@ -8,6 +8,10 @@ import com.valanse.valanse.repository.CommentGroupRepository;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberRepository;
 import com.valanse.valanse.repository.VoteRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -38,6 +43,8 @@ public class VoteControllerTest {
     @Autowired private MemberRepository memberRepository;
     @Autowired private MemberProfileRepository memberProfileRepository;
     @Autowired private CommentGroupRepository commentGroupRepository;
+    @Autowired private EntityManager entityManager;
+    @Autowired private EntityManagerFactory entityManagerFactory;
 
     @BeforeEach
     void setUp() {
@@ -160,5 +167,29 @@ public class VoteControllerTest {
                 .andExpect(jsonPath("$.title").value("새로운 핫이슈 투표"))
                 .andExpect(jsonPath("$.totalParticipants").value(50))
                 .andExpect(jsonPath("$.createdBy").value("테스터3닉네임"));
+    }
+
+    @Test
+    @DisplayName("투표 목록 조회 시 목록 데이터와 연관 데이터를 고정된 쿼리 수로 조회한다.")
+    void getVotes_QueryCountIsStable() throws Exception {
+        Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        statistics.setStatisticsEnabled(true);
+        entityManager.flush();
+        entityManager.clear();
+        statistics.clear();
+
+        mockMvc.perform(get("/votes")
+                        .param("category", "ALL")
+                        .param("sort", "latest")
+                        .param("size", "10")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.votes.length()").value(2))
+                .andExpect(jsonPath("$.votes[0].nickname").value("테스터2닉네임"))
+                .andExpect(jsonPath("$.votes[1].nickname").value("테스터1닉네임"))
+                .andExpect(jsonPath("$.votes[1].options.length()").value(2))
+                .andExpect(jsonPath("$.has_next_page").value(false));
+
+        assertThat(statistics.getPrepareStatementCount()).isEqualTo(2);
     }
 }

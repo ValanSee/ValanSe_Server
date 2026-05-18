@@ -381,9 +381,9 @@ public class VoteServiceImpl implements VoteService {
             votes.remove(votes.size() - 1);
             Vote lastVote = votes.get(votes.size() - 1);
             if ("popular".equalsIgnoreCase(sort)) {
-                nextCursor = lastVote.getTotalVoteCount() + "_" + lastVote.getCreatedAt().toString();
+                nextCursor = lastVote.getTotalVoteCount() + "_" + lastVote.getCreatedAt() + "_" + lastVote.getId();
             } else { // latest
-                nextCursor = lastVote.getCreatedAt().toString();
+                nextCursor = lastVote.getCreatedAt() + "_" + lastVote.getId();
             }
         }
 
