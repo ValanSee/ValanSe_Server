@@ -192,4 +192,61 @@ public class VoteControllerTest {
 
         assertThat(statistics.getPrepareStatementCount()).isEqualTo(2);
     }
+
+    @Test
+    @DisplayName("투표 목록 조회 시 size가 1보다 작으면 400 Bad Request를 반환한다.")
+    void getVotes_InvalidSize_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/votes")
+                        .param("size", "0")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("size는 1 이상이어야 합니다."))
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    @DisplayName("투표 목록 조회 시 잘못된 category는 400 Bad Request를 반환한다.")
+    void getVotes_InvalidCategory_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/votes")
+                        .param("category", "INVALID")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("category는 ALL, FOOD, LOVE, ETC 중 하나여야 합니다."))
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    @DisplayName("투표 목록 조회 시 잘못된 sort는 400 Bad Request를 반환한다.")
+    void getVotes_InvalidSort_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/votes")
+                        .param("sort", "oldest")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("sort는 latest 또는 popular 중 하나여야 합니다."))
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    @DisplayName("투표 목록 조회 시 latest cursor 형식이 잘못되면 400 Bad Request를 반환한다.")
+    void getVotes_InvalidLatestCursor_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/votes")
+                        .param("sort", "latest")
+                        .param("cursor", "2026-05-18T13:00:00")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("cursor 형식이 올바르지 않습니다."))
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    @DisplayName("투표 목록 조회 시 popular cursor 형식이 잘못되면 400 Bad Request를 반환한다.")
+    void getVotes_InvalidPopularCursor_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/votes")
+                        .param("sort", "popular")
+                        .param("cursor", "100_2026-05-18T13:00:00")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("cursor 형식이 올바르지 않습니다."))
+                .andExpect(jsonPath("$.status").value(400));
+    }
 }
