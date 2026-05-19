@@ -5,5 +5,6 @@ import com.valanse.valanse.dto.PointHistory.PointHistoryResponse;
 
 public interface PointService {
     void givePoint(Long memberId, PointType type);
+    void recordPointUsage(Long memberId, long amount, PointType type);
     PointHistoryResponse getPointHistory(Long memberId);
 }
