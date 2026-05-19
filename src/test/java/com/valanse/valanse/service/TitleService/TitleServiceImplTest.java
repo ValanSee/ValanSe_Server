@@ -6,6 +6,7 @@ import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.MemberProfileTitle;
 import com.valanse.valanse.domain.Title;
 import com.valanse.valanse.domain.enums.Role;
+import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.domain.enums.TitleAcquisitionType;
 import com.valanse.valanse.domain.enums.TitleTier;
 import com.valanse.valanse.dto.Title.TitleCreateRequest;
@@ -14,6 +15,7 @@ import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberProfileTitleRepository;
 import com.valanse.valanse.repository.MemberRepository;
 import com.valanse.valanse.repository.TitleRepository;
+import com.valanse.valanse.service.PointService.PointService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -49,6 +51,9 @@ class TitleServiceImplTest {
 
     @Mock
     private TitleRepository titleRepository;
+
+    @Mock
+    private PointService pointService;
 
     private Member member;
     private MemberProfile profile;
@@ -225,6 +230,7 @@ class TitleServiceImplTest {
         assertThat(response.title()).isEqualTo("선택의 신");
         assertThat(response.owned()).isTrue();
         assertThat(response.remainingPoint()).isEqualTo(200L);
+        verify(pointService).recordPointUsage(1L, 300L, PointType.TITLE_PURCHASE);
         verify(memberProfileTitleRepository).save(org.mockito.ArgumentMatchers.argThat(savedTitle ->
                 savedTitle.getMemberProfile() == profile && savedTitle.getTitle().getId().equals(3L)
         ));
@@ -248,6 +254,7 @@ class TitleServiceImplTest {
 
         assertThat(exception.getMessage()).isEqualTo("포인트가 부족합니다. (필요포인트 300P 필요)");
         assertThat(profile.getPoint()).isEqualTo(100L);
+        verify(pointService, never()).recordPointUsage(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.any());
         verify(memberProfileTitleRepository, never()).save(org.mockito.ArgumentMatchers.any());
     }
 

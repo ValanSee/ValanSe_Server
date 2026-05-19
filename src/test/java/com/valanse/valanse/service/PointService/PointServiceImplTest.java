@@ -20,8 +20,10 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -109,7 +111,8 @@ class PointServiceImplTest {
             PointHistory.builder().id(2L).member(member).amount(5L).type(PointType.POST_CREATE).build(),
             PointHistory.builder().id(3L).member(member).amount(1L).type(PointType.COMMENT_CREATE).build(),
             PointHistory.builder().id(4L).member(member).amount(1L).type(PointType.POST_VOTED).build(),
-            PointHistory.builder().id(5L).member(member).amount(50L).type(PointType.HOT_ISSUE).build()
+            PointHistory.builder().id(5L).member(member).amount(50L).type(PointType.HOT_ISSUE).build(),
+            PointHistory.builder().id(6L).member(member).amount(-300L).type(PointType.TITLE_PURCHASE).build()
         );
 
         when(memberRepository.findByIdAndDeletedAtIsNull(memberId))
@@ -127,6 +130,28 @@ class PointServiceImplTest {
         assertThat(items.get(2).typeDescription()).isEqualTo("댓글 작성");
         assertThat(items.get(3).typeDescription()).isEqualTo("투표 참여");
         assertThat(items.get(4).typeDescription()).isEqualTo("핫이슈");
+        assertThat(items.get(5).typeDescription()).isEqualTo("칭호 구매");
+    }
+
+    @Test
+    @DisplayName("포인트 사용 내역 기록 - 칭호 구매")
+    void recordPointUsage_TitlePurchase() {
+        // Given
+        Long memberId = 1L;
+        Member member = Member.builder().id(memberId).build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(memberId))
+            .thenReturn(Optional.of(member));
+
+        // When
+        pointService.recordPointUsage(memberId, 300L, PointType.TITLE_PURCHASE);
+
+        // Then
+        verify(pointHistoryRepository).save(argThat(history ->
+            history.getMember() == member &&
+                history.getAmount().equals(-300L) &&
+                history.getType() == PointType.TITLE_PURCHASE
+        ));
     }
 
     @Test

@@ -7,6 +7,7 @@ import com.valanse.valanse.domain.MemberProfileTitle;
 import com.valanse.valanse.domain.Title;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.TitleAcquisitionType;
+import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.dto.Title.TitleCreateRequest;
 import com.valanse.valanse.dto.Title.TitleCreateResponse;
 import com.valanse.valanse.dto.Title.TitleAdminResponse;
@@ -20,6 +21,7 @@ import com.valanse.valanse.repository.MemberRepository;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberProfileTitleRepository;
 import com.valanse.valanse.repository.TitleRepository;
+import com.valanse.valanse.service.PointService.PointService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -40,6 +42,7 @@ public class TitleServiceImpl implements TitleService {
     private final MemberProfileRepository memberProfileRepository;
     private final MemberProfileTitleRepository memberProfileTitleRepository;
     private final TitleRepository titleRepository;
+    private final PointService pointService;
 
     @Override
     public TitleListResponse getTitleList(Long userId) {
@@ -137,6 +140,7 @@ public class TitleServiceImpl implements TitleService {
         }
 
         profile.subtractPoint(title.getPrice());
+        pointService.recordPointUsage(userId, title.getPrice(), PointType.TITLE_PURCHASE);
         memberProfileTitleRepository.save(MemberProfileTitle.builder()
                 .memberProfile(profile)
                 .title(title)

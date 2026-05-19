@@ -5,5 +5,6 @@ public enum PointType {
     POST_CREATE,
     POST_VOTED,
     HOT_ISSUE,
-    SIGN_UP
+    SIGN_UP,
+    TITLE_PURCHASE
 }

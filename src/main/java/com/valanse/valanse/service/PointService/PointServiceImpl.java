@@ -63,6 +63,7 @@ public class PointServiceImpl implements PointService {
             }
             case POST_VOTED -> POST_VOTED_POINT;
             case HOT_ISSUE -> HOT_ISSUE_POINT;
+            case TITLE_PURCHASE -> throw new IllegalArgumentException("포인트 지급 타입이 아닙니다.");
         };
 
         // 포인트가 0보다 클 때만 포인트 지급 및 히스토리 저장
@@ -77,6 +78,23 @@ public class PointServiceImpl implements PointService {
                     .build();
             pointHistoryRepository.save(history);
         }
+    }
+
+    @Override
+    public void recordPointUsage(Long memberId, long amount, PointType type) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("사용 포인트는 0보다 커야 합니다.");
+        }
+
+        Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+
+        PointHistory history = PointHistory.builder()
+                .member(member)
+                .amount(-amount)
+                .type(type)
+                .build();
+        pointHistoryRepository.save(history);
     }
 
     @Override
@@ -117,6 +135,7 @@ public class PointServiceImpl implements PointService {
             case COMMENT_CREATE -> "댓글 작성";
             case POST_VOTED -> "투표 참여";
             case HOT_ISSUE -> "핫이슈";
+            case TITLE_PURCHASE -> "칭호 구매";
         };
     }
 
