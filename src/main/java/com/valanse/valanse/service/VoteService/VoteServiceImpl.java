@@ -372,6 +372,8 @@ public class VoteServiceImpl implements VoteService {
 
     @Override
     public VoteListResponse getVotesByCategoryAndSort(Member loginUser, String category, String sort, String cursor, int size) {
+        validateVoteListRequest(category, sort, cursor, size);
+
         List<Vote> votes = voteRepository.findVotesByCursor(category, sort, cursor, size);
 
         boolean hasNext = votes.size() > size;
@@ -381,9 +383,9 @@ public class VoteServiceImpl implements VoteService {
             votes.remove(votes.size() - 1);
             Vote lastVote = votes.get(votes.size() - 1);
             if ("popular".equalsIgnoreCase(sort)) {
-                nextCursor = lastVote.getTotalVoteCount() + "_" + lastVote.getCreatedAt().toString();
+                nextCursor = lastVote.getTotalVoteCount() + "_" + lastVote.getCreatedAt() + "_" + lastVote.getId();
             } else { // latest
-                nextCursor = lastVote.getCreatedAt().toString();
+                nextCursor = lastVote.getCreatedAt() + "_" + lastVote.getId();
             }
         }
 
@@ -434,6 +436,69 @@ public class VoteServiceImpl implements VoteService {
                 .has_next_page(hasNext)
                 .next_cursor(nextCursor)
                 .build();
+    }
+
+    private void validateVoteListRequest(String category, String sort, String cursor, int size) {
+        if (size < 1) {
+            throw new ApiException("size는 1 이상이어야 합니다.", HttpStatus.BAD_REQUEST);
+        }
+
+        validateCategory(category);
+        validateSort(sort);
+        validateCursor(sort, cursor);
+    }
+
+    private void validateCategory(String category) {
+        if (category == null || category.isBlank()) {
+            throw new ApiException("category는 ALL, FOOD, LOVE, ETC 중 하나여야 합니다.", HttpStatus.BAD_REQUEST);
+        }
+
+        try {
+            VoteCategory.valueOf(category.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ApiException("category는 ALL, FOOD, LOVE, ETC 중 하나여야 합니다.", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private void validateSort(String sort) {
+        if (sort == null || sort.isBlank()) {
+            throw new ApiException("sort는 latest 또는 popular 중 하나여야 합니다.", HttpStatus.BAD_REQUEST);
+        }
+
+        if (!"latest".equalsIgnoreCase(sort) && !"popular".equalsIgnoreCase(sort)) {
+            throw new ApiException("sort는 latest 또는 popular 중 하나여야 합니다.", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private void validateCursor(String sort, String cursor) {
+        if (cursor == null) {
+            return;
+        }
+
+        if (cursor.isBlank()) {
+            throw new ApiException("cursor 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST);
+        }
+
+        try {
+            if ("popular".equalsIgnoreCase(sort)) {
+                String[] parts = cursor.split("_");
+                if (parts.length != 3) {
+                    throw new IllegalArgumentException();
+                }
+                Integer.parseInt(parts[0]);
+                LocalDateTime.parse(parts[1]);
+                Long.parseLong(parts[2]);
+            } else {
+                String[] parts = cursor.split("_");
+                if (parts.length != 2) {
+                    throw new IllegalArgumentException();
+                }
+                LocalDateTime.parse(parts[0]);
+                Long.parseLong(parts[1]);
+            }
+        } catch (RuntimeException e) {
+            throw new ApiException("cursor 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST);
+        }
     }
 
     @Override
