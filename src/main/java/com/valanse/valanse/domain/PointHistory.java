@@ -29,6 +29,8 @@ public class PointHistory {
     @Enumerated(EnumType.STRING)
     private PointType type;
 
+    private Long remainingPoint;
+
     private LocalDateTime createdAt;
 
     @PrePersist

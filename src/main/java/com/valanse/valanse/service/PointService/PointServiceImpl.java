@@ -15,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -74,6 +76,7 @@ public class PointServiceImpl implements PointService {
             PointHistory history = PointHistory.builder()
                     .member(member)
                     .amount(amount)
+                    .remainingPoint(profile.getPoint())
                     .type(type)
                     .build();
             pointHistoryRepository.save(history);
@@ -89,9 +92,13 @@ public class PointServiceImpl implements PointService {
         Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
 
+        MemberProfile profile = memberProfileRepository.findByMemberId(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("프로필을 찾을 수 없습니다."));
+
         PointHistory history = PointHistory.builder()
                 .member(member)
                 .amount(-amount)
+                .remainingPoint(profile.getPoint())
                 .type(type)
                 .build();
         pointHistoryRepository.save(history);
@@ -106,6 +113,7 @@ public class PointServiceImpl implements PointService {
 
         // 포인트 히스토리 조회 (최신순으로 정렬)
         List<PointHistory> histories = pointHistoryRepository.findByMemberId(memberId);
+        Map<Long, Long> fallbackRemainingPoints = calculateRemainingPoints(histories);
 
         // DTO로 변환
         List<PointHistoryResponse.PointHistoryItem> historyItems = histories.stream()
@@ -119,6 +127,9 @@ public class PointServiceImpl implements PointService {
                 .map(history -> new PointHistoryResponse.PointHistoryItem(
                         history.getId(),
                         history.getAmount(),
+                        history.getRemainingPoint() != null
+                                ? history.getRemainingPoint()
+                                : fallbackRemainingPoints.get(history.getId()),
                         history.getType(),
                         getPointTypeDescription(history.getType()),
                         formatCreatedAt(history.getCreatedAt())
@@ -126,6 +137,38 @@ public class PointServiceImpl implements PointService {
                 .toList();
 
         return new PointHistoryResponse(historyItems);
+    }
+
+    private Map<Long, Long> calculateRemainingPoints(List<PointHistory> histories) {
+        Map<Long, Long> remainingPoints = new HashMap<>();
+        long balance = 0L;
+
+        List<PointHistory> oldestFirstHistories = histories.stream()
+                .sorted((h1, h2) -> {
+                    if (h1.getCreatedAt() == null && h2.getCreatedAt() == null) {
+                        return compareId(h1, h2);
+                    }
+                    if (h1.getCreatedAt() == null) return -1;
+                    if (h2.getCreatedAt() == null) return 1;
+
+                    int createdAtCompare = h1.getCreatedAt().compareTo(h2.getCreatedAt());
+                    return createdAtCompare != 0 ? createdAtCompare : compareId(h1, h2);
+                })
+                .toList();
+
+        for (PointHistory history : oldestFirstHistories) {
+            balance += history.getAmount();
+            remainingPoints.put(history.getId(), balance);
+        }
+
+        return remainingPoints;
+    }
+
+    private int compareId(PointHistory h1, PointHistory h2) {
+        if (h1.getId() == null && h2.getId() == null) return 0;
+        if (h1.getId() == null) return -1;
+        if (h2.getId() == null) return 1;
+        return h1.getId().compareTo(h2.getId());
     }
 
     private String getPointTypeDescription(PointType type) {

@@ -10,6 +10,7 @@ public record PointHistoryResponse(
     public record PointHistoryItem(
             Long id,
             Long amount,
+            Long remainingPoint,
             PointType type,
             String typeDescription,
             String createdAt
