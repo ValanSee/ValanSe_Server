@@ -37,6 +37,8 @@ class CommentServiceImplTest {
     @Mock
     private MemberProfileRepository memberProfileRepository;
     @Mock
+    private MemberProfileTitleRepository memberProfileTitleRepository;
+    @Mock
     private PointService pointService;
 
     private Member member;

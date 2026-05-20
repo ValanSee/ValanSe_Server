@@ -36,6 +36,7 @@ public class CommentServiceImpl implements CommentService {
     private final CommentGroupRepository commentGroupRepository;
     private final CommentRepository commentRepository;
     private final MemberProfileRepository memberProfileRepository;
+    private final MemberProfileTitleRepository memberProfileTitleRepository;
     private final PointService pointService;
 
     @Override
@@ -227,6 +228,7 @@ public class CommentServiceImpl implements CommentService {
                     return CommentReplyResponseDto.builder()
                             .id(reply.getId())
                             .nickname(profile.getNickname())
+                            .title(getEquippedTitleName(reply.getMember().getId()))
                             .createdAt(reply.getCreatedAt())
                             .content(reply.getContent())
                             .likeCount(reply.getLikeCount())
@@ -239,5 +241,12 @@ public class CommentServiceImpl implements CommentService {
                             .build();
                 })
                 .collect(Collectors.toList());
+    }
+
+    private String getEquippedTitleName(Long memberId) {
+        return memberProfileTitleRepository.findByMemberProfileMemberIdAndEquippedTrue(memberId)
+                .map(MemberProfileTitle::getTitle)
+                .map(Title::getName)
+                .orElse(null);
     }
 }
