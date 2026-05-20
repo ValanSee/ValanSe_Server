@@ -33,6 +33,7 @@ public class VoteServiceImpl implements VoteService {
     private final VoteOptionRepository voteOptionRepository;
     private final MemberVoteOptionRepository memberVoteOptionRepository;
     private final CommentGroupRepository commentGroupRepository;
+    private final MemberProfileTitleRepository memberProfileTitleRepository;
     private final PointService pointService;
 
    //작은 민지가 구현한 것
@@ -58,7 +59,9 @@ public class VoteServiceImpl implements VoteService {
                    voteRepository.findAllByMemberAndCategoryOrderByCreatedAtAsc(member, category);
        }
 
-       return votes.stream().map(VoteResponseDto::new).collect(Collectors.toList());
+       return votes.stream()
+               .map(vote -> new VoteResponseDto(vote, getEquippedTitleName(vote.getMember())))
+               .collect(Collectors.toList());
    }
 
     @Override
@@ -83,7 +86,9 @@ public class VoteServiceImpl implements VoteService {
                     voteRepository.findAllByMemberVotedAndCategoryOrderByCreatedAtAsc(member, category);
         }
 
-        return votes.stream().map(VoteResponseDto::new).collect(Collectors.toList());
+        return votes.stream()
+                .map(vote -> new VoteResponseDto(vote, getEquippedTitleName(vote.getMember())))
+                .collect(Collectors.toList());
     }
 
     //여기서부터 영서 코드
@@ -257,6 +262,7 @@ public class VoteServiceImpl implements VoteService {
 
         // MemberProfile의 nickname을 가져오도록 수정
         String creatorNickname = null;
+        String creatorTitle = getEquippedTitleName(vote.getMember());
         if (vote.getMember() != null && vote.getMember().getProfile() != null) {
             creatorNickname = vote.getMember().getProfile().getNickname();
         }
@@ -304,6 +310,7 @@ public class VoteServiceImpl implements VoteService {
                 .category(vote.getCategory())
                 .totalVoteCount(vote.getTotalVoteCount())
                 .creatorNickname(creatorNickname) // 수정된 닉네임 사용
+                .creatorTitle(creatorTitle)
                 .createdAt(vote.getCreatedAt())
                 .options(optionDtos)
                 .hasVoted(hasVoted) // 새로운 필드 값 설정
@@ -422,6 +429,7 @@ public class VoteServiceImpl implements VoteService {
                             .category(vote.getCategory().name())
                             .member_id(vote.getMember() != null ? vote.getMember().getId() : null)
                             .nickname(creatorNickname)
+                            .member_title(getEquippedTitleName(vote.getMember()))
                             .created_at(vote.getCreatedAt())
                             .total_vote_count(vote.getTotalVoteCount())
                             .total_comment_count(totalCommentCount)
@@ -576,10 +584,22 @@ public class VoteServiceImpl implements VoteService {
                 .category(hotIssueVote.getCategory() != null ? hotIssueVote.getCategory().name() : null) // 카테고리 설정
                 .totalParticipants(hotIssueVote.getTotalVoteCount()) // 총 참여자 수 설정
                 .createdBy(createdByNickname) // 생성자 닉네임 설정
+                .creatorTitle(getEquippedTitleName(hotIssueVote.getMember()))
                 .createdAt(hotIssueVote.getCreatedAt()) // 추가된 부분: createdAt 설정
                 .pinType(hotIssueVote.getPinType())
                 .options(options) // 옵션 리스트 설정
                 .build();
+    }
+
+    private String getEquippedTitleName(Member member) {
+        if (member == null || member.getId() == null) {
+            return null;
+        }
+
+        return memberProfileTitleRepository.findByMemberProfileMemberIdAndEquippedTrue(member.getId())
+                .map(MemberProfileTitle::getTitle)
+                .map(Title::getName)
+                .orElse(null);
     }
 
 }

@@ -48,6 +48,7 @@ class VoteServiceImplTest {
     @Mock private CommentGroupRepository commentGroupRepository;
     @Mock private VoteOptionRepository voteOptionRepository;
     @Mock private MemberProfileRepository memberProfileRepository;
+    @Mock private MemberProfileTitleRepository memberProfileTitleRepository;
     @Mock private PointService pointService;
 
     // ──────────────────────────────────────────────
