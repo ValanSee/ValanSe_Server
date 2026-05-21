@@ -51,6 +51,7 @@ public class TitleServiceImpl implements TitleService {
 
         List<Title> titles = titleRepository.findAllByActiveTrueOrderByDisplayOrderAscIdAsc();
         List<MemberProfileTitle> profileTitles = memberProfileTitleRepository.findAllByMemberProfileMemberId(userId);
+        boolean hasEquippedTitle = profileTitles.stream().anyMatch(MemberProfileTitle::isEquipped);
         Map<Long, MemberProfileTitle> ownedTitleMap = profileTitles.stream()
                 .collect(Collectors.toMap(
                         profileTitle -> profileTitle.getTitle().getId(),
@@ -58,14 +59,22 @@ public class TitleServiceImpl implements TitleService {
                         (current, ignored) -> current
                 ));
 
-        List<MemberProfileTitle> defaultTitlesToSave = titles.stream()
-                .filter(Title::isDefaultTitle)
-                .filter(title -> !ownedTitleMap.containsKey(title.getId()))
-                .map(title -> MemberProfileTitle.builder()
-                        .memberProfile(profile)
-                        .title(title)
-                        .build())
-                .toList();
+        List<MemberProfileTitle> defaultTitlesToSave = new ArrayList<>();
+        for (Title title : titles) {
+            if (!title.isDefaultTitle() || ownedTitleMap.containsKey(title.getId())) {
+                continue;
+            }
+
+            MemberProfileTitle profileTitle = MemberProfileTitle.builder()
+                    .memberProfile(profile)
+                    .title(title)
+                    .equipped(!hasEquippedTitle)
+                    .build();
+            if (!hasEquippedTitle) {
+                hasEquippedTitle = true;
+            }
+            defaultTitlesToSave.add(profileTitle);
+        }
 
         if (!defaultTitlesToSave.isEmpty()) {
             memberProfileTitleRepository.saveAll(defaultTitlesToSave)
