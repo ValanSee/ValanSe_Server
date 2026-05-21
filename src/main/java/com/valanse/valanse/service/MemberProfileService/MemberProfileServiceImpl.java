@@ -3,12 +3,16 @@ package com.valanse.valanse.service.MemberProfileService;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.MemberProfileTitle;
+import com.valanse.valanse.domain.Title;
 import com.valanse.valanse.domain.enums.PointType;
+import com.valanse.valanse.domain.enums.TitleAcquisitionType;
 import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 import com.valanse.valanse.repository.MemberProfileRepository;
+import com.valanse.valanse.repository.MemberProfileTitleRepository;
 import com.valanse.valanse.repository.MemberRepository;
+import com.valanse.valanse.repository.TitleRepository;
 import com.valanse.valanse.service.PointService.PointService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,6 +29,8 @@ public class MemberProfileServiceImpl implements MemberProfileService {
 
     private final MemberRepository memberRepository;
     private final MemberProfileRepository memberProfileRepository;
+    private final MemberProfileTitleRepository memberProfileTitleRepository;
+    private final TitleRepository titleRepository;
     private final PointService pointService;
 
     @Override
@@ -77,7 +83,8 @@ public class MemberProfileServiceImpl implements MemberProfileService {
                     .mbti(dto.mbti())
                     .build();
 
-            memberProfileRepository.save(newProfile);
+            MemberProfile savedProfile = memberProfileRepository.save(newProfile);
+            grantAndEquipDefaultTitle(savedProfile != null ? savedProfile : newProfile);
 
             // 신규 프로필 생성 시 회원가입 포인트 지급
             pointService.givePoint(userId, PointType.SIGN_UP);
@@ -234,6 +241,24 @@ public class MemberProfileServiceImpl implements MemberProfileService {
                 .map(title -> title.getName())
                 .findFirst()
                 .orElse(null);
+    }
+
+    private void grantAndEquipDefaultTitle(MemberProfile profile) {
+        Optional<Title> defaultTitle = titleRepository
+                .findFirstByActiveTrueAndAcquisitionTypeOrderByDisplayOrderAscIdAsc(TitleAcquisitionType.DEFAULT);
+
+        if (defaultTitle == null || defaultTitle.isEmpty()) {
+            return;
+        }
+
+        MemberProfileTitle profileTitle = MemberProfileTitle.builder()
+                .memberProfile(profile)
+                .title(defaultTitle.get())
+                .equipped(true)
+                .build();
+
+        memberProfileTitleRepository.save(profileTitle);
+        profile.getMemberProfileTitles().add(profileTitle);
     }
 
 }

@@ -7,7 +7,9 @@ import com.valanse.valanse.domain.Title;
 import com.valanse.valanse.domain.enums.*;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.repository.MemberProfileRepository;
+import com.valanse.valanse.repository.MemberProfileTitleRepository;
 import com.valanse.valanse.repository.MemberRepository;
+import com.valanse.valanse.repository.TitleRepository;
 import com.valanse.valanse.service.PointService.PointService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -38,6 +40,13 @@ class MemberProfileServiceImplTest {
 
     @Mock
     private MemberRepository memberRepository;
+
+    @Mock
+    private MemberProfileTitleRepository memberProfileTitleRepository;
+
+    @Mock
+    private TitleRepository titleRepository;
+
     @Mock
     private PointService pointService;
 
@@ -87,6 +96,41 @@ class MemberProfileServiceImplTest {
         // when & then: 예외 없이 정상 저장
         assertDoesNotThrow(() -> memberProfileService.saveOrUpdateProfile(request));
         verify(memberProfileRepository, times(1)).save(any(MemberProfile.class));
+    }
+
+    @Test
+    @DisplayName("신규 프로필 생성 시 기본 칭호를 지급하고 장착한다")
+    void 신규프로필_기본칭호_지급_및_장착() {
+        MemberProfileRequest request = new MemberProfileRequest(
+                "새싹유저",
+                Gender.MALE,
+                Age.TWENTY,
+                MbtiIe.E,
+                MbtiTf.T,
+                "ENTP"
+        );
+        Title defaultTitle = Title.builder()
+                .id(1L)
+                .code("DEFAULT_SEED")
+                .name("밸런스 새싹")
+                .tier(TitleTier.BASIC)
+                .acquisitionType(TitleAcquisitionType.DEFAULT)
+                .build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
+        when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.empty());
+        when(memberProfileRepository.existsByNicknameAndDeletedAtIsNull("새싹유저")).thenReturn(false);
+        when(memberProfileRepository.save(any(MemberProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(titleRepository.findFirstByActiveTrueAndAcquisitionTypeOrderByDisplayOrderAscIdAsc(TitleAcquisitionType.DEFAULT))
+                .thenReturn(Optional.of(defaultTitle));
+
+        memberProfileService.saveOrUpdateProfile(request);
+
+        verify(memberProfileTitleRepository).save(argThat(profileTitle ->
+                profileTitle.getTitle().equals(defaultTitle)
+                        && profileTitle.isEquipped()
+                        && profileTitle.getMemberProfile().getNickname().equals("새싹유저")
+        ));
     }
 
     @Test
