@@ -16,6 +16,7 @@ public class VoteDetailResponse {
     private VoteCategory category;
     private Integer totalVoteCount;
     private String creatorNickname; // 생성자의 닉네임을 원한다고 가정
+    private String creatorTitle;
     private LocalDateTime createdAt;
     private List<VoteOptionDto> options; // 투표 옵션을 위한 DTO
     // --- 추가될 필드 ---

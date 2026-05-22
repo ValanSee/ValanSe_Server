@@ -3,17 +3,19 @@ package com.valanse.valanse.service.VoteService;
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.*;
 import com.valanse.valanse.domain.enums.PinType;
+import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.repository.*;
+import com.valanse.valanse.service.PointService.PointService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // import 추가
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime; // 기존 코드에 있었으므로 유지
 import java.util.List; // 기존 코드에 있었으므로 유지
@@ -26,11 +28,13 @@ import java.util.stream.Collectors; // 기존 코드에 있었으므로 유지
 public class VoteServiceImpl implements VoteService {
 
     private final VoteRepository voteRepository;
-    private final MemberProfileRepository memberProfileRepository; // MemberProfile 정보 조회를 위해 필요
-    private final MemberRepository memberRepository; // processVote 메서드에서 Member 조회를 위해 추가
-    private final VoteOptionRepository voteOptionRepository; // processVote 메서드에서 VoteOption 조회를 위해 추가
-    private final MemberVoteOptionRepository memberVoteOptionRepository; // processVote 메서드에서 MemberVoteOption 조회를 위해 추가
+    private final MemberProfileRepository memberProfileRepository;
+    private final MemberRepository memberRepository;
+    private final VoteOptionRepository voteOptionRepository;
+    private final MemberVoteOptionRepository memberVoteOptionRepository;
     private final CommentGroupRepository commentGroupRepository;
+    private final MemberProfileTitleRepository memberProfileTitleRepository;
+    private final PointService pointService;
 
    //작은 민지가 구현한 것
    @Override
@@ -55,7 +59,9 @@ public class VoteServiceImpl implements VoteService {
                    voteRepository.findAllByMemberAndCategoryOrderByCreatedAtAsc(member, category);
        }
 
-       return votes.stream().map(VoteResponseDto::new).collect(Collectors.toList());
+       return votes.stream()
+               .map(vote -> new VoteResponseDto(vote, getEquippedTitleName(vote.getMember())))
+               .collect(Collectors.toList());
    }
 
     @Override
@@ -80,12 +86,13 @@ public class VoteServiceImpl implements VoteService {
                     voteRepository.findAllByMemberVotedAndCategoryOrderByCreatedAtAsc(member, category);
         }
 
-        return votes.stream().map(VoteResponseDto::new).collect(Collectors.toList());
+        return votes.stream()
+                .map(vote -> new VoteResponseDto(vote, getEquippedTitleName(vote.getMember())))
+                .collect(Collectors.toList());
     }
 
     //여기서부터 영서 코드
     @Override
-    @Transactional
     public HotIssueVoteResponse getHotIssueVote() { // 파라미터 없음
         // 0. 고정 게시물이 있다면 반환.
         Optional<Vote> pinnedHot = voteRepository.findByPinType(PinType.HOT);
@@ -98,24 +105,14 @@ public class VoteServiceImpl implements VoteService {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime yesterdayStart = now.minusDays(1).withHour(0).withMinute(0).withSecond(0);
 
-        // 1. 먼저 모든 투표의 반응성 점수를 업데이트 (실시간 계산)
-        List<Vote> allVotes = voteRepository.findAll();
-        for(Vote vote : allVotes) {
-            vote.updateReactivityScore(); // Vote 엔티티에 추가한 메서드
-            voteRepository.save(vote);
-        }
-
-        // 2. 작일 동안 반응성이 가장 높은 투표 조회 시도
-        Optional<Vote> yesterdayHotIssue = voteRepository
-                .findTopByCreatedAtBetweenOrderByReactivityScoreDescCreatedAtDesc(yesterdayStart, now);
-
+        //  작일 동안 반응성이 가장 높은 투표 조회 시도
+        Optional<Vote> yesterdayHotIssue = voteRepository.findTrendingVote(yesterdayStart, now);
         Vote hotIssueVote;
         if (yesterdayHotIssue.isPresent()) {
             // 작일 반응성 데이터가 있는 경우
             hotIssueVote = yesterdayHotIssue.get();
         } else {
-            // 작일 반응성 데이터가 없는 경우 → 전체 누적 반응성 기준 조회
-            hotIssueVote = voteRepository.findTopByOrderByReactivityScoreDescCreatedAtDesc()
+            hotIssueVote = voteRepository.findHotIssueVote()
                     .orElseThrow(() -> new ApiException("핫이슈 투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
         }
 
@@ -125,7 +122,6 @@ public class VoteServiceImpl implements VoteService {
 
     // 인기 급상승 토픽
     @Override
-    @Transactional
     public HotIssueVoteResponse getTrendingVote() {
        // 0. 고정 게시물이 있다면 반환.
         Optional<Vote> pinnedTrending = voteRepository.findByPinType(PinType.TRENDING);
@@ -137,19 +133,13 @@ public class VoteServiceImpl implements VoteService {
 
         }
 
-       // 7일 이전 시간 계산
-       LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+        // 7일 이전 시간 계산
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+        LocalDateTime now = LocalDateTime.now();
 
-       // 1. 모든 투표의 반응성 점수 업데이트
-        List<Vote> allVotes = voteRepository.findAll();
-        for(Vote vote : allVotes) {
-            vote.updateReactivityScore();
-            voteRepository.save(vote);
-        }
-
-        // 2. 최근 7일 내 반응성이 가장 높은 투표 조회
+        // 최근 7일 내 반응성이 가장 높은 투표 조회
         Optional<Vote> recentTrendingVote = voteRepository
-                .findTopByCreatedAtBetweenOrderByReactivityScoreDescCreatedAtDesc(sevenDaysAgo, LocalDateTime.now());
+                .findTrendingVote(sevenDaysAgo, now);
 
         Vote trendingVote;
         if (recentTrendingVote.isPresent()) {
@@ -157,7 +147,7 @@ public class VoteServiceImpl implements VoteService {
             trendingVote = recentTrendingVote.get();
         } else {
             // 7일 내 데이터가 없는 경우 - 이전 데이터 유지 (전체 기간에서 가장 높은 반응성)
-            trendingVote = voteRepository.findTopByOrderByReactivityScoreDescCreatedAtDesc()
+            trendingVote = voteRepository.findHotIssueVote()
                     .orElseThrow(() -> new ApiException("인기 급상승 투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
         }
 
@@ -180,7 +170,6 @@ public class VoteServiceImpl implements VoteService {
                 .orElseThrow(() -> new ApiException("투표 선택지가 존재하지 않습니다.", HttpStatus.NOT_FOUND));
 
         // 2. 사용자가 이 투표에 대해 이전에 투표한 선택지가 있는지 확인합니다.
-        // ERD의 member_vote_option 테이블을 활용 [cite: image_02691a.jpg]
         Optional<MemberVoteOption> existingVote = memberVoteOptionRepository.findByMemberIdAndVoteId(userId, voteId);
 
         boolean isVoted; // 최종적으로 투표가 되어 있는지 여부 (응답 DTO에 사용)
@@ -194,11 +183,11 @@ public class VoteServiceImpl implements VoteService {
 
             if (oldVoteOption.getId().equals(voteOptionId)) {
                 // 3-1. 동일한 선택지를 다시 클릭한 경우: 투표 취소
-                // member_vote_option에서 해당 기록을 삭제 [cite: image_0268de.png]
+                // member_vote_option에서 해당 기록을 삭제
                 memberVoteOptionRepository.delete(oldMemberVoteOption);
-                // 기존 선택지의 투표 수 감소 [cite: image_0268de.png]
+                // 기존 선택지의 투표 수 감소
                 oldVoteOption.setVoteCount(oldVoteOption.getVoteCount() - 1);
-                // 전체 투표 수 감소 [cite: image_0268de.png]
+                // 전체 투표 수 감소a
                 vote.setTotalVoteCount(vote.getTotalVoteCount() - 1);
 
                 isVoted = false; // 투표가 취소되었으므로 false
@@ -229,19 +218,21 @@ public class VoteServiceImpl implements VoteService {
             }
         } else {
             // 4. 이전에 투표한 기록이 없는 경우: 새로운 투표 기록
-            // 새로운 member_vote_option 기록 생성 및 저장
             MemberVoteOption newMemberVoteOption = MemberVoteOption.builder()
                     .member(member)
                     .vote(vote)
                     .voteOption(newVoteOption)
                     .build();
             memberVoteOptionRepository.save(newMemberVoteOption);
-            // 선택지 투표 수 증가
             newVoteOption.setVoteCount(newVoteOption.getVoteCount() + 1);
-            // 전체 투표 수 증가
             vote.setTotalVoteCount(vote.getTotalVoteCount() + 1);
 
-            isVoted = true; // 새로운 옵션에 투표했으므로 true
+            // 게시물 작성자에게 투표 참여 포인트 지급
+            if (vote.getMember() != null && !vote.getMember().getId().equals(userId)) {
+                pointService.givePoint(vote.getMember().getId(), PointType.POST_VOTED);
+            }
+
+            isVoted = true;
             updatedTotalVoteCount = vote.getTotalVoteCount();
             updatedVoteOptionCount = newVoteOption.getVoteCount();
         }
@@ -271,6 +262,7 @@ public class VoteServiceImpl implements VoteService {
 
         // MemberProfile의 nickname을 가져오도록 수정
         String creatorNickname = null;
+        String creatorTitle = getEquippedTitleName(vote.getMember());
         if (vote.getMember() != null && vote.getMember().getProfile() != null) {
             creatorNickname = vote.getMember().getProfile().getNickname();
         }
@@ -295,16 +287,8 @@ public class VoteServiceImpl implements VoteService {
                     SecurityContextHolder.getContext().getAuthentication().getName() != null &&
                     !SecurityContextHolder.getContext().getAuthentication().getName().equals("anonymousUser")) {
                 currentUserId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
-                // --- 디버깅 로그 추가 시작 ---
-                System.out.println("DEBUG: Authenticated user ID: " + currentUserId);
-                // --- 디버깅 로그 추가 끝 ---
-            } else {
-                // --- 디버깅 로그 추가 시작 ---
-                System.out.println("DEBUG: User is not authenticated or is anonymous.");
-                // --- 디버깅 로그 추가 끝 ---
             }
         } catch (NumberFormatException e) {
-            System.out.println("DEBUG: Error parsing user ID from SecurityContext: " + e.getMessage());
             currentUserId = null;
         }
 
@@ -326,6 +310,7 @@ public class VoteServiceImpl implements VoteService {
                 .category(vote.getCategory())
                 .totalVoteCount(vote.getTotalVoteCount())
                 .creatorNickname(creatorNickname) // 수정된 닉네임 사용
+                .creatorTitle(creatorTitle)
                 .createdAt(vote.getCreatedAt())
                 .options(optionDtos)
                 .hasVoted(hasVoted) // 새로운 필드 값 설정
@@ -386,11 +371,16 @@ public class VoteServiceImpl implements VoteService {
 
         commentGroupRepository.save(commentGroup); // CommentGroup 저장
 
+        // 게시물 작성 포인트 지급
+        pointService.givePoint(userId, PointType.POST_CREATE);
+
         return savedVote.getId(); // 저장된 투표의 ID를 반환
     }
 
     @Override
     public VoteListResponse getVotesByCategoryAndSort(Member loginUser, String category, String sort, String cursor, int size) {
+        validateVoteListRequest(category, sort, cursor, size);
+
         List<Vote> votes = voteRepository.findVotesByCursor(category, sort, cursor, size);
 
         boolean hasNext = votes.size() > size;
@@ -400,9 +390,9 @@ public class VoteServiceImpl implements VoteService {
             votes.remove(votes.size() - 1);
             Vote lastVote = votes.get(votes.size() - 1);
             if ("popular".equalsIgnoreCase(sort)) {
-                nextCursor = lastVote.getTotalVoteCount() + "_" + lastVote.getCreatedAt().toString();
+                nextCursor = lastVote.getTotalVoteCount() + "_" + lastVote.getCreatedAt() + "_" + lastVote.getId();
             } else { // latest
-                nextCursor = lastVote.getCreatedAt().toString();
+                nextCursor = lastVote.getCreatedAt() + "_" + lastVote.getId();
             }
         }
 
@@ -439,6 +429,7 @@ public class VoteServiceImpl implements VoteService {
                             .category(vote.getCategory().name())
                             .member_id(vote.getMember() != null ? vote.getMember().getId() : null)
                             .nickname(creatorNickname)
+                            .member_title(getEquippedTitleName(vote.getMember()))
                             .created_at(vote.getCreatedAt())
                             .total_vote_count(vote.getTotalVoteCount())
                             .total_comment_count(totalCommentCount)
@@ -453,6 +444,69 @@ public class VoteServiceImpl implements VoteService {
                 .has_next_page(hasNext)
                 .next_cursor(nextCursor)
                 .build();
+    }
+
+    private void validateVoteListRequest(String category, String sort, String cursor, int size) {
+        if (size < 1) {
+            throw new ApiException("size는 1 이상이어야 합니다.", HttpStatus.BAD_REQUEST);
+        }
+
+        validateCategory(category);
+        validateSort(sort);
+        validateCursor(sort, cursor);
+    }
+
+    private void validateCategory(String category) {
+        if (category == null || category.isBlank()) {
+            throw new ApiException("category는 ALL, FOOD, LOVE, ETC 중 하나여야 합니다.", HttpStatus.BAD_REQUEST);
+        }
+
+        try {
+            VoteCategory.valueOf(category.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ApiException("category는 ALL, FOOD, LOVE, ETC 중 하나여야 합니다.", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private void validateSort(String sort) {
+        if (sort == null || sort.isBlank()) {
+            throw new ApiException("sort는 latest 또는 popular 중 하나여야 합니다.", HttpStatus.BAD_REQUEST);
+        }
+
+        if (!"latest".equalsIgnoreCase(sort) && !"popular".equalsIgnoreCase(sort)) {
+            throw new ApiException("sort는 latest 또는 popular 중 하나여야 합니다.", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private void validateCursor(String sort, String cursor) {
+        if (cursor == null) {
+            return;
+        }
+
+        if (cursor.isBlank()) {
+            throw new ApiException("cursor 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST);
+        }
+
+        try {
+            if ("popular".equalsIgnoreCase(sort)) {
+                String[] parts = cursor.split("_");
+                if (parts.length != 3) {
+                    throw new IllegalArgumentException();
+                }
+                Integer.parseInt(parts[0]);
+                LocalDateTime.parse(parts[1]);
+                Long.parseLong(parts[2]);
+            } else {
+                String[] parts = cursor.split("_");
+                if (parts.length != 2) {
+                    throw new IllegalArgumentException();
+                }
+                LocalDateTime.parse(parts[0]);
+                Long.parseLong(parts[1]);
+            }
+        } catch (RuntimeException e) {
+            throw new ApiException("cursor 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST);
+        }
     }
 
     @Override
@@ -530,10 +584,22 @@ public class VoteServiceImpl implements VoteService {
                 .category(hotIssueVote.getCategory() != null ? hotIssueVote.getCategory().name() : null) // 카테고리 설정
                 .totalParticipants(hotIssueVote.getTotalVoteCount()) // 총 참여자 수 설정
                 .createdBy(createdByNickname) // 생성자 닉네임 설정
+                .creatorTitle(getEquippedTitleName(hotIssueVote.getMember()))
                 .createdAt(hotIssueVote.getCreatedAt()) // 추가된 부분: createdAt 설정
                 .pinType(hotIssueVote.getPinType())
                 .options(options) // 옵션 리스트 설정
                 .build();
+    }
+
+    private String getEquippedTitleName(Member member) {
+        if (member == null || member.getId() == null) {
+            return null;
+        }
+
+        return memberProfileTitleRepository.findByMemberProfileMemberIdAndEquippedTrue(member.getId())
+                .map(MemberProfileTitle::getTitle)
+                .map(Title::getName)
+                .orElse(null);
     }
 
 }

@@ -5,9 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.valanse.valanse.domain.*;
 import com.valanse.valanse.domain.enums.*;
 import com.valanse.valanse.repository.CommentGroupRepository;
-import com.valanse.valanse.repository.MemberProfileRepository; //
-import com.valanse.valanse.repository.MemberRepository; //
+import com.valanse.valanse.repository.MemberProfileRepository;
+import com.valanse.valanse.repository.MemberRepository;
 import com.valanse.valanse.repository.VoteRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,241 +25,228 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest // Spring Boot 테스트 환경 로드
-@AutoConfigureMockMvc // MockMvc 자동 구성
-@ActiveProfiles("test") // application-test.yml 프로파일 활성화
-@Transactional // 각 테스트 메서드가 끝날 때 트랜잭션 롤백
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Transactional
 public class VoteControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc; // HTTP 요청을 시뮬레이션하는 데 사용
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
+    @Autowired private VoteRepository voteRepository;
+    @Autowired private MemberRepository memberRepository;
+    @Autowired private MemberProfileRepository memberProfileRepository;
+    @Autowired private CommentGroupRepository commentGroupRepository;
+    @Autowired private EntityManager entityManager;
+    @Autowired private EntityManagerFactory entityManagerFactory;
 
-    @Autowired
-    private ObjectMapper objectMapper; // JSON 직렬화/역직렬화를 위한 유틸리티
-
-    @Autowired
-    private VoteRepository voteRepository;
-
-    @Autowired
-    private MemberRepository memberRepository; // Member 저장을 위해 필요
-
-    @Autowired
-    private MemberProfileRepository memberProfileRepository; // MemberProfile 저장을 위해 필요
-
-    @Autowired
-    private CommentGroupRepository commentGroupRepository;
-
-    @BeforeEach // 각 테스트 메서드 실행 전에 실행
+    @BeforeEach
     void setUp() {
-        // 데이터 클린업 (Transactional 어노테이션으로 롤백되므로 필수는 아니지만 명시적으로 초기화)
         voteRepository.deleteAll();
         commentGroupRepository.deleteAll();
         memberProfileRepository.deleteAll();
         memberRepository.deleteAll();
 
-        // 핫이슈 투표 생성 시 필요한 멤버 및 프로필 데이터 생성
-        Member member1 = Member.builder() //
-                .socialId("kakao123")
-                .email("test1@example.com")
-                .name("테스터1")
+        Member member1 = Member.builder()
+                .socialId("kakao123").email("test1@example.com").name("테스터1")
                 .profile_image_url("http://image.com/test1.jpg")
-                .kakaoAccessToken("token1")
-                .kakaoRefreshToken("refresh1")
-                .build();
-        memberRepository.save(member1); //
+                .kakaoAccessToken("token1").kakaoRefreshToken("refresh1").build();
+        memberRepository.save(member1);
 
-        MemberProfile profile1 = MemberProfile.builder() //
-                .member(member1)
-                .nickname("테스터1닉네임")
-                .gender(Gender.MALE) //
-                .age(Age.TWENTY) //
-                .mbti("ENFP")
-                .build();
-        memberProfileRepository.save(profile1); //
+        memberProfileRepository.save(MemberProfile.builder()
+                .member(member1).nickname("테스터1닉네임")
+                .gender(Gender.MALE).age(Age.TWENTY).mbti("ENFP").build());
 
-        // 투표 생성 - 핫이슈 (가장 높은 반응성)
-        Vote hotIssueVote = Vote.builder() //
-                .category(VoteCategory.FOOD) // <-- 88번 줄: VoteCategory enum 값을 올바르게 할당
-                .title("오늘의 점심 선택은?")
-                .totalVoteCount(100)
-                .reactivityScore(110) // 투표 100 + 댓글 10 = 반응성 110
-                .reactivityUpdatedAt(LocalDateTime.now()) // 현재 시간으로 설정
-                .member(member1)//
-                .pinType(PinType.NONE)
-                .build();
+        Vote hotIssueVote = Vote.builder()
+                .category(VoteCategory.FOOD).title("오늘의 점심 선택은?")
+                .totalVoteCount(100).reactivityScore(110)
+                .reactivityUpdatedAt(LocalDateTime.now())
+                .member(member1).pinType(PinType.NONE).build();
         voteRepository.save(hotIssueVote);
 
-        // CommentGroup 생성 (댓글 10개)
-        CommentGroup commentGroup = CommentGroup.builder()
-                .vote(hotIssueVote)
-                .totalCommentCount(10)
-                .build();
-        commentGroupRepository.save(commentGroup);
+        commentGroupRepository.save(CommentGroup.builder()
+                .vote(hotIssueVote).totalCommentCount(10).build());
 
-
-        // 핫이슈 투표 옵션들
-        VoteOption optionA = VoteOption.builder() //
-                .vote(hotIssueVote)
-                .content("A. 맵고 얼큰한 라면")
-                .voteCount(60)
-                .label(VoteLabel.A) //
-                .build();
-        VoteOption optionB = VoteOption.builder() //
-                .vote(hotIssueVote)
-                .content("B. 부드러운 파스타")
-                .voteCount(40)
-                .label(VoteLabel.B) //
-                .build();
+        VoteOption optionA = VoteOption.builder().vote(hotIssueVote)
+                .content("A. 맵고 얼큰한 라면").voteCount(60).label(VoteLabel.A).build();
+        VoteOption optionB = VoteOption.builder().vote(hotIssueVote)
+                .content("B. 부드러운 파스타").voteCount(40).label(VoteLabel.B).build();
         hotIssueVote.getVoteOptions().addAll(Arrays.asList(optionA, optionB));
-        voteRepository.save(hotIssueVote); // 옵션 추가 후 다시 저장
+        voteRepository.save(hotIssueVote);
 
-        // 다른 투표 생성 (반응성이 더 낮은 투표)
-        Member member2 = Member.builder() //
-                .socialId("kakao456")
-                .email("test2@example.com")
-                .name("테스터2")
+        Member member2 = Member.builder()
+                .socialId("kakao456").email("test2@example.com").name("테스터2")
                 .profile_image_url("http://image.com/test2.jpg")
-                .kakaoAccessToken("token2")
-                .kakaoRefreshToken("refresh2")
-                .build();
-        memberRepository.save(member2); //
+                .kakaoAccessToken("token2").kakaoRefreshToken("refresh2").build();
+        memberRepository.save(member2);
 
-        MemberProfile profile2 = MemberProfile.builder() //
-                .member(member2)
-                .nickname("테스터2닉네임")
-                .gender(Gender.FEMALE) //
-                .age(Age.THIRTY) //
-                .mbti("ISTJ")
-                .build();
-        memberProfileRepository.save(profile2); //
+        memberProfileRepository.save(MemberProfile.builder()
+                .member(member2).nickname("테스터2닉네임")
+                .gender(Gender.FEMALE).age(Age.THIRTY).mbti("ISTJ").build());
 
-        // 다른 투표 생성 (반응성이 더 낮은 투표)
-        Vote otherVote = Vote.builder() //
-                .category(VoteCategory.LOVE) // <-- 133번 줄: VoteCategory enum 값을 올바르게 할당
-                .title("연애 밸런스 게임")
-                .totalVoteCount(50)
-                .reactivityScore(55) // 투표 50 + 댓글 5 = 반응성 55
+        Vote otherVote = Vote.builder()
+                .category(VoteCategory.LOVE).title("연애 밸런스 게임")
+                .totalVoteCount(50).reactivityScore(55)
                 .reactivityUpdatedAt(LocalDateTime.now())
-                .member(member2)
-                .pinType(PinType.NONE)//
-                .build();
+                .member(member2).pinType(PinType.NONE).build();
         voteRepository.save(otherVote);
 
-        CommentGroup commentGroup2 = CommentGroup.builder()
-                .vote(otherVote)
-                .totalCommentCount(5)
-                .build();
-        commentGroupRepository.save(commentGroup2);
+        commentGroupRepository.save(CommentGroup.builder()
+                .vote(otherVote).totalCommentCount(5).build());
     }
 
     @Test
     @DisplayName("반응성이 가장 높은 핫이슈 투표 정보를 성공적으로 조회한다.")
     void getHotIssueVote_Success() throws Exception {
-        mockMvc.perform(get("/votes/best") // GET 요청
-                        .contentType(MediaType.APPLICATION_JSON)) // 요청 타입
-                .andExpect(status().isOk()) // HTTP 상태 코드 200 OK 확인
-                .andExpect(jsonPath("$.voteId").isNumber()) // voteId가 숫자인지 확인
-                .andExpect(jsonPath("$.title").value("오늘의 점심 선택은?")) // 제목 확인 반응성 1위
-                .andExpect(jsonPath("$.category").value(VoteCategory.FOOD.name())) // 카테고리 확인
-                .andExpect(jsonPath("$.totalParticipants").value(100)) // 총 투표수 확인
-                .andExpect(jsonPath("$.createdBy").value("테스터1닉네임")) // 생성자 닉네임 확인
-                .andExpect(jsonPath("$.options[0].content").value("A. 맵고 얼큰한 라면")) // 첫 번째 옵션 내용 확인
-                .andExpect(jsonPath("$.options[0].vote_count").value(60)) // 첫 번째 옵션 투표 수 확인
-                .andExpect(jsonPath("$.options[1].content").value("B. 부드러운 파스타")) // 두 번째 옵션 내용 확인
-                .andExpect(jsonPath("$.options[1].vote_count").value(40)); // 두 번째 옵션 투표 수 확인
+        mockMvc.perform(get("/votes/best").contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.voteId").isNumber())
+                .andExpect(jsonPath("$.title").value("오늘의 점심 선택은?"))
+                .andExpect(jsonPath("$.category").value(VoteCategory.FOOD.name()))
+                .andExpect(jsonPath("$.totalParticipants").value(100))
+                .andExpect(jsonPath("$.createdBy").value("테스터1닉네임"))
+                .andExpect(jsonPath("$.options[0].content").value("A. 맵고 얼큰한 라면"))
+                .andExpect(jsonPath("$.options[0].vote_count").value(60))
+                .andExpect(jsonPath("$.options[1].content").value("B. 부드러운 파스타"))
+                .andExpect(jsonPath("$.options[1].vote_count").value(40));
     }
 
     @Test
     @DisplayName("핫이슈 투표가 없을 때 404 Not Found를 반환한다.")
     void getHotIssueVote_NotFound() throws Exception {
-        // 모든 투표 삭제하여 핫이슈 투표가 없는 상태로 만듦
         commentGroupRepository.deleteAll();
         voteRepository.deleteAll();
 
-        mockMvc.perform(get("/votes/best") // GET 요청
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound()) // HTTP 상태 코드 404 Not Found 확인
-                .andExpect(jsonPath("$.error").value("핫이슈 투표를 찾을 수 없습니다.")) // 에러 메시지 확인
-                .andExpect(jsonPath("$.status").value(404)) // 상태 코드 확인
-                .andExpect(jsonPath("$.type").value("ApiException")); // 예외 타입 확인
+        mockMvc.perform(get("/votes/best").contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("핫이슈 투표를 찾을 수 없습니다."))
+                .andExpect(jsonPath("$.status").value(404));
+        // 참고: GlobalExceptionHandler에서 "type" 필드는 주석 처리되어 있음
     }
 
     @Test
     @DisplayName("동일한 반응성을 가진 투표 중 최신 투표를 조회한다.")
     void getHotIssueVote_SameTotalVoteCount_NewerIsHotIssue() throws Exception {
-        // 데이터 클린업
         commentGroupRepository.deleteAll();
         voteRepository.deleteAll();
 
-        // 멤버 생성
         Member member3 = Member.builder()
-                .socialId("kakao789")
-                .email("test3@example.com")
-                .name("테스터3")
+                .socialId("kakao789").email("test3@example.com").name("테스터3")
                 .profile_image_url("http://image.com/test3.jpg")
-                .kakaoAccessToken("token3")
-                .kakaoRefreshToken("refresh3")
-                .build();
+                .kakaoAccessToken("token3").kakaoRefreshToken("refresh3").build();
         memberRepository.save(member3);
 
-        MemberProfile profile3 = MemberProfile.builder()
-                .member(member3)
-                .nickname("테스터3닉네임")
-                .gender(Gender.MALE)
-                .age(Age.OVER_FORTY)
-                .mbti("INTP")
-                .build();
-        memberProfileRepository.save(profile3);
+        memberProfileRepository.save(MemberProfile.builder()
+                .member(member3).nickname("테스터3닉네임")
+                .gender(Gender.MALE).age(Age.OVER_FORTY).mbti("INTP").build());
 
-        // 오래된 투표 (반응성: 50)
         Vote oldVote = Vote.builder()
-                .category(VoteCategory.ETC)
-                .title("오래된 핫이슈 투표")
-                .totalVoteCount(50)
-                .reactivityScore(50) // 추가
-                .reactivityUpdatedAt(LocalDateTime.now().minusDays(3)) // 3일 전
-                .member(member3)
-                .pinType(PinType.NONE)
-                .build();
+                .category(VoteCategory.ETC).title("오래된 핫이슈 투표")
+                .totalVoteCount(50).reactivityScore(50)
+                .reactivityUpdatedAt(LocalDateTime.now().minusDays(3))
+                .member(member3).pinType(PinType.NONE).build();
         voteRepository.save(oldVote);
+        commentGroupRepository.save(CommentGroup.builder().vote(oldVote).totalCommentCount(0).build());
 
-        // CommentGroup 생성
-        CommentGroup commentGroup3 = CommentGroup.builder()
-                .vote(oldVote)
-                .totalCommentCount(0)
-                .build();
-        commentGroupRepository.save(commentGroup3);
-
-        // 새로운 투표 (동일한 반응성: 50, 하지만 더 최신)
         Vote newVote = Vote.builder()
-                .category(VoteCategory.LOVE)
-                .title("새로운 핫이슈 투표")
-                .totalVoteCount(50)
-                .reactivityScore(50) // 추가
-                .reactivityUpdatedAt(LocalDateTime.now()) // 현재 시간
-                .member(member3)
-                .pinType(PinType.NONE)
-                .build();
+                .category(VoteCategory.LOVE).title("새로운 핫이슈 투표")
+                .totalVoteCount(50).reactivityScore(50)
+                .reactivityUpdatedAt(LocalDateTime.now())
+                .member(member3).pinType(PinType.NONE).build();
         voteRepository.save(newVote);
+        commentGroupRepository.save(CommentGroup.builder().vote(newVote).totalCommentCount(0).build());
 
-        // CommentGroup 생성
-        CommentGroup commentGroup4 = CommentGroup.builder()
-                .vote(newVote)
-                .totalCommentCount(0)
-                .build();
-        commentGroupRepository.save(commentGroup4);
-
-        mockMvc.perform(get("/votes/best")
-                        .contentType(MediaType.APPLICATION_JSON))
+        mockMvc.perform(get("/votes/best").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.title").value("새로운 핫이슈 투표")) // 최신 투표가 선택
+                .andExpect(jsonPath("$.title").value("새로운 핫이슈 투표"))
                 .andExpect(jsonPath("$.totalParticipants").value(50))
                 .andExpect(jsonPath("$.createdBy").value("테스터3닉네임"));
+    }
+
+    @Test
+    @DisplayName("투표 목록 조회 시 목록 데이터와 연관 데이터를 고정된 쿼리 수로 조회한다.")
+    void getVotes_QueryCountIsStable() throws Exception {
+        Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        statistics.setStatisticsEnabled(true);
+        entityManager.flush();
+        entityManager.clear();
+        statistics.clear();
+
+        mockMvc.perform(get("/votes")
+                        .param("category", "ALL")
+                        .param("sort", "latest")
+                        .param("size", "10")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.votes.length()").value(2))
+                .andExpect(jsonPath("$.votes[0].nickname").value("테스터2닉네임"))
+                .andExpect(jsonPath("$.votes[1].nickname").value("테스터1닉네임"))
+                .andExpect(jsonPath("$.votes[1].options.length()").value(2))
+                .andExpect(jsonPath("$.has_next_page").value(false));
+
+        assertThat(statistics.getPrepareStatementCount()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("투표 목록 조회 시 size가 1보다 작으면 400 Bad Request를 반환한다.")
+    void getVotes_InvalidSize_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/votes")
+                        .param("size", "0")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("size는 1 이상이어야 합니다."))
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    @DisplayName("투표 목록 조회 시 잘못된 category는 400 Bad Request를 반환한다.")
+    void getVotes_InvalidCategory_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/votes")
+                        .param("category", "INVALID")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("category는 ALL, FOOD, LOVE, ETC 중 하나여야 합니다."))
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    @DisplayName("투표 목록 조회 시 잘못된 sort는 400 Bad Request를 반환한다.")
+    void getVotes_InvalidSort_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/votes")
+                        .param("sort", "oldest")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("sort는 latest 또는 popular 중 하나여야 합니다."))
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    @DisplayName("투표 목록 조회 시 latest cursor 형식이 잘못되면 400 Bad Request를 반환한다.")
+    void getVotes_InvalidLatestCursor_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/votes")
+                        .param("sort", "latest")
+                        .param("cursor", "2026-05-18T13:00:00")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("cursor 형식이 올바르지 않습니다."))
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    @DisplayName("투표 목록 조회 시 popular cursor 형식이 잘못되면 400 Bad Request를 반환한다.")
+    void getVotes_InvalidPopularCursor_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/votes")
+                        .param("sort", "popular")
+                        .param("cursor", "100_2026-05-18T13:00:00")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("cursor 형식이 올바르지 않습니다."))
+                .andExpect(jsonPath("$.status").value(400));
     }
 }

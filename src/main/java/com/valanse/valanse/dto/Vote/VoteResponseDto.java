@@ -14,15 +14,21 @@ public class VoteResponseDto {
     private String category;
     private int totalVoteCount;
     private String createdAt;
+    private String creatorTitle;
     private List<String> options;
 
     public VoteResponseDto(Vote vote) {
+        this(vote, null);
+    }
+
+    public VoteResponseDto(Vote vote, String creatorTitle) {
         this.voteId = vote.getId();
         this.title = vote.getTitle();
         this.content = vote.getContent(); // content 필드 추가
         this.category = vote.getCategory().name(); // enum to string
         this.totalVoteCount = vote.getTotalVoteCount();
         this.createdAt = vote.getCreatedAt().toLocalDate().toString();
+        this.creatorTitle = creatorTitle;
         this.options = vote.getVoteOptions()
                 .stream()
                 .map(option -> option.getContent())  //  VoteOption에서 content 추출

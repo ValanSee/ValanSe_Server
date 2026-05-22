@@ -34,6 +34,8 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
         QMemberVoteOption mvo = QMemberVoteOption.memberVoteOption;
         QVoteOption voteOption = QVoteOption.voteOption;
         QMemberProfile profile = QMemberProfile.memberProfile;
+        QMemberProfileTitle memberProfileTitle = QMemberProfileTitle.memberProfileTitle;
+        QTitle title = QTitle.title;
 
         NumberTemplate<Long> totalHoursAgo = Expressions.numberTemplate(
                 Long.class,
@@ -67,6 +69,7 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                         comment.id,
                         vote.id,
                         profile.nickname,
+                        title.name,
                         comment.createdAt,
                         vote.createdAt,
                         comment.content,
@@ -81,6 +84,8 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                 .from(comment)
                 .join(comment.member, member)
                 .leftJoin(member.profile, profile)
+                .leftJoin(profile.memberProfileTitles, memberProfileTitle).on(memberProfileTitle.equipped.isTrue())
+                .leftJoin(memberProfileTitle.title, title)
                 .join(comment.commentGroup.vote, vote)
                 .leftJoin(mvo).on(mvo.member.eq(member).and(mvo.vote.eq(vote)))
                 .leftJoin(mvo.voteOption, voteOption)
