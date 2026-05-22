@@ -12,6 +12,7 @@ public class CommentReplyResponseDto {
 
     private Long id;
     private String nickname;
+    private String title;
     private LocalDateTime createdAt;
     private String content;
     private int likeCount;

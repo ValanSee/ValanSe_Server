@@ -10,8 +10,8 @@ public record MemberMyPageResponse(
             String nickname,
             String gender,
             String age,
-            String mbti
+            String mbti,
+            String title,
+            long point
     ){}
 }
-
-

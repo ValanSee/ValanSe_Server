@@ -2,11 +2,18 @@ package com.valanse.valanse.service.MemberProfileService;
 
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
+import com.valanse.valanse.domain.MemberProfileTitle;
+import com.valanse.valanse.domain.Title;
+import com.valanse.valanse.domain.enums.PointType;
+import com.valanse.valanse.domain.enums.TitleAcquisitionType;
 import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 import com.valanse.valanse.repository.MemberProfileRepository;
+import com.valanse.valanse.repository.MemberProfileTitleRepository;
 import com.valanse.valanse.repository.MemberRepository;
+import com.valanse.valanse.repository.TitleRepository;
+import com.valanse.valanse.service.PointService.PointService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -22,6 +29,9 @@ public class MemberProfileServiceImpl implements MemberProfileService {
 
     private final MemberRepository memberRepository;
     private final MemberProfileRepository memberProfileRepository;
+    private final MemberProfileTitleRepository memberProfileTitleRepository;
+    private final TitleRepository titleRepository;
+    private final PointService pointService;
 
     @Override
     public void saveOrUpdateProfile(MemberProfileRequest dto) {
@@ -48,7 +58,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
 
             // 닉네임이 변경되었을 때만 중복 체크
             if (!profile.getNickname().equals(dto.nickname())) {
-                if (memberProfileRepository.existsByNickname(dto.nickname())) {
+                if (memberProfileRepository.existsByNicknameAndDeletedAtIsNull(dto.nickname())) {
                     throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
                 }
             }
@@ -57,8 +67,8 @@ public class MemberProfileServiceImpl implements MemberProfileService {
             profile.update(dto.nickname(), dto.gender(), dto.age(), dto.mbtiIe(), dto.mbtiTf(), dto.mbti());
             memberProfileRepository.save(profile);
         } else {
-            // ✅ 신규 생성: 무조건 중복 체크
-            if (memberProfileRepository.existsByNickname(dto.nickname())) {
+            // ✅ 신규 생성: 무조건 중복 체크 (soft delete된 회원 닉네임 제외)
+            if (memberProfileRepository.existsByNicknameAndDeletedAtIsNull(dto.nickname())) {
                 throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
             }
 
@@ -73,7 +83,11 @@ public class MemberProfileServiceImpl implements MemberProfileService {
                     .mbti(dto.mbti())
                     .build();
 
-            memberProfileRepository.save(newProfile);
+            MemberProfile savedProfile = memberProfileRepository.save(newProfile);
+            grantAndEquipDefaultTitle(savedProfile != null ? savedProfile : newProfile);
+
+            // 신규 프로필 생성 시 회원가입 포인트 지급
+            pointService.givePoint(userId, PointType.SIGN_UP);
         }
     }
 
@@ -99,7 +113,9 @@ public class MemberProfileServiceImpl implements MemberProfileService {
                 profile.getMbtiIe() != null ? profile.getMbtiIe().name() : null,
                 profile.getMbtiTf() != null ? profile.getMbtiTf().name() : null,
                 profile.getMbti() != null ? profile.getMbti() : null,
-                member.getRole() != null ? member.getRole() : null
+                member.getRole() != null ? member.getRole() : null,
+                getEquippedTitleName(profile),
+                profile.getPoint()
         );
 
         return new MemberProfileResponse(info);
@@ -107,7 +123,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
 
     @Override
     public boolean isAvailableNickname(String nickname) {
-        return !memberProfileRepository.existsByNickname(nickname);
+        return !memberProfileRepository.existsByNicknameAndDeletedAtIsNull(nickname);
     }
 
     @Override
@@ -209,9 +225,40 @@ public class MemberProfileServiceImpl implements MemberProfileService {
                 profile.getNickname(),
                 profile.getGender() != null ? profile.getGender().name() : null,
                 profile.getAge() != null ? profile.getAge().name() : null,
-                profile.getMbti() != null ? profile.getMbti() : null
+                profile.getMbti() != null ? profile.getMbti() : null,
+                getEquippedTitleName(profile),
+                profile.getPoint()
         );
 
         return new MemberMyPageResponse(info);
     }
+
+    private String getEquippedTitleName(MemberProfile profile) {
+        return profile.getMemberProfileTitles().stream()
+                .filter(MemberProfileTitle::isEquipped)
+                .map(MemberProfileTitle::getTitle)
+                .filter(title -> title != null)
+                .map(title -> title.getName())
+                .findFirst()
+                .orElse(null);
+    }
+
+    private void grantAndEquipDefaultTitle(MemberProfile profile) {
+        Optional<Title> defaultTitle = titleRepository
+                .findFirstByActiveTrueAndAcquisitionTypeOrderByDisplayOrderAscIdAsc(TitleAcquisitionType.DEFAULT);
+
+        if (defaultTitle == null || defaultTitle.isEmpty()) {
+            return;
+        }
+
+        MemberProfileTitle profileTitle = MemberProfileTitle.builder()
+                .memberProfile(profile)
+                .title(defaultTitle.get())
+                .equipped(true)
+                .build();
+
+        memberProfileTitleRepository.save(profileTitle);
+        profile.getMemberProfileTitles().add(profileTitle);
+    }
+
 }
