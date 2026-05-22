@@ -26,12 +26,3 @@ oauth:
   kakao:
     client-id: test-client-id
     redirect-uri: http://localhost
-
-cloudflare:
-  r2:
-    account-id: test-account-id
-    endpoint: http://localhost:9000
-    bucket: test-bucket
-    access-key: test-access-key
-    secret-key: test-secret-key
-    public-url: http://localhost:9000/test-bucket
