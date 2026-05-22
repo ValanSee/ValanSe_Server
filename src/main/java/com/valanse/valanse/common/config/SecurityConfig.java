@@ -102,7 +102,6 @@ public class SecurityConfig {
                 "https://valan-se-web.vercel.app",
                 "https://valanse.kr",
                 "https://develop.valanse.kr",
-                "https://valanserver.store",
                 "http://valanserver.store",
                 "http://valanserver.store:8080",
                 "http://valanserver.store:8081",
