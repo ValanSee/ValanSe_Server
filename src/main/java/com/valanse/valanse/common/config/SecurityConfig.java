@@ -62,6 +62,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/votes/*/vote-options/*").authenticated()
                         .requestMatchers(HttpMethod.POST, "/votes/*/comments").authenticated()
                         .requestMatchers(HttpMethod.POST, "/comments/*/like").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/storage/images").authenticated()
 
                         // PUT - 인증 필요 (수정)
                         .requestMatchers(HttpMethod.PUT, "/votes/*").authenticated()
