@@ -62,6 +62,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/votes/*/vote-options/*").authenticated()
                         .requestMatchers(HttpMethod.POST, "/votes/*/comments").authenticated()
                         .requestMatchers(HttpMethod.POST, "/comments/*/like").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/storage/images").authenticated()
 
                         // PUT - 인증 필요 (수정)
                         .requestMatchers(HttpMethod.PUT, "/votes/*").authenticated()
@@ -100,14 +101,8 @@ public class SecurityConfig {
                 "https://test-front-security.netlify.app",
                 "https://valan-se-web.vercel.app",
                 "https://valanse.kr",
+                "https://www.valanse.kr",
                 "https://develop.valanse.kr",
-                "https://backendbase.store",
-                "http://backendbase.store:8080",
-                "http://backendbase.store:8081",
-                "http://backendbase.store:8082",
-                "https://backendbase.store:8080",
-                "https://backendbase.store:8081",
-                "https://backendbase.store:8082",
                 "http://valanserver.store",
                 "http://valanserver.store:8080",
                 "http://valanserver.store:8081",
@@ -118,7 +113,12 @@ public class SecurityConfig {
         ));
         configuration.setAllowedOriginPatterns(Arrays.asList(
                 "http://localhost:*",
-                "http://127.0.0.1:*"
+                "http://127.0.0.1:*",
+                "https://*.valanse.kr",
+                "https://*.vercel.app",
+                "https://*.netlify.app",
+                "http://valanserver.store:[*]",
+                "https://valanserver.store:[*]"
         ));
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
