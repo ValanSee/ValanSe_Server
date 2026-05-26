@@ -101,6 +101,7 @@ public class SecurityConfig {
                 "https://test-front-security.netlify.app",
                 "https://valan-se-web.vercel.app",
                 "https://valanse.kr",
+                "https://www.valanse.kr",
                 "https://develop.valanse.kr",
                 "http://valanserver.store",
                 "http://valanserver.store:8080",
@@ -112,7 +113,12 @@ public class SecurityConfig {
         ));
         configuration.setAllowedOriginPatterns(Arrays.asList(
                 "http://localhost:*",
-                "http://127.0.0.1:*"
+                "http://127.0.0.1:*",
+                "https://*.valanse.kr",
+                "https://*.vercel.app",
+                "https://*.netlify.app",
+                "http://valanserver.store:[*]",
+                "https://valanserver.store:[*]"
         ));
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
