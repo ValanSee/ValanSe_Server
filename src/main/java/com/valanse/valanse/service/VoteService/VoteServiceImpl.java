@@ -458,13 +458,13 @@ public class VoteServiceImpl implements VoteService {
 
     private void validateCategory(String category) {
         if (category == null || category.isBlank()) {
-            throw new ApiException("category는 ALL, FOOD, LOVE, ETC 중 하나여야 합니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException("category는 ALL, FOOD, LOVE, BUY, SPORT, WORRY, ETC 중 하나여야 합니다.", HttpStatus.BAD_REQUEST);
         }
 
         try {
             VoteCategory.valueOf(category.toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new ApiException("category는 ALL, FOOD, LOVE, ETC 중 하나여야 합니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException("category는 ALL, FOOD, LOVE, BUY, SPORT, WORRY, ETC 중 하나여야 합니다.", HttpStatus.BAD_REQUEST);
         }
     }
 

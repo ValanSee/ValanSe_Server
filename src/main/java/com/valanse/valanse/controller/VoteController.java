@@ -156,7 +156,7 @@ public class VoteController {
     @Operation(
             summary = "투표 생성",
             description = "새로운 투표와 해당 투표의 옵션을 생성합니다. 각 투표는 최대 4개의 옵션을 가질 수 있습니다. \n" +
-                    " Category에는 ETC ,FOOD , LOVE 이 3가지만 올 수 있습니다. 내부에서 ENUM으로 처리됩니다."
+                    " Category에는 FOOD, LOVE, BUY, SPORT, WORRY, ETC 이 6가지만 올 수 있습니다. 내부에서 ENUM으로 처리됩니다."
     )
     @PostMapping
     public ResponseEntity<VoteCreateResponse> createVote(
@@ -169,8 +169,8 @@ public class VoteController {
 
 @Operation(
         summary = "카테고리별/정렬 방식별 투표 목록 조회",
-        description = "카테고리와 정렬 기준에 따라 투표 목록을 조회합니다. 'category' 파라미터는 'ETC', 'FOOD', 'LOVE', 'ALL' 중 하나를 받을 수 있으며, 'sort' 파라미터는 'popular' (인기순) 또는 'latest' (최신순) 중 하나를 받습니다. 페이징을 지원합니다. \n" +
-                " ALL은 대소문자 구분없이 String으로 내부에서 처리합니다. LOVE ,FOOD ,ETC는 enum 타입으로 내부에서 처리됩니다. 만약에 category와 sort 파라미터가 없다면 모두 기본값인 ALL 과 latest로 자동 처리됩니다.\n" +
+        description = "카테고리와 정렬 기준에 따라 투표 목록을 조회합니다. 'category' 파라미터는 'ALL', 'FOOD', 'LOVE', 'BUY', 'SPORT', 'WORRY', 'ETC' 중 하나를 받을 수 있으며, 'sort' 파라미터는 'popular' (인기순) 또는 'latest' (최신순) 중 하나를 받습니다. 페이징을 지원합니다. \n" +
+                " ALL은 대소문자 구분없이 String으로 내부에서 처리합니다. FOOD, LOVE, BUY, SPORT, WORRY, ETC는 enum 타입으로 내부에서 처리됩니다. 만약에 category와 sort 파라미터가 없다면 모두 기본값인 ALL 과 latest로 자동 처리됩니다.\n" +
                 " 그러나 category = , sort= 와 같이 =뒤에 비어있는 경우는 불가능합니다. 아예 존재하지 않을 경우만 기본값으로 설정됩니다."
 )
 @GetMapping
