@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
         servers = {
                 @Server(url = "http://localhost:8080", description = "로컬 개발 서버"),
                 @Server(url = "http://valanserver.store:8080", description = "운영 서버 (prod)"),
-                @Server(url = "http://valanserver.store:8081", description = "개발 서버 (dev)"),
+                @Server(url = "http://valanserver.store/dev-server", description = "개발 서버 (dev)"),
                 @Server(url = "https://valanserver.store", description = "HTTPS 배포 서버")
      }
 )
