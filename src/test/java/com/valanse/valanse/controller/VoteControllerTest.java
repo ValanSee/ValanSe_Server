@@ -211,7 +211,7 @@ public class VoteControllerTest {
                         .param("category", "INVALID")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("category는 ALL, FOOD, LOVE, ETC 중 하나여야 합니다."))
+                .andExpect(jsonPath("$.error").value("category는 ALL, FOOD, LOVE, BUY, SPORT, WORRY, ETC 중 하나여야 합니다."))
                 .andExpect(jsonPath("$.status").value(400));
     }
 
