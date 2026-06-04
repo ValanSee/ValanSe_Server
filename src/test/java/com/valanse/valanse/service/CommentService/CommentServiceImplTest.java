@@ -1,5 +1,8 @@
 package com.valanse.valanse.service.CommentService;
 
+import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.AuthErrorMessage;
+import com.valanse.valanse.common.message.CommentErrorMessage;
 import com.valanse.valanse.domain.*;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.dto.Comment.BestCommentResponseDto;
@@ -14,6 +17,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 
 import java.util.Optional;
 
@@ -324,25 +328,29 @@ class CommentServiceImplTest {
         when(commentRepository.findById(10L)).thenReturn(Optional.of(comment));
 
         // when & then
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        ApiException exception = assertThrows(
+                ApiException.class,
                 () -> commentService.deleteMyComment(otherUser, 10L)
         );
 
-        assertThat(exception.getMessage()).isEqualTo("삭제 권한 없음");
+        assertThat(exception.getMessage()).isEqualTo(AuthErrorMessage.DELETE_PERMISSION_DENIED.message());
+        assertThat(exception.getStatus()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
-    @DisplayName("존재하지 않는 댓글 삭제 시도 - 조용히 무시")
+    @DisplayName("존재하지 않는 댓글 삭제 시도 시 404 예외 발생")
     void 존재하지않는댓글삭제_test() {
         // given
         when(commentRepository.findById(999L)).thenReturn(Optional.empty());
 
-        // when
-        commentService.deleteMyComment(member, 999L);
+        // when & then
+        ApiException exception = assertThrows(
+                ApiException.class,
+                () -> commentService.deleteMyComment(member, 999L)
+        );
 
-        // then
-        // ifPresentOrElse의 orElse 분기로 가서 로그만 출력
+        assertThat(exception.getMessage()).isEqualTo(CommentErrorMessage.COMMENT_NOT_FOUND.message());
+        assertThat(exception.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
         verify(commentRepository, never()).save(any());
         verify(commentGroupRepository, never()).save(any());
     }

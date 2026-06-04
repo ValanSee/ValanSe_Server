@@ -1,5 +1,7 @@
 package com.valanse.valanse.service.MemberProfileService;
 
+import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.MemberErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.MemberProfileTitle;
@@ -15,6 +17,7 @@ import com.valanse.valanse.repository.MemberRepository;
 import com.valanse.valanse.repository.TitleRepository;
 import com.valanse.valanse.service.PointService.PointService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,15 +41,17 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
 
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
+                .orElseThrow(() -> apiException(MemberErrorMessage.MEMBER_NOT_FOUND, HttpStatus.NOT_FOUND));
+
+        validateNickname(dto.nickname());
 
         // ✅ 추가: MBTI 검증
         if (dto.mbtiIe() == null || dto.mbtiTf() == null) {
-            throw new IllegalArgumentException("MBTI를 모두 선택해주세요");
+            throw apiException(MemberErrorMessage.MBTI_REQUIRED, HttpStatus.BAD_REQUEST);
         }
 
         if (dto.mbti() == null || dto.mbti().length() != 4) {
-            throw new IllegalArgumentException("MBTI는 4자리여야 합니다 (예: ENFP)");
+            throw apiException(MemberErrorMessage.MBTI_INVALID_LENGTH, HttpStatus.BAD_REQUEST);
         }
 
         // 기존 프로필 조회
@@ -59,7 +64,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
             // 닉네임이 변경되었을 때만 중복 체크
             if (!profile.getNickname().equals(dto.nickname())) {
                 if (memberProfileRepository.existsByNicknameAndDeletedAtIsNull(dto.nickname())) {
-                    throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
+                    throw apiException(MemberErrorMessage.NICKNAME_DUPLICATED, HttpStatus.BAD_REQUEST);
                 }
             }
 
@@ -69,7 +74,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         } else {
             // ✅ 신규 생성: 무조건 중복 체크 (soft delete된 회원 닉네임 제외)
             if (memberProfileRepository.existsByNicknameAndDeletedAtIsNull(dto.nickname())) {
-                throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
+                throw apiException(MemberErrorMessage.NICKNAME_DUPLICATED, HttpStatus.BAD_REQUEST);
             }
 
             // 새 객체 생성 후 저장
@@ -97,7 +102,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
 
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
+                .orElseThrow(() -> apiException(MemberErrorMessage.MEMBER_NOT_FOUND, HttpStatus.NOT_FOUND));
 
         MemberProfile profile = memberProfileRepository.findByMemberId(userId)
                 .orElse(null);
@@ -180,6 +185,24 @@ public class MemberProfileServiceImpl implements MemberProfileService {
             return false;
         }
         return true;
+    }
+
+    private void validateNickname(String nickname) {
+        if (nickname == null || nickname.isBlank()) {
+            throw apiException(MemberErrorMessage.NICKNAME_REQUIRED, HttpStatus.BAD_REQUEST);
+        }
+
+        if (!isMeaningfulNickname(nickname)) {
+            throw apiException(MemberErrorMessage.NICKNAME_INVALID_FORMAT, HttpStatus.BAD_REQUEST);
+        }
+
+        if (!isCleanNickname(nickname)) {
+            throw apiException(MemberErrorMessage.NICKNAME_NOT_CLEAN, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private ApiException apiException(MemberErrorMessage errorMessage, HttpStatus status) {
+        return new ApiException(errorMessage.message(), status);
     }
 
     private static final Set<String> BAD_WORDS = Set.of(

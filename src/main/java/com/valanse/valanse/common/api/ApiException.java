@@ -19,4 +19,3 @@ public class ApiException extends RuntimeException {
         return status;
     }
 }
-

@@ -1,5 +1,8 @@
 package com.valanse.valanse.service.CommentLikeService;
 
+import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.CommentErrorMessage;
+import com.valanse.valanse.common.message.MemberErrorMessage;
 import com.valanse.valanse.domain.Comment;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.mapping.CommentLike;
@@ -8,6 +11,7 @@ import com.valanse.valanse.repository.CommentLikeRepository;
 import com.valanse.valanse.repository.CommentRepository;
 import com.valanse.valanse.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,10 +31,10 @@ public class CommentLikeServiceImpl implements CommentLikeService {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
 
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
+                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new IllegalArgumentException("댓글이 존재하지 않습니다."));
+                .orElseThrow(() -> new ApiException(CommentErrorMessage.COMMENT_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         // 이미 좋아요한 경우 → 좋아요 취소
         commentLikeRepository.findByUserIdAndCommentId(userId, commentId).ifPresentOrElse(existingLike -> {

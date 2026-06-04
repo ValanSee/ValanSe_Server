@@ -1,5 +1,7 @@
 package com.valanse.valanse.controller;
 
+import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.MemberErrorMessage;
 import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
@@ -19,6 +21,7 @@ import com.valanse.valanse.service.TitleService.TitleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -46,24 +49,24 @@ public class MemberController {
     public ResponseEntity<Void> saveProfile(@RequestBody MemberProfileRequest dto) {
         // ✅ 추가: 입력값 기본 검증
         if (dto.nickname() == null || dto.nickname().trim().isEmpty()) {
-            throw new IllegalArgumentException("닉네임을 입력해주세요");
+            throw new ApiException(MemberErrorMessage.NICKNAME_REQUIRED.message(), HttpStatus.BAD_REQUEST);
         }
 
         if (dto.gender() == null) {
-            throw new IllegalArgumentException("성별을 선택해주세요");
+            throw new ApiException(MemberErrorMessage.GENDER_REQUIRED.message(), HttpStatus.BAD_REQUEST);
         }
 
         if (dto.age() == null) {
-            throw new IllegalArgumentException("나이를 선택해주세요");
+            throw new ApiException(MemberErrorMessage.AGE_REQUIRED.message(), HttpStatus.BAD_REQUEST);
         }
 
         // MBTI 검증 (Service에서도 한 번 더 검증)
         if (dto.mbtiIe() == null || dto.mbtiTf() == null) {
-            throw new IllegalArgumentException("MBTI를 모두 선택해주세요");
+            throw new ApiException(MemberErrorMessage.MBTI_REQUIRED.message(), HttpStatus.BAD_REQUEST);
         }
 
         if (dto.mbti() == null || dto.mbti().length() != 4) {
-            throw new IllegalArgumentException("MBTI는 4자리여야 합니다 (예: ENFP)");
+            throw new ApiException(MemberErrorMessage.MBTI_INVALID_LENGTH.message(), HttpStatus.BAD_REQUEST);
         }
 
         memberProfileService.saveOrUpdateProfile(dto);
