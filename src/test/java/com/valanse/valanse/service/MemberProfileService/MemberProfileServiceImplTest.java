@@ -301,6 +301,48 @@ class MemberProfileServiceImplTest {
     }
 
     @Test
+    @DisplayName("프로필 저장 시 닉네임 형식이 올바르지 않으면 에러 코드를 반환한다")
+    void 닉네임_형식_유효성_실패() {
+        MemberProfileRequest request = new MemberProfileRequest(
+                "테스트!",
+                Gender.MALE,
+                Age.TWENTY,
+                MbtiIe.E,
+                MbtiTf.T,
+                "ENTP"
+        );
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> memberProfileService.saveOrUpdateProfile(request));
+        assertThat(ex.getMessage()).isEqualTo(MemberErrorMessage.NICKNAME_INVALID_FORMAT.message());
+        verify(memberProfileRepository, never()).findByMemberId(any());
+        verify(memberProfileRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("프로필 저장 시 금칙어 닉네임이면 에러 코드를 반환한다")
+    void 닉네임_금칙어_유효성_실패() {
+        MemberProfileRequest request = new MemberProfileRequest(
+                "시발",
+                Gender.MALE,
+                Age.TWENTY,
+                MbtiIe.E,
+                MbtiTf.T,
+                "ENTP"
+        );
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> memberProfileService.saveOrUpdateProfile(request));
+        assertThat(ex.getMessage()).isEqualTo(MemberErrorMessage.NICKNAME_NOT_CLEAN.message());
+        verify(memberProfileRepository, never()).findByMemberId(any());
+        verify(memberProfileRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("닉네임 변경 시 활성 회원과 중복 - '이미 사용 중인 닉네임입니다' 에러")
     void 닉네임_변경시_활성회원_중복_에러() {
         MemberProfile existingProfile = MemberProfile.builder()

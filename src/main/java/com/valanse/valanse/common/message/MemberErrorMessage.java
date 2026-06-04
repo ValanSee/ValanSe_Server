@@ -3,6 +3,8 @@ package com.valanse.valanse.common.message;
 public enum MemberErrorMessage {
     MEMBER_NOT_FOUND("회원이 존재하지 않습니다."),
     NICKNAME_REQUIRED("닉네임을 입력해주세요"),
+    NICKNAME_INVALID_FORMAT("닉네임 형식이 올바르지 않습니다."),
+    NICKNAME_NOT_CLEAN("사용할 수 없는 닉네임입니다."),
     GENDER_REQUIRED("성별을 선택해주세요"),
     AGE_REQUIRED("나이를 선택해주세요"),
     MBTI_REQUIRED("MBTI를 모두 선택해주세요"),

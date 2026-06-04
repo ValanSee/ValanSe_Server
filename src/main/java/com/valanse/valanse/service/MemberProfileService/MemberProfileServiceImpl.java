@@ -41,15 +41,17 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
 
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> apiException(MemberErrorMessage.MEMBER_NOT_FOUND, HttpStatus.NOT_FOUND));
+
+        validateNickname(dto.nickname());
 
         // ✅ 추가: MBTI 검증
         if (dto.mbtiIe() == null || dto.mbtiTf() == null) {
-            throw new ApiException(MemberErrorMessage.MBTI_REQUIRED.message(), HttpStatus.BAD_REQUEST);
+            throw apiException(MemberErrorMessage.MBTI_REQUIRED, HttpStatus.BAD_REQUEST);
         }
 
         if (dto.mbti() == null || dto.mbti().length() != 4) {
-            throw new ApiException(MemberErrorMessage.MBTI_INVALID_LENGTH.message(), HttpStatus.BAD_REQUEST);
+            throw apiException(MemberErrorMessage.MBTI_INVALID_LENGTH, HttpStatus.BAD_REQUEST);
         }
 
         // 기존 프로필 조회
@@ -62,7 +64,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
             // 닉네임이 변경되었을 때만 중복 체크
             if (!profile.getNickname().equals(dto.nickname())) {
                 if (memberProfileRepository.existsByNicknameAndDeletedAtIsNull(dto.nickname())) {
-                    throw new ApiException(MemberErrorMessage.NICKNAME_DUPLICATED.message(), HttpStatus.BAD_REQUEST);
+                    throw apiException(MemberErrorMessage.NICKNAME_DUPLICATED, HttpStatus.BAD_REQUEST);
                 }
             }
 
@@ -72,7 +74,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         } else {
             // ✅ 신규 생성: 무조건 중복 체크 (soft delete된 회원 닉네임 제외)
             if (memberProfileRepository.existsByNicknameAndDeletedAtIsNull(dto.nickname())) {
-                throw new ApiException(MemberErrorMessage.NICKNAME_DUPLICATED.message(), HttpStatus.BAD_REQUEST);
+                throw apiException(MemberErrorMessage.NICKNAME_DUPLICATED, HttpStatus.BAD_REQUEST);
             }
 
             // 새 객체 생성 후 저장
@@ -100,7 +102,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
 
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> apiException(MemberErrorMessage.MEMBER_NOT_FOUND, HttpStatus.NOT_FOUND));
 
         MemberProfile profile = memberProfileRepository.findByMemberId(userId)
                 .orElse(null);
@@ -183,6 +185,24 @@ public class MemberProfileServiceImpl implements MemberProfileService {
             return false;
         }
         return true;
+    }
+
+    private void validateNickname(String nickname) {
+        if (nickname == null || nickname.isBlank()) {
+            throw apiException(MemberErrorMessage.NICKNAME_REQUIRED, HttpStatus.BAD_REQUEST);
+        }
+
+        if (!isMeaningfulNickname(nickname)) {
+            throw apiException(MemberErrorMessage.NICKNAME_INVALID_FORMAT, HttpStatus.BAD_REQUEST);
+        }
+
+        if (!isCleanNickname(nickname)) {
+            throw apiException(MemberErrorMessage.NICKNAME_NOT_CLEAN, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private ApiException apiException(MemberErrorMessage errorMessage, HttpStatus status) {
+        return new ApiException(errorMessage.message(), status);
     }
 
     private static final Set<String> BAD_WORDS = Set.of(
