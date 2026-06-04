@@ -1,5 +1,7 @@
 package com.valanse.valanse.service.MemberProfileService;
 
+import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.MemberErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.MemberProfileTitle;
@@ -155,11 +157,11 @@ class MemberProfileServiceImplTest {
                 .thenReturn(true);
 
         // when & then
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        ApiException exception = assertThrows(
+                ApiException.class,
                 () -> memberProfileService.saveOrUpdateProfile(request)
         );
-        assertThat(exception.getMessage()).isEqualTo("이미 사용 중인 닉네임입니다.");
+        assertThat(exception.getMessage()).isEqualTo(MemberErrorMessage.NICKNAME_DUPLICATED.message());
         verify(memberProfileRepository, never()).save(any());
     }
 
@@ -252,9 +254,9 @@ class MemberProfileServiceImplTest {
         );
         when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ApiException ex = assertThrows(ApiException.class,
                 () -> memberProfileService.saveOrUpdateProfile(request));
-        assertThat(ex.getMessage()).isEqualTo("MBTI는 4자리여야 합니다 (예: ENFP)");
+        assertThat(ex.getMessage()).isEqualTo(MemberErrorMessage.MBTI_INVALID_LENGTH.message());
         verify(memberProfileRepository, never()).save(any());
     }
 
@@ -266,9 +268,9 @@ class MemberProfileServiceImplTest {
         );
         when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ApiException ex = assertThrows(ApiException.class,
                 () -> memberProfileService.saveOrUpdateProfile(request));
-        assertThat(ex.getMessage()).isEqualTo("MBTI는 4자리여야 합니다 (예: ENFP)");
+        assertThat(ex.getMessage()).isEqualTo(MemberErrorMessage.MBTI_INVALID_LENGTH.message());
     }
 
     @Test
@@ -279,9 +281,9 @@ class MemberProfileServiceImplTest {
         );
         when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ApiException ex = assertThrows(ApiException.class,
                 () -> memberProfileService.saveOrUpdateProfile(request));
-        assertThat(ex.getMessage()).isEqualTo("MBTI를 모두 선택해주세요");
+        assertThat(ex.getMessage()).isEqualTo(MemberErrorMessage.MBTI_REQUIRED.message());
         verify(memberProfileRepository, never()).save(any());
     }
 
@@ -293,9 +295,9 @@ class MemberProfileServiceImplTest {
         );
         when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ApiException ex = assertThrows(ApiException.class,
                 () -> memberProfileService.saveOrUpdateProfile(request));
-        assertThat(ex.getMessage()).isEqualTo("MBTI를 모두 선택해주세요");
+        assertThat(ex.getMessage()).isEqualTo(MemberErrorMessage.MBTI_REQUIRED.message());
     }
 
     @Test
@@ -315,9 +317,9 @@ class MemberProfileServiceImplTest {
         when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.of(existingProfile));
         when(memberProfileRepository.existsByNicknameAndDeletedAtIsNull("중복닉네임")).thenReturn(true);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ApiException ex = assertThrows(ApiException.class,
                 () -> memberProfileService.saveOrUpdateProfile(request));
-        assertThat(ex.getMessage()).isEqualTo("이미 사용 중인 닉네임입니다.");
+        assertThat(ex.getMessage()).isEqualTo(MemberErrorMessage.NICKNAME_DUPLICATED.message());
         verify(memberProfileRepository, never()).save(any());
     }
 
