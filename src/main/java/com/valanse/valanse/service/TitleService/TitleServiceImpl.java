@@ -1,6 +1,9 @@
 package com.valanse.valanse.service.TitleService;
 
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.AuthErrorMessage;
+import com.valanse.valanse.common.message.MemberErrorMessage;
+import com.valanse.valanse.common.message.ProfileErrorMessage;
 import com.valanse.valanse.common.message.TitleErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
@@ -48,7 +51,7 @@ public class TitleServiceImpl implements TitleService {
     @Override
     public TitleListResponse getTitleList(Long userId) {
         MemberProfile profile = memberProfileRepository.findByMemberId(userId)
-                .orElseThrow(() -> new ApiException(TitleErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(ProfileErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         List<Title> titles = titleRepository.findAllByActiveTrueOrderByDisplayOrderAscIdAsc();
         List<MemberProfileTitle> profileTitles = memberProfileTitleRepository.findAllByMemberProfileMemberId(userId);
@@ -107,7 +110,7 @@ public class TitleServiceImpl implements TitleService {
     @Override
     public TitleEquipResponse equipTitle(Long userId, Long titleId) {
         memberProfileRepository.findByMemberId(userId)
-                .orElseThrow(() -> new ApiException(TitleErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(ProfileErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         MemberProfileTitle targetTitle = memberProfileTitleRepository
                 .findByMemberProfileMemberIdAndTitleId(userId, titleId)
@@ -131,7 +134,7 @@ public class TitleServiceImpl implements TitleService {
     @Override
     public TitlePurchaseResponse purchaseTitle(Long userId, Long titleId) {
         MemberProfile profile = memberProfileRepository.findByMemberId(userId)
-                .orElseThrow(() -> new ApiException(TitleErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(ProfileErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         Title title = titleRepository.findById(titleId)
                 .orElseThrow(() -> new ApiException(TitleErrorMessage.TITLE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
@@ -274,9 +277,9 @@ public class TitleServiceImpl implements TitleService {
 
     private void validateAdmin(Long adminUserId) {
         Member admin = memberRepository.findByIdAndDeletedAtIsNull(adminUserId)
-                .orElseThrow(() -> new ApiException(TitleErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
         if (admin.getRole() != Role.ADMIN) {
-            throw new ApiException(TitleErrorMessage.ADMIN_ONLY.message(), HttpStatus.FORBIDDEN);
+            throw new ApiException(AuthErrorMessage.ADMIN_ONLY.message(), HttpStatus.FORBIDDEN);
         }
     }
 

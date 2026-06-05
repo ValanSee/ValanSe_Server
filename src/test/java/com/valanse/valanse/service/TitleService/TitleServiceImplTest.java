@@ -1,6 +1,8 @@
 package com.valanse.valanse.service.TitleService;
 
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.AuthErrorMessage;
+import com.valanse.valanse.common.message.ProfileErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.MemberProfileTitle;
@@ -211,7 +213,7 @@ class TitleServiceImplTest {
                 () -> titleService.equipTitle(1L, 1L)
         );
 
-        assertThat(exception.getMessage()).isEqualTo("프로필이 존재하지 않습니다.");
+        assertThat(exception.getMessage()).isEqualTo(ProfileErrorMessage.PROFILE_NOT_FOUND.message());
         assertThat(exception.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
         verify(memberProfileTitleRepository, never()).findByMemberProfileMemberIdAndTitleId(1L, 1L);
     }
@@ -344,7 +346,7 @@ class TitleServiceImplTest {
                 () -> titleService.createTitle(1L, validCreateRequest())
         );
 
-        assertThat(exception.getMessage()).isEqualTo("관리자만 접근 가능합니다.");
+        assertThat(exception.getMessage()).isEqualTo(AuthErrorMessage.ADMIN_ONLY.message());
         verify(titleRepository, never()).save(any());
     }
 
@@ -461,7 +463,7 @@ class TitleServiceImplTest {
                 () -> titleService.updateTitle(1L, 2L, validUpdateRequest())
         );
 
-        assertThat(exception.getMessage()).isEqualTo("관리자만 접근 가능합니다.");
+        assertThat(exception.getMessage()).isEqualTo(AuthErrorMessage.ADMIN_ONLY.message());
         verify(titleRepository, never()).findById(2L);
     }
 
@@ -532,7 +534,7 @@ class TitleServiceImplTest {
                 () -> titleService.deleteTitle(1L, 2L)
         );
 
-        assertThat(exception.getMessage()).isEqualTo("관리자만 접근 가능합니다.");
+        assertThat(exception.getMessage()).isEqualTo(AuthErrorMessage.ADMIN_ONLY.message());
         verify(titleRepository, never()).findById(2L);
     }
 

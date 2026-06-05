@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime; // 기존 코드에 있었으므로 유지
+import java.util.Arrays;
 import java.util.List; // 기존 코드에 있었으므로 유지
 import java.util.Optional; // Optional 임포트 추가 (processVote 메서드에서 사용)
 import java.util.stream.Collectors; // 기존 코드에 있었으므로 유지
@@ -463,9 +464,9 @@ public class VoteServiceImpl implements VoteService {
             throw new ApiException(VoteErrorMessage.CATEGORY_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
 
-        try {
-            VoteCategory.valueOf(category.toUpperCase());
-        } catch (IllegalArgumentException e) {
+        boolean validCategory = Arrays.stream(VoteCategory.values())
+                .anyMatch(voteCategory -> voteCategory.name().equalsIgnoreCase(category));
+        if (!validCategory) {
             throw new ApiException(VoteErrorMessage.CATEGORY_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
     }
@@ -493,7 +494,7 @@ public class VoteServiceImpl implements VoteService {
             if ("popular".equalsIgnoreCase(sort)) {
                 String[] parts = cursor.split("_");
                 if (parts.length != 3) {
-                    throw new IllegalArgumentException();
+                    throw new ApiException(VoteErrorMessage.CURSOR_INVALID.message(), HttpStatus.BAD_REQUEST);
                 }
                 Integer.parseInt(parts[0]);
                 LocalDateTime.parse(parts[1]);
@@ -501,7 +502,7 @@ public class VoteServiceImpl implements VoteService {
             } else {
                 String[] parts = cursor.split("_");
                 if (parts.length != 2) {
-                    throw new IllegalArgumentException();
+                    throw new ApiException(VoteErrorMessage.CURSOR_INVALID.message(), HttpStatus.BAD_REQUEST);
                 }
                 LocalDateTime.parse(parts[0]);
                 Long.parseLong(parts[1]);
@@ -518,7 +519,7 @@ public class VoteServiceImpl implements VoteService {
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_DETAIL_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new ApiException(VoteErrorMessage.USER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         // 권한 확인 - 자기 자신 혹은 관리자
         if (!vote.getMember().getId().equals(userId) && member.getRole() != Role.ADMIN) {

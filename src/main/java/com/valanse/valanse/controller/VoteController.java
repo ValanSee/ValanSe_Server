@@ -1,5 +1,7 @@
 // src/main/java/com/valanse/valanse/controller/VoteController.java
 package com.valanse.valanse.controller;
+import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.VoteErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.PinType;
 import com.valanse.valanse.service.MemberService.MemberService;
@@ -10,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,6 +21,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import com.valanse.valanse.domain.enums.VoteCategory;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Slf4j
@@ -73,11 +77,10 @@ public class VoteController {
     }
 
     private VoteCategory convertCategory(String category) {
-        try {
-            return VoteCategory.valueOf(category.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid category: " + category);
-        }
+        return Arrays.stream(VoteCategory.values())
+                .filter(voteCategory -> voteCategory.name().equalsIgnoreCase(category))
+                .findFirst()
+                .orElseThrow(() -> new ApiException(VoteErrorMessage.CATEGORY_INVALID.message(), HttpStatus.BAD_REQUEST));
     }
 
    //여기서 부터 영서 부분

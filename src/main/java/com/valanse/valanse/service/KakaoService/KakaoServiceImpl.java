@@ -2,6 +2,7 @@ package com.valanse.valanse.service.KakaoService;
 
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.common.message.AuthErrorMessage;
+import com.valanse.valanse.common.message.MemberErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.dto.Login.AccessTokenDto;
 import com.valanse.valanse.dto.Login.KakaoProfileDto;
@@ -71,7 +72,7 @@ public class KakaoServiceImpl implements KakaoService {
     public void unLink() {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new ApiException(AuthErrorMessage.KAKAO_MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         String refreshToken = member.getKakaoRefreshToken();
         if (refreshToken == null) {

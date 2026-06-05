@@ -1,6 +1,8 @@
 package com.valanse.valanse.service.ReportService;
 
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.ReportErrorMessage;
+import com.valanse.valanse.common.message.VoteErrorMessage;
 import com.valanse.valanse.domain.Comment;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.Report;
@@ -85,7 +87,7 @@ class ReportServiceImplTest {
 
         ApiException ex = assertThrows(ApiException.class,
                 () -> reportService.report(writer, 1L, ReportType.COMMENT));
-        assertThat(ex.getMessage()).isEqualTo("자신의 댓글은 신고할 수 없습니다.");
+        assertThat(ex.getMessage()).isEqualTo(ReportErrorMessage.OWN_COMMENT_REPORT_NOT_ALLOWED.message());
     }
 
     @Test
@@ -98,7 +100,7 @@ class ReportServiceImplTest {
 
         ApiException ex = assertThrows(ApiException.class,
                 () -> reportService.report(writer, 1L, ReportType.VOTE));
-        assertThat(ex.getMessage()).isEqualTo("자신의 투표는 신고할 수 없습니다.");
+        assertThat(ex.getMessage()).isEqualTo(ReportErrorMessage.OWN_VOTE_REPORT_NOT_ALLOWED.message());
     }
 
     // ──────────────────────────────────────────────
@@ -117,7 +119,7 @@ class ReportServiceImplTest {
 
         ApiException ex = assertThrows(ApiException.class,
                 () -> reportService.report(reporter, 1L, ReportType.COMMENT));
-        assertThat(ex.getMessage()).isEqualTo("이미 신고한 대상입니다.");
+        assertThat(ex.getMessage()).isEqualTo(ReportErrorMessage.ALREADY_REPORTED.message());
     }
 
     @Test
@@ -132,7 +134,7 @@ class ReportServiceImplTest {
 
         ApiException ex = assertThrows(ApiException.class,
                 () -> reportService.report(reporter, 1L, ReportType.VOTE));
-        assertThat(ex.getMessage()).isEqualTo("이미 신고한 대상입니다.");
+        assertThat(ex.getMessage()).isEqualTo(ReportErrorMessage.ALREADY_REPORTED.message());
     }
 
     // ──────────────────────────────────────────────
@@ -145,7 +147,8 @@ class ReportServiceImplTest {
         Member reporter = Member.builder().id(1L).build();
         when(commentRepository.findById(any())).thenReturn(Optional.empty());
 
-        assertThrows(Exception.class, () -> reportService.report(reporter, 999L, ReportType.COMMENT));
+        ApiException ex = assertThrows(ApiException.class, () -> reportService.report(reporter, 999L, ReportType.COMMENT));
+        assertThat(ex.getMessage()).isEqualTo(ReportErrorMessage.COMMENT_NOT_FOUND.message());
         verify(reportRepository, never()).save(any());
     }
 
@@ -155,7 +158,8 @@ class ReportServiceImplTest {
         Member reporter = Member.builder().id(1L).build();
         when(voteRepository.findById(any())).thenReturn(Optional.empty());
 
-        assertThrows(Exception.class, () -> reportService.report(reporter, 999L, ReportType.VOTE));
+        ApiException ex = assertThrows(ApiException.class, () -> reportService.report(reporter, 999L, ReportType.VOTE));
+        assertThat(ex.getMessage()).isEqualTo(VoteErrorMessage.VOTE_DETAIL_NOT_FOUND.message());
         verify(reportRepository, never()).save(any());
     }
 }

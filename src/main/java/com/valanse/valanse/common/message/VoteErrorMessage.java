@@ -13,7 +13,6 @@ public enum VoteErrorMessage {
     CATEGORY_INVALID("category는 ALL, FOOD, LOVE, BUY, SPORT, WORRY, ETC 중 하나여야 합니다."),
     SORT_INVALID("sort는 latest 또는 popular 중 하나여야 합니다."),
     CURSOR_INVALID("cursor 형식이 올바르지 않습니다."),
-    USER_NOT_FOUND("사용자를 찾을 수 없습니다."),
     DELETE_PERMISSION_DENIED("삭제 권한이 없습니다."),
     PERMISSION_DENIED("권한이 없습니다."),
     POST_NOT_FOUND("게시물이 존재하지 않습니다.");
