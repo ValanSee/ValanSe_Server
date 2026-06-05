@@ -2,6 +2,7 @@ package com.valanse.valanse.controller;
 
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.common.auth.JwtTokenProvider;
+import com.valanse.valanse.common.message.AuthErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.dto.Login.AccessTokenDto;
 import com.valanse.valanse.dto.Login.KakaoProfileDto;
@@ -54,12 +55,12 @@ public class AuthController {
         AccessTokenDto accessTokenDto = kakaoService.getAccessToken(redirectDto.getCode());
 
         if (accessTokenDto == null || accessTokenDto.getAccess_token() == null) {
-            throw new ApiException("AccessToken 발급 실패", HttpStatus.UNAUTHORIZED);
+            throw new ApiException(AuthErrorMessage.KAKAO_ACCESS_TOKEN_ISSUE_FAILED.message(), HttpStatus.UNAUTHORIZED);
         }
 
         KakaoProfileDto kakaoProfileDto = kakaoService.getKakaoProfile(accessTokenDto.getAccess_token());
         if (kakaoProfileDto == null || kakaoProfileDto.getId() == null) {
-            throw new ApiException("카카오 사용자 정보 조회 실패", HttpStatus.UNAUTHORIZED);
+            throw new ApiException(AuthErrorMessage.KAKAO_PROFILE_FETCH_FAILED.message(), HttpStatus.UNAUTHORIZED);
         }
 
         Member originalMember = memberService.getMemberBySocialId(kakaoProfileDto.getId());

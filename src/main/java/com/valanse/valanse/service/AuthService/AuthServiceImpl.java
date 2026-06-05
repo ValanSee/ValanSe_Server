@@ -2,6 +2,7 @@ package com.valanse.valanse.service.AuthService;
 
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.common.auth.JwtTokenProvider;
+import com.valanse.valanse.common.message.AuthErrorMessage;
 import com.valanse.valanse.service.RefreshTokenService.RefreshTokenServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -37,7 +38,7 @@ public class AuthServiceImpl implements AuthService {
     public Map<String, String> reissueAccessToken(String requestRefreshToken) {
         // 1. refresh token 유효성 검증
         if (!jwtTokenProvider.validateToken(requestRefreshToken)) {
-            throw new ApiException("유효하지 않은 리프레시 토큰입니다.", HttpStatus.UNAUTHORIZED);
+            throw new ApiException(AuthErrorMessage.INVALID_REFRESH_TOKEN.message(), HttpStatus.UNAUTHORIZED);
         }
 
         // 2. subject (userId) 추출
@@ -46,11 +47,11 @@ public class AuthServiceImpl implements AuthService {
         // 3. Redis에 저장된 토큰 조회
         String savedRefreshToken = refreshTokenService.getRefreshToken(userId);
         if (savedRefreshToken == null) {
-            throw new ApiException("저장된 리프레시 토큰이 없습니다. 다시 로그인해주세요.", HttpStatus.UNAUTHORIZED);
+            throw new ApiException(AuthErrorMessage.REFRESH_TOKEN_NOT_FOUND.message(), HttpStatus.UNAUTHORIZED);
         }
 
         if (!savedRefreshToken.equals(requestRefreshToken)) {
-            throw new ApiException("리프레시 토큰이 일치하지 않습니다.", HttpStatus.UNAUTHORIZED);
+            throw new ApiException(AuthErrorMessage.REFRESH_TOKEN_MISMATCH.message(), HttpStatus.UNAUTHORIZED);
         }
 
         // 4. 새 access token 발급
