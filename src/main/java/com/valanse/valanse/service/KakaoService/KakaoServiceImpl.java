@@ -1,6 +1,7 @@
 package com.valanse.valanse.service.KakaoService;
 
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.AuthErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.dto.Login.AccessTokenDto;
 import com.valanse.valanse.dto.Login.KakaoProfileDto;
@@ -70,11 +71,11 @@ public class KakaoServiceImpl implements KakaoService {
     public void unLink() {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new ApiException("회원 정보가 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(AuthErrorMessage.KAKAO_MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         String refreshToken = member.getKakaoRefreshToken();
         if (refreshToken == null) {
-            throw new ApiException("카카오 RefreshToken이 존재하지 않습니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(AuthErrorMessage.KAKAO_REFRESH_TOKEN_NOT_FOUND.message(), HttpStatus.BAD_REQUEST);
         }
 
         // 카카오 서버 측에 요청 보내기
@@ -94,7 +95,7 @@ public class KakaoServiceImpl implements KakaoService {
                 .body(AccessTokenDto.class);
 
         if (tokenDto == null || tokenDto.getAccess_token() == null) {
-            throw new ApiException("카카오 access token 재발급 실패", HttpStatus.UNAUTHORIZED);
+            throw new ApiException(AuthErrorMessage.KAKAO_ACCESS_TOKEN_REISSUE_FAILED.message(), HttpStatus.UNAUTHORIZED);
         }
 
         // 2. unlink 요청 (access token 사용)

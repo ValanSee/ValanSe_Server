@@ -2,6 +2,7 @@ package com.valanse.valanse.service.StorageService;
 
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.common.config.R2Properties;
+import com.valanse.valanse.common.message.StorageErrorMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -46,9 +47,9 @@ public class R2StorageService implements StorageService {
         try {
             s3Client.putObject(request, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
         } catch (IOException e) {
-            throw new ApiException("이미지 파일을 읽을 수 없습니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(StorageErrorMessage.IMAGE_FILE_READ_FAILED.message(), HttpStatus.BAD_REQUEST);
         } catch (S3Exception e) {
-            throw new ApiException("이미지 업로드에 실패했습니다.", HttpStatus.BAD_GATEWAY);
+            throw new ApiException(StorageErrorMessage.IMAGE_UPLOAD_FAILED.message(), HttpStatus.BAD_GATEWAY);
         }
 
         return properties.getPublicUrl().replaceAll("/+$", "") + "/" + objectKey;
@@ -56,15 +57,15 @@ public class R2StorageService implements StorageService {
 
     private void validateImage(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new ApiException("업로드할 이미지 파일을 선택해주세요.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(StorageErrorMessage.IMAGE_FILE_REQUIRED.message(), HttpStatus.BAD_REQUEST);
         }
 
         if (file.getSize() > MAX_IMAGE_SIZE) {
-            throw new ApiException("이미지는 5MB 이하만 업로드할 수 있습니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(StorageErrorMessage.IMAGE_SIZE_EXCEEDED.message(), HttpStatus.BAD_REQUEST);
         }
 
         if (!ALLOWED_IMAGE_TYPES.contains(file.getContentType())) {
-            throw new ApiException("jpg, png, webp, gif 이미지 파일만 업로드할 수 있습니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(StorageErrorMessage.IMAGE_CONTENT_TYPE_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
     }
 
