@@ -1,5 +1,6 @@
 package com.valanse.valanse.common.auth;
 
+import com.valanse.valanse.common.message.AuthErrorMessage;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -109,7 +110,7 @@ public class JwtTokenFilter extends OncePerRequestFilter {
                 // 자동으로 /auth/reissue 호출하여 토큰 갱신
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 401
                 response.setContentType("application/json;charset=UTF-8");
-                response.getWriter().write("{\"error\":\"EXPIRED_TOKEN\",\"message\":\"토큰이 만료되었습니다.\"}");
+                response.getWriter().write(AuthErrorMessage.EXPIRED_TOKEN.tokenErrorResponse());
                 return; // 필터 체인 중단!
 
             } catch (io.jsonwebtoken.security.SecurityException |
@@ -119,7 +120,7 @@ public class JwtTokenFilter extends OncePerRequestFilter {
                 // ============================================
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType("application/json;charset=UTF-8");
-                response.getWriter().write("{\"error\":\"INVALID_TOKEN\",\"message\":\"유효하지 않은 토큰입니다.\"}");
+                response.getWriter().write(AuthErrorMessage.INVALID_TOKEN.tokenErrorResponse());
                 return;
 
             } catch (Exception e) {
@@ -128,7 +129,7 @@ public class JwtTokenFilter extends OncePerRequestFilter {
                 // ============================================
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType("application/json;charset=UTF-8");
-                response.getWriter().write("{\"error\":\"TOKEN_ERROR\",\"message\":\"토큰 처리 중 오류가 발생했습니다.\"}");
+                response.getWriter().write(AuthErrorMessage.TOKEN_ERROR.tokenErrorResponse());
                 return;
             }
         }

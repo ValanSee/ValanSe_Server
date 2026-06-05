@@ -2,6 +2,7 @@ package com.valanse.valanse.service.StorageService;
 
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.common.config.R2Properties;
+import com.valanse.valanse.common.message.StorageErrorMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
@@ -56,6 +57,7 @@ class R2StorageServiceTest {
                 "text".getBytes()
         );
 
-        assertThrows(ApiException.class, () -> storageService.uploadImage(file, "images"));
+        ApiException exception = assertThrows(ApiException.class, () -> storageService.uploadImage(file, "images"));
+        assertThat(exception.getMessage()).isEqualTo(StorageErrorMessage.IMAGE_CONTENT_TYPE_INVALID.message());
     }
 }

@@ -1,5 +1,7 @@
 package com.valanse.valanse.service.PointService;
 
+import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.MemberErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.PointHistory;
@@ -102,8 +104,8 @@ class PointServiceImplTest {
 
         // When & Then
         assertThatThrownBy(() -> pointService.getPointHistory(memberId))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessage("회원을 찾을 수 없습니다.");
+            .isInstanceOf(ApiException.class)
+            .hasMessage(MemberErrorMessage.MEMBER_NOT_FOUND.message());
     }
 
     @Test
