@@ -1,6 +1,7 @@
 package com.valanse.valanse.service.TitleService;
 
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.TitleErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.MemberProfileTitle;
@@ -47,7 +48,7 @@ public class TitleServiceImpl implements TitleService {
     @Override
     public TitleListResponse getTitleList(Long userId) {
         MemberProfile profile = memberProfileRepository.findByMemberId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("프로필이 존재하지 않습니다."));
+                .orElseThrow(() -> new ApiException(TitleErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         List<Title> titles = titleRepository.findAllByActiveTrueOrderByDisplayOrderAscIdAsc();
         List<MemberProfileTitle> profileTitles = memberProfileTitleRepository.findAllByMemberProfileMemberId(userId);
@@ -106,14 +107,14 @@ public class TitleServiceImpl implements TitleService {
     @Override
     public TitleEquipResponse equipTitle(Long userId, Long titleId) {
         memberProfileRepository.findByMemberId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("프로필이 존재하지 않습니다."));
+                .orElseThrow(() -> new ApiException(TitleErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         MemberProfileTitle targetTitle = memberProfileTitleRepository
                 .findByMemberProfileMemberIdAndTitleId(userId, titleId)
-                .orElseThrow(() -> new IllegalArgumentException("보유하지 않은 칭호입니다."));
+                .orElseThrow(() -> new ApiException(TitleErrorMessage.UNOWNED_TITLE.message(), HttpStatus.BAD_REQUEST));
 
         if (!targetTitle.getTitle().isActive()) {
-            throw new IllegalArgumentException("장착할 수 없는 칭호입니다.");
+            throw new ApiException(TitleErrorMessage.TITLE_NOT_EQUIPPABLE.message(), HttpStatus.BAD_REQUEST);
         }
 
         memberProfileTitleRepository.findAllByMemberProfileMemberIdAndEquippedTrue(userId)
@@ -130,22 +131,22 @@ public class TitleServiceImpl implements TitleService {
     @Override
     public TitlePurchaseResponse purchaseTitle(Long userId, Long titleId) {
         MemberProfile profile = memberProfileRepository.findByMemberId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("프로필이 존재하지 않습니다."));
+                .orElseThrow(() -> new ApiException(TitleErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         Title title = titleRepository.findById(titleId)
-                .orElseThrow(() -> new IllegalArgumentException("칭호가 존재하지 않습니다."));
+                .orElseThrow(() -> new ApiException(TitleErrorMessage.TITLE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         if (!title.isPointPurchaseTitle() || !title.isActive()) {
-            throw new IllegalArgumentException("구매할 수 없는 칭호입니다.");
+            throw new ApiException(TitleErrorMessage.TITLE_NOT_PURCHASABLE.message(), HttpStatus.BAD_REQUEST);
         }
 
         memberProfileTitleRepository.findByMemberProfileMemberIdAndTitleId(userId, titleId)
                 .ifPresent(ownedTitle -> {
-                    throw new IllegalArgumentException("이미 보유한 칭호입니다.");
+                    throw new ApiException(TitleErrorMessage.TITLE_ALREADY_OWNED.message(), HttpStatus.BAD_REQUEST);
                 });
 
         if (!profile.hasEnoughPoint(title.getPrice())) {
-            throw new IllegalArgumentException("포인트가 부족합니다. (필요포인트 " + title.getPrice() + "P 필요)");
+            throw new ApiException(TitleErrorMessage.POINT_NOT_ENOUGH.message(title.getPrice()), HttpStatus.BAD_REQUEST);
         }
 
         profile.subtractPoint(title.getPrice());
@@ -181,7 +182,7 @@ public class TitleServiceImpl implements TitleService {
 
         String code = request.code().trim();
         if (titleRepository.existsByCode(code)) {
-            throw new ApiException("이미 존재하는 칭호 코드입니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(TitleErrorMessage.TITLE_CODE_DUPLICATED.message(), HttpStatus.BAD_REQUEST);
         }
 
         Title title = Title.builder()
@@ -207,11 +208,11 @@ public class TitleServiceImpl implements TitleService {
         validateUpdateRequest(request);
 
         Title title = titleRepository.findById(titleId)
-                .orElseThrow(() -> new ApiException("칭호가 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(TitleErrorMessage.TITLE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         String code = request.code().trim();
         if (titleRepository.existsByCodeAndIdNot(code, titleId)) {
-            throw new ApiException("이미 존재하는 칭호 코드입니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(TitleErrorMessage.TITLE_CODE_DUPLICATED.message(), HttpStatus.BAD_REQUEST);
         }
 
         title.update(
@@ -234,18 +235,18 @@ public class TitleServiceImpl implements TitleService {
         validateAdmin(adminUserId);
 
         Title title = titleRepository.findById(titleId)
-                .orElseThrow(() -> new ApiException("칭호가 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(TitleErrorMessage.TITLE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         if (!title.isActive()) {
-            throw new ApiException("이미 삭제된 칭호입니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(TitleErrorMessage.TITLE_ALREADY_DELETED.message(), HttpStatus.BAD_REQUEST);
         }
         if (title.isDefaultTitle()) {
-            throw new ApiException("기본 칭호는 삭제할 수 없습니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(TitleErrorMessage.DEFAULT_TITLE_DELETE_NOT_ALLOWED.message(), HttpStatus.BAD_REQUEST);
         }
 
         Title fallbackTitle = titleRepository
                 .findFirstByActiveTrueAndAcquisitionTypeOrderByDisplayOrderAscIdAsc(TitleAcquisitionType.DEFAULT)
-                .orElseThrow(() -> new ApiException("기본 칭호가 존재하지 않습니다.", HttpStatus.INTERNAL_SERVER_ERROR));
+                .orElseThrow(() -> new ApiException(TitleErrorMessage.DEFAULT_TITLE_NOT_FOUND.message(), HttpStatus.INTERNAL_SERVER_ERROR));
 
         List<MemberProfileTitle> equippedTitles = memberProfileTitleRepository.findAllByTitleIdAndEquippedTrue(titleId);
         for (MemberProfileTitle equippedTitle : equippedTitles) {
@@ -273,9 +274,9 @@ public class TitleServiceImpl implements TitleService {
 
     private void validateAdmin(Long adminUserId) {
         Member admin = memberRepository.findByIdAndDeletedAtIsNull(adminUserId)
-                .orElseThrow(() -> new ApiException("회원을 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(TitleErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
         if (admin.getRole() != Role.ADMIN) {
-            throw new ApiException("관리자만 접근 가능합니다.", HttpStatus.FORBIDDEN);
+            throw new ApiException(TitleErrorMessage.ADMIN_ONLY.message(), HttpStatus.FORBIDDEN);
         }
     }
 
@@ -326,49 +327,49 @@ public class TitleServiceImpl implements TitleService {
 
     private void validateCreateRequest(TitleCreateRequest request) {
         if (request == null) {
-            throw new ApiException("칭호 생성 요청이 비어있습니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(TitleErrorMessage.CREATE_REQUEST_EMPTY.message(), HttpStatus.BAD_REQUEST);
         }
         if (isBlank(request.code())) {
-            throw new ApiException("칭호 코드를 입력해주세요.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(TitleErrorMessage.CODE_REQUIRED.message(), HttpStatus.BAD_REQUEST);
         }
         if (isBlank(request.title())) {
-            throw new ApiException("칭호 이름을 입력해주세요.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(TitleErrorMessage.NAME_REQUIRED.message(), HttpStatus.BAD_REQUEST);
         }
         if (request.tier() == null) {
-            throw new ApiException("칭호 등급을 입력해주세요.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(TitleErrorMessage.TIER_REQUIRED.message(), HttpStatus.BAD_REQUEST);
         }
         if (request.acquisitionType() == null) {
-            throw new ApiException("칭호 획득 방식을 입력해주세요.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(TitleErrorMessage.ACQUISITION_TYPE_REQUIRED.message(), HttpStatus.BAD_REQUEST);
         }
         if (request.price() != null && request.price() < 0) {
-            throw new ApiException("칭호 가격은 0 이상이어야 합니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(TitleErrorMessage.PRICE_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
         if (request.displayOrder() != null && request.displayOrder() < 0) {
-            throw new ApiException("칭호 표시 순서는 0 이상이어야 합니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(TitleErrorMessage.DISPLAY_ORDER_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
     }
 
     private void validateUpdateRequest(TitleUpdateRequest request) {
         if (request == null) {
-            throw new ApiException("칭호 수정 요청이 비어있습니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(TitleErrorMessage.UPDATE_REQUEST_EMPTY.message(), HttpStatus.BAD_REQUEST);
         }
         if (isBlank(request.code())) {
-            throw new ApiException("칭호 코드를 입력해주세요.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(TitleErrorMessage.CODE_REQUIRED.message(), HttpStatus.BAD_REQUEST);
         }
         if (isBlank(request.title())) {
-            throw new ApiException("칭호 이름을 입력해주세요.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(TitleErrorMessage.NAME_REQUIRED.message(), HttpStatus.BAD_REQUEST);
         }
         if (request.tier() == null) {
-            throw new ApiException("칭호 등급을 입력해주세요.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(TitleErrorMessage.TIER_REQUIRED.message(), HttpStatus.BAD_REQUEST);
         }
         if (request.acquisitionType() == null) {
-            throw new ApiException("칭호 획득 방식을 입력해주세요.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(TitleErrorMessage.ACQUISITION_TYPE_REQUIRED.message(), HttpStatus.BAD_REQUEST);
         }
         if (request.price() != null && request.price() < 0) {
-            throw new ApiException("칭호 가격은 0 이상이어야 합니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(TitleErrorMessage.PRICE_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
         if (request.displayOrder() != null && request.displayOrder() < 0) {
-            throw new ApiException("칭호 표시 순서는 0 이상이어야 합니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(TitleErrorMessage.DISPLAY_ORDER_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
     }
 
