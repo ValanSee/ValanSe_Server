@@ -1,6 +1,7 @@
 package com.valanse.valanse.service.MemberService;
 
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.MemberErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.repository.MemberRepository;
@@ -49,7 +50,7 @@ public class MemberServiceImpl implements MemberService {
     public Member deleteMemberById() {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new ApiException("사용자를 찾을 수 없습니다", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         member.softDelete(); // Soft delete 처리
 
@@ -65,6 +66,6 @@ public class MemberServiceImpl implements MemberService {
     @Override
     public Member findById(Long id) {
         return memberRepository.findByIdAndDeletedAtIsNull(id)
-                .orElseThrow(() -> new ApiException("사용자를 찾을 수 없습니다", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
     }
 }

@@ -1,5 +1,9 @@
 package com.valanse.valanse.service.PointService;
 
+import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.MemberErrorMessage;
+import com.valanse.valanse.common.message.PointErrorMessage;
+import com.valanse.valanse.common.message.ProfileErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.PointHistory;
@@ -9,6 +13,7 @@ import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberRepository;
 import com.valanse.valanse.repository.PointHistoryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,10 +49,10 @@ public class PointServiceImpl implements PointService {
     @Override
     public void givePoint(Long memberId, PointType type) {
         Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         MemberProfile profile = memberProfileRepository.findByMemberId(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("프로필을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ApiException(ProfileErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         long amount = switch (type) {
             case SIGN_UP -> SIGN_UP_POINT;
@@ -65,7 +70,7 @@ public class PointServiceImpl implements PointService {
             }
             case POST_VOTED -> POST_VOTED_POINT;
             case HOT_ISSUE -> HOT_ISSUE_POINT;
-            case TITLE_PURCHASE -> throw new IllegalArgumentException("포인트 지급 타입이 아닙니다.");
+            case TITLE_PURCHASE -> throw new ApiException(PointErrorMessage.INVALID_REWARD_TYPE.message(), HttpStatus.BAD_REQUEST);
         };
 
         // 포인트가 0보다 클 때만 포인트 지급 및 히스토리 저장
@@ -86,14 +91,14 @@ public class PointServiceImpl implements PointService {
     @Override
     public void recordPointUsage(Long memberId, long amount, PointType type) {
         if (amount <= 0) {
-            throw new IllegalArgumentException("사용 포인트는 0보다 커야 합니다.");
+            throw new ApiException(PointErrorMessage.USAGE_POINT_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
 
         Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         MemberProfile profile = memberProfileRepository.findByMemberId(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("프로필을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ApiException(ProfileErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         PointHistory history = PointHistory.builder()
                 .member(member)
@@ -109,7 +114,7 @@ public class PointServiceImpl implements PointService {
     public PointHistoryResponse getPointHistory(Long memberId) {
         // 회원 존재 여부 확인
         memberRepository.findByIdAndDeletedAtIsNull(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         // 포인트 히스토리 조회 (최신순으로 정렬)
         List<PointHistory> histories = pointHistoryRepository.findByMemberId(memberId);
