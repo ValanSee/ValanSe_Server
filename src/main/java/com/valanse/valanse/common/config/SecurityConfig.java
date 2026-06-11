@@ -49,6 +49,9 @@ public class SecurityConfig {
                                 "/webjars/**"
                         ).permitAll()
 
+                        .requestMatchers(HttpMethod.POST, "/analytics/events/page-view").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/admin/analytics/mau").hasRole("ADMIN")
+
                         // ============================================
                         // HTTP 메서드별 설정 (중요! 순서 지키기!)
                         // ============================================
