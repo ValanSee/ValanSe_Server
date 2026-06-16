@@ -322,6 +322,20 @@ class MemberProfileServiceImplTest {
     }
 
     @Test
+    @DisplayName("닉네임 길이는 한글과 영어 모두 16자까지 허용한다")
+    void 닉네임_길이_16자까지_허용() {
+        assertThat(memberProfileService.isMeaningfulNickname("가나다라마바사아자차카타파하허호")).isTrue();
+        assertThat(memberProfileService.isMeaningfulNickname("abcdefghijklmnop")).isTrue();
+    }
+
+    @Test
+    @DisplayName("닉네임 길이는 한글과 영어 모두 17자부터 거부한다")
+    void 닉네임_길이_17자부터_거부() {
+        assertThat(memberProfileService.isMeaningfulNickname("가나다라마바사아자차카타파하허호구")).isFalse();
+        assertThat(memberProfileService.isMeaningfulNickname("abcdefghijklmnopq")).isFalse();
+    }
+
+    @Test
     @DisplayName("프로필 저장 시 금칙어 닉네임이면 에러 코드를 반환한다")
     void 닉네임_금칙어_유효성_실패() {
         MemberProfileRequest request = new MemberProfileRequest(

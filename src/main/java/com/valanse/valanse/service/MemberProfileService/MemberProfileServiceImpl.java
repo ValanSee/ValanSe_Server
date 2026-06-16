@@ -169,13 +169,10 @@ public class MemberProfileServiceImpl implements MemberProfileService {
             return false;
         }
 
-        // 3. 길이제한 (한글 8/ 영어 16)
+        // 3. 길이제한 (한글/영어 구분 없이 16자)
         int length = nickname.length();
 
-        if (hasKorean && length > 8) {
-            return false;
-        }
-        else if (hasEnglish && length > 16) {
+        if (length > 16) {
             return false;
         }
 
