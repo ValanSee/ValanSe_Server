@@ -15,6 +15,9 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+/**
+ * CommentGroup 정보를 저장하고 연관관계를 표현하는 JPA 도메인 엔티티 코드입니다.
+ */
 public class CommentGroup extends BaseEntity {
 
     @Id
@@ -32,6 +35,9 @@ public class CommentGroup extends BaseEntity {
     @OneToMany(mappedBy = "commentGroup", cascade = CascadeType.ALL)
     private List<Comment> comments = new ArrayList<>();
 
+    /**
+     * CommentGroup의 setTotalCommentCount 기능을 수행하는 메서드입니다.
+     */
     public void setTotalCommentCount(int count) {
         this.totalCommentCount = count;
     }

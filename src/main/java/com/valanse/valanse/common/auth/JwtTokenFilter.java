@@ -32,6 +32,10 @@ import java.util.List;
  * 4. 만료되거나 유효하지 않으면 401 반환 (프론트엔드 자동 갱신 트리거)
  */
 @Component
+/**
+ * HTTP 요청의 Bearer token을 검증하고 SecurityContext에 인증 정보를 주입하는 필터 코드입니다.
+ * check: JwtTokenProvider와 동일한 서명 키 파싱 방식을 사용하도록 통일해야 합니다.
+ */
 public class JwtTokenFilter extends OncePerRequestFilter {
 
     @Value("${jwt.secret}")

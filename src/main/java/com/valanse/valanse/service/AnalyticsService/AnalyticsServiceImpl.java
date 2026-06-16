@@ -26,6 +26,9 @@ import java.time.format.DateTimeParseException;
 @Service
 @Transactional
 @RequiredArgsConstructor
+/**
+ * 페이지 방문 이벤트 저장, 익명 사용자 병합, 월간 활성 사용자 집계를 처리하는 서비스 코드입니다.
+ */
 public class AnalyticsServiceImpl implements AnalyticsService {
 
     private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
@@ -34,6 +37,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     private final AnonymousUserLinkRepository anonymousUserLinkRepository;
     private final MemberRepository memberRepository;
 
+    /**
+     * 페이지 방문 이벤트를 저장하고 로그인 전 익명 활동을 회원과 연결하는 메서드입니다.
+     */
     @Override
     public PageViewEventResponse recordPageView(PageViewEventRequest request, Authentication authentication) {
         if (request == null || !StringUtils.hasText(request.pagePath())) {
@@ -66,6 +72,9 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         return new PageViewEventResponse(savedEvent.getId());
     }
 
+    /**
+     * 월 단위 활성 사용자를 로그인/익명/탈퇴 사용자로 집계하는 메서드입니다.
+     */
     @Transactional(readOnly = true)
     @Override
     public MauResponse getMonthlyActiveUsers(String yearMonth) {

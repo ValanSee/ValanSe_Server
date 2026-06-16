@@ -20,6 +20,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Getter
 @Entity
+/**
+ * Title 정보를 저장하고 연관관계를 표현하는 JPA 도메인 엔티티 코드입니다.
+ */
 public class Title extends BaseEntity {
 
     @Id
@@ -53,22 +56,37 @@ public class Title extends BaseEntity {
     @Builder.Default
     private int displayOrder = 0;
 
+    /**
+     * isDefaultTitle 조건을 판별하는 메서드입니다.
+     */
     public boolean isDefaultTitle() {
         return acquisitionType == TitleAcquisitionType.DEFAULT;
     }
 
+    /**
+     * isPointPurchaseTitle 조건을 판별하는 메서드입니다.
+     */
     public boolean isPointPurchaseTitle() {
         return acquisitionType == TitleAcquisitionType.POINT_PURCHASE;
     }
 
+    /**
+     * isPurchasable 조건을 판별하는 메서드입니다.
+     */
     public boolean isPurchasable(long point) {
         return active && isPointPurchaseTitle() && point >= price;
     }
 
+    /**
+     * Title의 deactivate 기능을 수행하는 메서드입니다.
+     */
     public void deactivate() {
         this.active = false;
     }
 
+    /**
+     * Title 데이터를 수정하는 메서드입니다.
+     */
     public void update(
             String code,
             String name,

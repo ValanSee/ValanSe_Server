@@ -28,6 +28,11 @@ import java.util.stream.Collectors; // 기존 코드에 있었으므로 유지
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true) // 클래스 레벨에서 기본적으로 읽기 전용 트랜잭션으로 설정
+/**
+ * 투표 생성, 참여/취소, 목록 조회, 핫이슈/트렌딩 선정, 삭제/고정 정책을 처리하는 서비스 코드입니다.
+ * check: voteId와 voteOptionId의 소속 검증을 강화해야 합니다.
+ * check: 투표 카운트 갱신은 동시성 제어 또는 원자적 update 쿼리로 보호하는 것이 좋습니다.
+ */
 public class VoteServiceImpl implements VoteService {
 
     private final VoteRepository voteRepository;
@@ -40,6 +45,9 @@ public class VoteServiceImpl implements VoteService {
     private final PointService pointService;
 
    //작은 민지가 구현한 것
+   /**
+    * 사용자가 직접 생성한 투표 목록을 정렬과 카테고리 조건으로 조회하는 메서드입니다.
+    */
    @Override
    public List<VoteResponseDto> getMyCreatedVotes(Long memberId, String sort, VoteCategory category) {
        Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
@@ -67,6 +75,9 @@ public class VoteServiceImpl implements VoteService {
                .collect(Collectors.toList());
    }
 
+    /**
+     * 사용자가 참여한 투표 목록을 정렬과 카테고리 조건으로 조회하는 메서드입니다.
+     */
     @Override
     public List<VoteResponseDto> getMyVotedVotes(Long memberId, String sort, VoteCategory category) {
         Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
@@ -95,6 +106,9 @@ public class VoteServiceImpl implements VoteService {
     }
 
     //여기서부터 영서 코드
+    /**
+     * 핫이슈로 노출할 투표를 고정값 또는 반응성 기준으로 선정하는 메서드입니다.
+     */
     @Override
     public HotIssueVoteResponse getHotIssueVote() { // 파라미터 없음
         // 0. 고정 게시물이 있다면 반환.
@@ -124,6 +138,9 @@ public class VoteServiceImpl implements VoteService {
     }
 
     // 인기 급상승 토픽
+    /**
+     * 최근 기간의 반응성을 기준으로 인기 급상승 투표를 선정하는 메서드입니다.
+     */
     @Override
     public HotIssueVoteResponse getTrendingVote() {
        // 0. 고정 게시물이 있다면 반환.
@@ -159,6 +176,10 @@ public class VoteServiceImpl implements VoteService {
 
     }
 
+    /**
+     * 사용자의 투표 선택, 취소, 재선택을 처리하고 선택지별 카운트와 전체 카운트를 갱신하는 메서드입니다.
+     * check: 선택지 소속 검증과 동시성 제어가 함께 필요합니다.
+     */
     @Override
     @Transactional // 이 메서드는 데이터를 변경하므로 읽기/쓰기 트랜잭션이 필요합니다. (클래스 레벨의 readOnly = true를 오버라이드)
     public VoteCancleResponseDto processVote(Long userId, Long voteId, Long voteOptionId) {
@@ -258,6 +279,9 @@ public class VoteServiceImpl implements VoteService {
                 updatedVoteOptionCount
         );
     }
+    /**
+     * 투표 상세 정보와 현재 사용자의 투표 여부를 함께 조회하는 메서드입니다.
+     */
     @Override
     public VoteDetailResponse getVoteDetailById(Long voteId) {
         Vote vote = voteRepository.findById(voteId)
@@ -324,6 +348,9 @@ public class VoteServiceImpl implements VoteService {
 
 
 
+    /**
+     * 새 투표와 선택지, 댓글 그룹을 생성하고 작성 포인트를 지급하는 메서드입니다.
+     */
     @Override
     @Transactional
     public Long createVote(Long userId, VoteCreateRequest request) {
@@ -380,6 +407,9 @@ public class VoteServiceImpl implements VoteService {
         return savedVote.getId(); // 저장된 투표의 ID를 반환
     }
 
+    /**
+     * 커서 기반 페이지네이션으로 투표 목록을 조회하고 목록 응답 DTO를 구성하는 메서드입니다.
+     */
     @Override
     public VoteListResponse getVotesByCategoryAndSort(Member loginUser, String category, String sort, String cursor, int size) {
         validateVoteListRequest(category, sort, cursor, size);
@@ -512,6 +542,9 @@ public class VoteServiceImpl implements VoteService {
         }
     }
 
+    /**
+     * 투표 작성자 또는 관리자가 투표를 소프트 삭제하는 메서드입니다.
+     */
     @Override
     @Transactional
     public void deleteVote(Long userId, Long voteId) {
@@ -534,6 +567,9 @@ public class VoteServiceImpl implements VoteService {
     @Override
     @Transactional
     // 고정 , 고정 해제 기능은 vote 엔티티에 메서드로 존재
+    /**
+     * 관리자 권한으로 투표의 HOT/TRENDING 고정 상태를 변경하는 메서드입니다.
+     */
     public void updatePinStatus(Member member, Long voteId, PinType pinType) {
         if (member.getRole() != Role.ADMIN) {
             throw new ApiException(VoteErrorMessage.PERMISSION_DENIED.message(), HttpStatus.FORBIDDEN);

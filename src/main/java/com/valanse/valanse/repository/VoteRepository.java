@@ -19,6 +19,9 @@ import java.util.Optional;
 import java.time.LocalDateTime;
 
 @Repository
+/**
+ * VoteRepository 엔티티의 DB 접근을 담당하는 레포지토리 코드입니다.
+ */
 public interface VoteRepository extends JpaRepository<Vote, Long>, VoteRepositoryCustom {
 
     // 내가 생성한 투표

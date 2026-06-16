@@ -22,10 +22,16 @@ import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
+/**
+ * CommentRepositoryImpl의 커스텀 조회 로직을 QueryDSL로 구현하는 레포지토리 코드입니다.
+ */
 public class CommentRepositoryImpl implements CommentRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
 
+    /**
+     * CommentsByVoteIdSlice 조건에 맞는 데이터를 찾는 메서드입니다.
+     */
     @Override
     public Slice<CommentResponseDto> findCommentsByVoteIdSlice(Long voteId, String sort, Pageable pageable, Long loginId,boolean isAdmin) {
         QComment comment = QComment.comment;
@@ -103,6 +109,9 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
         return new SliceImpl<>(result, pageable, hasNext);
     }
 
+    /**
+     * MostLikedCommentByVoteId 조건에 맞는 데이터를 찾는 메서드입니다.
+     */
     @Override
     public Optional<Comment> findMostLikedCommentByVoteId(Long voteId) {
         QComment comment = QComment.comment;
@@ -121,6 +130,9 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
         );
     }
 
+    /**
+     * CommentRepositoryImpl의 countActiveCommentsByVoteId 기능을 수행하는 메서드입니다.
+     */
     @Override
     public Long countActiveCommentsByVoteId(Long voteId) {
         QComment comment = QComment.comment;

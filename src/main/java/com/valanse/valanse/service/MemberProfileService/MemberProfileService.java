@@ -7,6 +7,9 @@ import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 
 import java.util.List;
 
+/**
+ * MemberProfileService 기능의 비즈니스 계약을 정의하는 서비스 인터페이스 코드입니다.
+ */
 public interface MemberProfileService {
     void saveOrUpdateProfile(MemberProfileRequest dto);
     MemberProfileResponse getProfile();

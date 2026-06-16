@@ -1,5 +1,8 @@
 package com.valanse.valanse.common.message;
 
+/**
+ * StorageErrorMessage 도메인에서 사용하는 고정 선택 값을 정의하는 enum 코드입니다.
+ */
 public enum StorageErrorMessage {
     IMAGE_FILE_READ_FAILED("이미지 파일을 읽을 수 없습니다."),
     IMAGE_UPLOAD_FAILED("이미지 업로드에 실패했습니다."),
@@ -13,6 +16,9 @@ public enum StorageErrorMessage {
         this.message = message;
     }
 
+    /**
+     * StorageErrorMessage의 message 기능을 수행하는 메서드입니다.
+     */
     public String message() {
         return message;
     }

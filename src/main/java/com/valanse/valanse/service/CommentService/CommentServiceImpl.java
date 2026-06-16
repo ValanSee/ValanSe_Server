@@ -30,6 +30,11 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
+/**
+ * 댓글 생성, 대댓글 조회, 댓글 삭제 권한과 댓글 카운트 정책을 처리하는 서비스 코드입니다.
+ * check: parentId가 현재 voteId의 댓글인지 검증하는 로직이 필요합니다.
+ * check: 댓글/대댓글 카운트 감소가 중복 삭제나 동시 요청에서 음수가 되지 않도록 보호해야 합니다.
+ */
 public class CommentServiceImpl implements CommentService {
 
     private final MemberRepository memberRepository;
@@ -40,6 +45,9 @@ public class CommentServiceImpl implements CommentService {
     private final MemberProfileTitleRepository memberProfileTitleRepository;
     private final PointService pointService;
 
+    /**
+     * 댓글 작성자 또는 관리자가 댓글을 소프트 삭제하고 관련 카운트를 감소시키는 메서드입니다.
+     */
     @Override
     public void deleteMyComment(Member member, Long commentId) {
         Comment comment = commentRepository.findById(commentId)
@@ -70,6 +78,9 @@ public class CommentServiceImpl implements CommentService {
         }
     }
 
+    /**
+     * 사용자가 작성한 댓글 목록을 최신순 또는 오래된순으로 조회하는 메서드입니다.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<MyCommentResponseDto> getMyComments(Member member, String sort) {
@@ -89,6 +100,10 @@ public class CommentServiceImpl implements CommentService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 투표에 부모 댓글 또는 대댓글을 작성하고 댓글 카운트와 포인트를 갱신하는 메서드입니다.
+     * check: 대댓글 parent가 현재 투표의 댓글인지 확인해야 합니다.
+     */
     @Override
     public Long createComment(Long voteId, Long userId, CommentPostRequest request) {
         Vote vote = voteRepository.findById(voteId)
@@ -142,6 +157,9 @@ public class CommentServiceImpl implements CommentService {
         return savedCommentId;
     }
 
+    /**
+     * 특정 투표의 부모 댓글 목록을 페이지 단위로 조회하는 메서드입니다.
+     */
     @Override
     @Transactional(readOnly = true)
     public PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable, Long loginId, Boolean isAdmin) {
@@ -155,6 +173,9 @@ public class CommentServiceImpl implements CommentService {
                 .build();
     }
 
+    /**
+     * 특정 투표에서 좋아요가 가장 많은 대표 댓글과 댓글 수를 조회하는 메서드입니다.
+     */
     @Override
     @Transactional(readOnly = true)
     public BestCommentResponseDto getBestCommentByVoteId(Long voteId) {
@@ -182,6 +203,9 @@ public class CommentServiceImpl implements CommentService {
     }
 
 
+    /**
+     * 특정 부모 댓글의 대댓글 목록과 작성자/삭제 가능 여부 정보를 조회하는 메서드입니다.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<CommentReplyResponseDto> getReplies(Member loginUser, Long voteId, Long parentCommentId) {

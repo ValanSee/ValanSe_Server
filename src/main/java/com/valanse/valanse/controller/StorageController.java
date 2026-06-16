@@ -16,6 +16,9 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/storage")
 @RequiredArgsConstructor
+/**
+ * 이미지 업로드 요청을 받아 외부 스토리지 저장 URL을 반환하는 컨트롤러 코드입니다.
+ */
 public class StorageController {
 
     private final StorageService storageService;
@@ -24,6 +27,10 @@ public class StorageController {
             summary = "이미지 업로드",
             description = "이미지 파일을 Cloudflare R2에 업로드하고 공개 URL을 반환합니다."
     )
+    /**
+     * 이미지 파일을 검증한 뒤 Cloudflare R2에 업로드하고 공개 URL을 반환하는 메서드입니다.
+     * check: 파일 내용 기반 이미지 검증과 악성 파일 차단 정책을 추가해야 합니다.
+     */
     @PostMapping(value = "/images", consumes = "multipart/form-data")
     public ResponseEntity<ImageUploadResponse> uploadImage(@RequestPart("file") MultipartFile file) {
         String imageUrl = storageService.uploadImage(file, "images");

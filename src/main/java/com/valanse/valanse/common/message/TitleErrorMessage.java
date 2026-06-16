@@ -1,5 +1,8 @@
 package com.valanse.valanse.common.message;
 
+/**
+ * TitleErrorMessage 도메인에서 사용하는 고정 선택 값을 정의하는 enum 코드입니다.
+ */
 public enum TitleErrorMessage {
     UNOWNED_TITLE("보유하지 않은 칭호입니다."),
     TITLE_NOT_EQUIPPABLE("장착할 수 없는 칭호입니다."),
@@ -26,10 +29,16 @@ public enum TitleErrorMessage {
         this.message = message;
     }
 
+    /**
+     * TitleErrorMessage의 message 기능을 수행하는 메서드입니다.
+     */
     public String message() {
         return message;
     }
 
+    /**
+     * TitleErrorMessage의 message 기능을 수행하는 메서드입니다.
+     */
     public String message(Object... args) {
         return String.format(message, args);
     }

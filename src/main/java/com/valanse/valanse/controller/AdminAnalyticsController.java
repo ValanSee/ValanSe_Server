@@ -15,10 +15,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/admin/analytics")
+/**
+ * 관리자용 MAU 분석 조회 요청을 처리하는 컨트롤러 코드입니다.
+ */
 public class AdminAnalyticsController {
 
     private final AnalyticsService analyticsService;
 
+    /**
+     * Mau 정보를 조회하는 메서드입니다.
+     */
     @GetMapping("/mau")
     @Operation(summary = "MAU 조회", description = "한국 시간 기준 특정 월의 비로그인/로그인/탈퇴/전체 MAU를 조회합니다.")
     public ResponseEntity<MauResponse> getMau(@RequestParam(required = false) String yearMonth) {

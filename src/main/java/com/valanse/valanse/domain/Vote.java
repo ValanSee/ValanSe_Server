@@ -18,6 +18,9 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @Where(clause = "deleted_at IS NULL")
+/**
+ * Vote 정보를 저장하고 연관관계를 표현하는 JPA 도메인 엔티티 코드입니다.
+ */
 public class Vote extends BaseEntity {
 
     @Id
@@ -60,11 +63,17 @@ public class Vote extends BaseEntity {
     // 추가
 
     // totalVoteCount에 대한 Setter 추가
+    /**
+     * Vote의 setTotalVoteCount 기능을 수행하는 메서드입니다.
+     */
     public void setTotalVoteCount(Integer totalVoteCount) {
         this.totalVoteCount = totalVoteCount;
     }
 
     // 추가 : 반응성 점수 업데이트 메서드
+    /**
+     * ReactivityScore 데이터를 수정하는 메서드입니다.
+     */
     public void updateReactivityScore(){
         Integer commentCount = (commentGroup != null) ? commentGroup.getTotalCommentCount() : 0;
         Integer shareCount = 0; // 향후 확장용
@@ -77,15 +86,24 @@ public class Vote extends BaseEntity {
     }
 
     // 편의 메서드: VoteOption 추가
+    /**
+     * Vote의 addVoteOption 기능을 수행하는 메서드입니다.
+     */
     public void addVoteOption(VoteOption voteOption) {
         this.voteOptions.add(voteOption);
         voteOption.setVote(this);
     }
 
+    /**
+     * Vote의 pin 기능을 수행하는 메서드입니다.
+     */
     public void pin(PinType pinType) {
         this.pinType = pinType;
     }
 
+    /**
+     * Vote의 unpin 기능을 수행하는 메서드입니다.
+     */
     public void unpin() {
         this.pinType = PinType.NONE;
     }

@@ -18,11 +18,17 @@ import java.util.List;
 @RestController
 @RequestMapping("/report")
 @RequiredArgsConstructor
+/**
+ * 투표와 댓글 신고 생성 및 관리자 신고 목록 조회를 처리하는 컨트롤러 코드입니다.
+ */
 public class ReportController {
 
     private final ReportService reportService;
     private final MemberService memberService;
 
+    /**
+     * ReportController의 Report 기능을 수행하는 메서드입니다.
+     */
     @PostMapping("/{targetId}")
     public ResponseEntity<Void> Report(@PathVariable Long targetId, @RequestBody ReportRequest request) {
         Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
@@ -32,6 +38,9 @@ public class ReportController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * 관리자가 신고 누적 대상 목록을 조회하는 메서드입니다.
+     */
     @GetMapping
     public ResponseEntity<List<ReportedTargetResponse>> getReportedTargets(
             @RequestParam ReportType type,
