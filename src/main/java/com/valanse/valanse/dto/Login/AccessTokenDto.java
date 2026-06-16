@@ -9,6 +9,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true) // 없는 필드는 자동 무시
+/**
+ * AccessTokenDto API 응답 또는 계층 간 전달 값을 담는 DTO 코드입니다.
+ */
 public class AccessTokenDto {
     private String access_token;
     private String refresh_token;

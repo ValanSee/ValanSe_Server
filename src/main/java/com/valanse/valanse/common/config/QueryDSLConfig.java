@@ -9,9 +9,15 @@ import org.springframework.context.annotation.Configuration;
 //빈을 등록하여 데이터베이스 쿼리를 동적으로 생성할 수 있도록 합니다.
 @Configuration
 @RequiredArgsConstructor
+/**
+ * 애플리케이션 인프라 설정을 담당하는 설정 코드입니다.
+ */
 public class QueryDSLConfig {
     private final EntityManager entityManager;
 
+    /**
+     * QueryDSLConfig의 jpaQueryFactory 기능을 수행하는 메서드입니다.
+     */
     @Bean
     public JPAQueryFactory jpaQueryFactory(){
         return new JPAQueryFactory(entityManager);// 매서드체이닝을 통해 쿼리문 생성 가능

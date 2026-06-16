@@ -9,6 +9,9 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * PointHistoryRepository 엔티티의 DB 접근을 담당하는 레포지토리 코드입니다.
+ */
 public interface PointHistoryRepository extends JpaRepository<PointHistory, Long> {
     List<PointHistory> findByMemberId(Long memberId);
 

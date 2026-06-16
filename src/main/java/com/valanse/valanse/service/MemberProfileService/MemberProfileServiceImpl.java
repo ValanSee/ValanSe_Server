@@ -28,6 +28,9 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 @Transactional
+/**
+ * 회원 프로필 생성/수정, 닉네임 검증, 기본 칭호 지급을 처리하는 서비스 코드입니다.
+ */
 public class MemberProfileServiceImpl implements MemberProfileService {
 
     private final MemberRepository memberRepository;
@@ -36,6 +39,9 @@ public class MemberProfileServiceImpl implements MemberProfileService {
     private final TitleRepository titleRepository;
     private final PointService pointService;
 
+    /**
+     * OrUpdateProfile 데이터를 저장하는 메서드입니다.
+     */
     @Override
     public void saveOrUpdateProfile(MemberProfileRequest dto) {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
@@ -96,6 +102,9 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         }
     }
 
+    /**
+     * Profile 정보를 조회하는 메서드입니다.
+     */
     @Transactional(readOnly = true)
     @Override
     public MemberProfileResponse getProfile() {
@@ -126,11 +135,17 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         return new MemberProfileResponse(info);
     }
 
+    /**
+     * isAvailableNickname 조건을 판별하는 메서드입니다.
+     */
     @Override
     public boolean isAvailableNickname(String nickname) {
         return !memberProfileRepository.existsByNicknameAndDeletedAtIsNull(nickname);
     }
 
+    /**
+     * isMeaningfulNickname 조건을 판별하는 메서드입니다.
+     */
     @Override
     public boolean isMeaningfulNickname(String nickname) {
         // 0. 전체 공백 허용 x
@@ -211,6 +226,9 @@ public class MemberProfileServiceImpl implements MemberProfileService {
             "애미"
     );
 
+    /**
+     * isCleanNickname 조건을 판별하는 메서드입니다.
+     */
     @Override
     public boolean isCleanNickname(String nickname) {
         if (nickname == null || nickname.isBlank()) {
@@ -228,6 +246,9 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         return true;
     }
 
+    /**
+     * MyProfile 정보를 조회하는 메서드입니다.
+     */
     @Transactional(readOnly = true)
     @Override
     public MemberMyPageResponse getMyProfile() {

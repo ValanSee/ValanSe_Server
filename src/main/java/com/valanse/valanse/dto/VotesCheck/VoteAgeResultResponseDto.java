@@ -9,6 +9,9 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+/**
+ * VoteAgeResultResponseDto API 응답 또는 계층 간 전달 값을 담는 DTO 코드입니다.
+ */
 public class VoteAgeResultResponseDto {
     private Long voteId;
     private Map<String, AgeGroupStats> ageRatios; // A, B -> 선택지별 통계

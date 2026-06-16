@@ -22,11 +22,17 @@ import java.util.Objects;
 
 @Repository
 @RequiredArgsConstructor
+/**
+ * ReportRepositoryImpl의 커스텀 조회 로직을 QueryDSL로 구현하는 레포지토리 코드입니다.
+ */
 public class ReportRepositoryImpl implements ReportRepositoryCustom {
     private final JPAQueryFactory queryFactory;
     private final VoteRepository voteRepository;
     private final CommentRepository commentRepository;
 
+    /**
+     * ReportedTargets 조건에 맞는 데이터를 찾는 메서드입니다.
+     */
     @Override
     public List<ReportedTargetResponse> findReportedTargets(ReportType type, String sort) {
         QReport report = QReport.report;

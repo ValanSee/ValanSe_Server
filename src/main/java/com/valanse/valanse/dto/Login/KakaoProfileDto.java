@@ -9,6 +9,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
+/**
+ * KakaoProfileDto API 응답 또는 계층 간 전달 값을 담는 DTO 코드입니다.
+ */
 public class KakaoProfileDto {
     private String id;
 

@@ -17,10 +17,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/analytics/events")
+/**
+ * 페이지 방문 이벤트 수집 요청을 처리하는 분석 컨트롤러 코드입니다.
+ */
 public class AnalyticsController {
 
     private final AnalyticsService analyticsService;
 
+    /**
+     * 페이지 방문 이벤트를 저장하고 로그인 전 익명 활동을 회원과 연결하는 메서드입니다.
+     */
     @PostMapping("/page-view")
     @Operation(summary = "페이지 방문 이벤트 수집", description = "비로그인/로그인 사용자의 페이지 방문 이벤트를 기록합니다.")
     public ResponseEntity<PageViewEventResponse> recordPageView(

@@ -17,6 +17,9 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+/**
+ * Comment 정보를 저장하고 연관관계를 표현하는 JPA 도메인 엔티티 코드입니다.
+ */
 public class Comment extends BaseEntity {
 
     @Id
@@ -60,14 +63,23 @@ public class Comment extends BaseEntity {
     @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
     private List<Comment> replies = new ArrayList<>();
 
+    /**
+     * ReplyCount 데이터를 수정하는 메서드입니다.
+     */
     public void updateReplyCount(int newCount) {
         this.replyCount = newCount;
     }
 
+    /**
+     * Comment의 setLikeCount 기능을 수행하는 메서드입니다.
+     */
     public void setLikeCount(int count) {
         this.likeCount = count;
     }
 
+    /**
+     * Comment의 setDeletedAt 기능을 수행하는 메서드입니다.
+     */
     public void setDeletedAt(LocalDateTime deletedAt) {  // 메서드 변경
         this.deletedAt = deletedAt;
     }

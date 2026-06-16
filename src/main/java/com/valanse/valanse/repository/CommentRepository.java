@@ -13,6 +13,9 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
+/**
+ * CommentRepository 엔티티의 DB 접근을 담당하는 레포지토리 코드입니다.
+ */
 public interface CommentRepository extends JpaRepository<Comment, Long>, CommentRepositoryCustom {
 
     // 댓글 그룹별 조회 (부모 댓글만)

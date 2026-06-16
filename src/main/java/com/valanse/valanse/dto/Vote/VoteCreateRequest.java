@@ -13,6 +13,9 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+/**
+ * VoteCreateRequest API 요청 값을 전달하는 DTO 코드입니다.
+ */
 public class VoteCreateRequest {
     private String title;
     private String content; // 투표 상세 내용 (선택사항)

@@ -19,6 +19,10 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+/**
+ * Cloudflare R2에 이미지 파일을 업로드하고 공개 URL을 생성하는 스토리지 서비스 코드입니다.
+ * check: MIME 타입뿐 아니라 실제 이미지 시그니처 검증을 추가하는 것이 안전합니다.
+ */
 public class R2StorageService implements StorageService {
 
     private static final long MAX_IMAGE_SIZE = 5 * 1024 * 1024;
@@ -32,6 +36,10 @@ public class R2StorageService implements StorageService {
     private final S3Client s3Client;
     private final R2Properties properties;
 
+    /**
+     * 이미지 파일을 검증한 뒤 Cloudflare R2에 업로드하고 공개 URL을 반환하는 메서드입니다.
+     * check: 파일 내용 기반 이미지 검증과 악성 파일 차단 정책을 추가해야 합니다.
+     */
     @Override
     public String uploadImage(MultipartFile file, String directory) {
         validateImage(file);
