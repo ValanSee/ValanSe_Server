@@ -329,6 +329,13 @@ class MemberProfileServiceImplTest {
     }
 
     @Test
+    @DisplayName("닉네임은 한글, 영어, 숫자를 혼용할 수 있다")
+    void 닉네임_한글_영어_숫자_혼용_허용() {
+        assertThat(memberProfileService.isMeaningfulNickname("가나다abc123")).isTrue();
+        assertThat(memberProfileService.isMeaningfulNickname("밸런스User2026")).isTrue();
+    }
+
+    @Test
     @DisplayName("닉네임 길이는 한글과 영어 모두 17자부터 거부한다")
     void 닉네임_길이_17자부터_거부() {
         assertThat(memberProfileService.isMeaningfulNickname("가나다라마바사아자차카타파하허호구")).isFalse();

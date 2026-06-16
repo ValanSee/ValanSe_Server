@@ -158,18 +158,12 @@ public class MemberProfileServiceImpl implements MemberProfileService {
             return false;
         }
 
-        // 2. 한글/ 영어 혼합금지, 숫자만으로 이루어진 닉네임 금지
-        boolean hasEnglish = nickname.matches(".*[a-zA-Z].*");
-        boolean hasKorean = nickname.matches(".*[가-힣].*");
-        if (hasEnglish && hasKorean) {
-            return false;
-        }
-
+        // 2. 숫자만으로 이루어진 닉네임 금지
         if (nickname.matches("\\d+")) {
             return false;
         }
 
-        // 3. 길이제한 (한글/영어 구분 없이 16자)
+        // 3. 길이제한 (한글/영어/숫자 혼용 16자)
         int length = nickname.length();
 
         if (length > 16) {
