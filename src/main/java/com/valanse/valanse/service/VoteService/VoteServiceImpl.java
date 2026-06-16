@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime; // 기존 코드에 있었으므로 유지
 import java.util.Arrays;
 import java.util.List; // 기존 코드에 있었으므로 유지
+import java.util.Map;
 import java.util.Optional; // Optional 임포트 추가 (processVote 메서드에서 사용)
 import java.util.stream.Collectors; // 기존 코드에 있었으므로 유지
 
@@ -429,6 +430,14 @@ public class VoteServiceImpl implements VoteService {
             }
         }
 
+        List<Long> creatorMemberIds = votes.stream()
+                .map(Vote::getMember)
+                .filter(member -> member != null && member.getId() != null)
+                .map(Member::getId)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, String> equippedTitleNamesByMemberId = getEquippedTitleNamesByMemberIds(creatorMemberIds);
+
         List<VoteListResponse.VoteDto> voteDtos = votes.stream()
                 .map(vote -> {
                     String creatorNickname = "익명";
@@ -462,7 +471,9 @@ public class VoteServiceImpl implements VoteService {
                             .category(vote.getCategory().name())
                             .member_id(vote.getMember() != null ? vote.getMember().getId() : null)
                             .nickname(creatorNickname)
-                            .member_title(getEquippedTitleName(vote.getMember()))
+                            .member_title(vote.getMember() != null
+                                    ? equippedTitleNamesByMemberId.get(vote.getMember().getId())
+                                    : null)
                             .created_at(vote.getCreatedAt())
                             .total_vote_count(vote.getTotalVoteCount())
                             .total_comment_count(totalCommentCount)
@@ -639,6 +650,22 @@ public class VoteServiceImpl implements VoteService {
                 .map(MemberProfileTitle::getTitle)
                 .map(Title::getName)
                 .orElse(null);
+    }
+
+    private Map<Long, String> getEquippedTitleNamesByMemberIds(List<Long> memberIds) {
+        if (memberIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return memberProfileTitleRepository.findAllEquippedWithTitleByMemberIds(memberIds).stream()
+                .filter(memberProfileTitle -> memberProfileTitle.getMemberProfile() != null)
+                .filter(memberProfileTitle -> memberProfileTitle.getMemberProfile().getMember() != null)
+                .filter(memberProfileTitle -> memberProfileTitle.getTitle() != null)
+                .collect(Collectors.toMap(
+                        memberProfileTitle -> memberProfileTitle.getMemberProfile().getMember().getId(),
+                        memberProfileTitle -> memberProfileTitle.getTitle().getName(),
+                        (existing, replacement) -> existing
+                ));
     }
 
 }
