@@ -19,6 +19,9 @@ import java.util.List;
 @NoArgsConstructor
 @Getter
 @Entity
+/**
+ * MemberProfile 정보를 저장하고 연관관계를 표현하는 JPA 도메인 엔티티 코드입니다.
+ */
 public class MemberProfile extends BaseEntity {
 
     @Id
@@ -53,6 +56,9 @@ public class MemberProfile extends BaseEntity {
     @OneToMany(mappedBy = "memberProfile", cascade = CascadeType.ALL)
     private List<MemberProfileTitle> memberProfileTitles = new ArrayList<>();
 
+    /**
+     * MemberProfile 데이터를 수정하는 메서드입니다.
+     */
     public void update(String nickname, Gender gender, Age age, MbtiIe mbtiIe, MbtiTf mbtiTf, String mbti) {
         this.nickname = nickname;
         this.gender = gender;
@@ -62,14 +68,23 @@ public class MemberProfile extends BaseEntity {
         this.mbti = mbti;
     }
 
+    /**
+     * MemberProfile의 addPoint 기능을 수행하는 메서드입니다.
+     */
     public void addPoint(long amount) {
         this.point += amount;
     }
 
+    /**
+     * hasEnoughPoint 조건을 판별하는 메서드입니다.
+     */
     public boolean hasEnoughPoint(long amount) {
         return this.point >= amount;
     }
 
+    /**
+     * MemberProfile의 subtractPoint 기능을 수행하는 메서드입니다.
+     */
     public void subtractPoint(long amount) {
         if (amount < 0) {
             throw new IllegalArgumentException("차감할 포인트는 0 이상이어야 합니다.");

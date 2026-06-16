@@ -22,6 +22,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+/**
+ * ActivityEvent 정보를 저장하고 연관관계를 표현하는 JPA 도메인 엔티티 코드입니다.
+ */
 public class ActivityEvent extends BaseEntity {
 
     @Id

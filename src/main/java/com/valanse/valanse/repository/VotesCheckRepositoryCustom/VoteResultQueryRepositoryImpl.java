@@ -23,6 +23,9 @@ import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
+/**
+ * VoteResultQueryRepositoryImpl의 커스텀 조회 로직을 QueryDSL로 구현하는 레포지토리 코드입니다.
+ */
 public class VoteResultQueryRepositoryImpl implements VoteResultQueryRepository {
 
     private final JPAQueryFactory queryFactory;
@@ -32,6 +35,9 @@ public class VoteResultQueryRepositoryImpl implements VoteResultQueryRepository 
     private final QMemberProfile profile = QMemberProfile.memberProfile;
     private final QVoteOption option = QVoteOption.voteOption;
 
+    /**
+     * VoteResultByGender 조건에 맞는 데이터를 찾는 메서드입니다.
+     */
     @Override
     public VoteGenderResultResponseDto findVoteResultByGender(Long voteId, String gender) {
         // gender 값 전처리
@@ -108,6 +114,9 @@ public class VoteResultQueryRepositoryImpl implements VoteResultQueryRepository 
     }
 
 
+    /**
+     * VoteResultByAge 조건에 맞는 데이터를 찾는 메서드입니다.
+     */
     @Override
     public VoteAgeResultResponseDto findVoteResultByAge(Long voteId) {
         // 1. 전체 라벨 + content 조회
@@ -192,6 +201,9 @@ public class VoteResultQueryRepositoryImpl implements VoteResultQueryRepository 
         };
     }
 
+    /**
+     * VoteResultByMbti 조건에 맞는 데이터를 찾는 메서드입니다.
+     */
     @Override
     public VoteMbtiResultResponseDto findVoteResultByMbti(Long voteId, String mbtiType) {
         // 1. MBTI 기준 필드 선택

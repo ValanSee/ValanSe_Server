@@ -25,6 +25,9 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Transactional
+/**
+ * 신고 대상 검증, 중복 신고 방지, 관리자 신고 목록 조회를 처리하는 서비스 코드입니다.
+ */
 public class ReportServiceImpl implements ReportService{
 
     private final VoteRepository voteRepository;
@@ -32,6 +35,9 @@ public class ReportServiceImpl implements ReportService{
     private final ReportRepository reportRepository;
     private final ReportRepositoryCustom reportRepositoryCustom;
 
+    /**
+     * 투표 또는 댓글 신고를 생성하고 본인/중복 신고를 차단하는 메서드입니다.
+     */
     @Override
     public void report(Member member, Long targetId, ReportType reportType){
 
@@ -66,6 +72,9 @@ public class ReportServiceImpl implements ReportService{
         reportRepository.save(report);
     }
 
+    /**
+     * 관리자가 신고 누적 대상 목록을 조회하는 메서드입니다.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<ReportedTargetResponse> getReportedTargets(Member member, ReportType type, String sort) {

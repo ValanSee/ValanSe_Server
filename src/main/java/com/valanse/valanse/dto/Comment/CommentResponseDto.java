@@ -9,6 +9,9 @@ import com.querydsl.core.annotations.QueryProjection;
 
 @Getter
 @Builder
+/**
+ * CommentResponseDto API 응답 또는 계층 간 전달 값을 담는 DTO 코드입니다.
+ */
 public class CommentResponseDto {
     private Long commentId;
     private Long voteId;
@@ -25,6 +28,9 @@ public class CommentResponseDto {
     private Long hoursAgo;
     private Boolean canDelete;
 
+    /**
+     * CommentResponseDto 의존성을 주입하거나 객체를 초기화하는 생성자입니다.
+     */
     @QueryProjection
     public CommentResponseDto(Long commentId, Long voteId, String nickname, String title,
                               LocalDateTime commentCreatedAt, LocalDateTime voteCreatedAt,  // 추가

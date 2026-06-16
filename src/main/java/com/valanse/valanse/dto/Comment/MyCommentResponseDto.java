@@ -10,6 +10,9 @@ import java.time.LocalDateTime;
 
 @Getter
 @Builder
+/**
+ * MyCommentResponseDto API 응답 또는 계층 간 전달 값을 담는 DTO 코드입니다.
+ */
 public class MyCommentResponseDto {
 
     private Long id;
@@ -25,6 +28,9 @@ public class MyCommentResponseDto {
     private String voteTitle;         // 추가
     private String voteOptionLabel;   // 추가
 
+    /**
+     * MyCommentResponseDto의 fromEntity 기능을 수행하는 메서드입니다.
+     */
     public static MyCommentResponseDto fromEntity(Comment comment) {
         return MyCommentResponseDto.builder()
                 .id(comment.getId())

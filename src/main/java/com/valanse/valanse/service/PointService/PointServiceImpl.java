@@ -27,6 +27,10 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 @Transactional
+/**
+ * 회원 포인트 지급, 사용 기록, 포인트 히스토리 조회를 처리하는 서비스 코드입니다.
+ * check: 포인트 지급 제한은 동시 요청에서 초과 지급되지 않도록 트랜잭션 격리 또는 DB 제약을 검토해야 합니다.
+ */
 public class PointServiceImpl implements PointService {
 
     private final MemberRepository memberRepository;
@@ -46,6 +50,9 @@ public class PointServiceImpl implements PointService {
     // 날짜 포맷터
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    /**
+     * 포인트 정책에 따라 회원에게 보상 포인트를 지급하고 이력을 저장하는 메서드입니다.
+     */
     @Override
     public void givePoint(Long memberId, PointType type) {
         Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
@@ -88,6 +95,9 @@ public class PointServiceImpl implements PointService {
         }
     }
 
+    /**
+     * 포인트 사용 내역을 음수 금액으로 기록하는 메서드입니다.
+     */
     @Override
     public void recordPointUsage(Long memberId, long amount, PointType type) {
         if (amount <= 0) {
@@ -109,6 +119,9 @@ public class PointServiceImpl implements PointService {
         pointHistoryRepository.save(history);
     }
 
+    /**
+     * 회원의 포인트 변동 이력을 최신순 응답으로 조회하는 메서드입니다.
+     */
     @Override
     @Transactional(readOnly = true)
     public PointHistoryResponse getPointHistory(Long memberId) {

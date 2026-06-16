@@ -25,6 +25,9 @@ import static com.valanse.valanse.domain.mapping.QMemberVoteOption.memberVoteOpt
 
 @Repository
 @RequiredArgsConstructor
+/**
+ * VoteRepositoryImpl의 커스텀 조회 로직을 QueryDSL로 구현하는 레포지토리 코드입니다.
+ */
 public class VoteRepositoryImpl implements VoteRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
@@ -33,6 +36,9 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
     private final QMemberProfile memberProfile = QMemberProfile.memberProfile;
     private final QCommentGroup commentGroup = QCommentGroup.commentGroup;
 
+    /**
+     * 투표 목록 커서 페이지네이션에 필요한 ID 조회와 fetch join 조회를 수행하는 메서드입니다.
+     */
     @Override
     public List<Vote> findVotesByCursor(String category, String sort, String cursor, int size) {
 
@@ -107,6 +113,9 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                 .fetch();
     }
 
+    /**
+     * 투표 수와 댓글 수를 합산해 핫이슈 후보를 조회하는 메서드입니다.
+     */
     @Override
     public Optional<Vote> findHotIssueVote() {
         return Optional.ofNullable(
@@ -122,6 +131,9 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                         .fetchFirst());
     }
 
+    /**
+     * 기간 내 댓글 또는 투표 활동이 있는 투표 중 반응성이 높은 항목을 조회하는 메서드입니다.
+     */
     @Override
     public Optional<Vote> findTrendingVote(LocalDateTime from, LocalDateTime to) {
         return Optional.ofNullable(

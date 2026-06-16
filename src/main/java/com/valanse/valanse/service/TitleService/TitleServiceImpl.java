@@ -40,6 +40,10 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
+/**
+ * 칭호 목록, 장착, 구매, 관리자 생성/수정/삭제 정책을 처리하는 서비스 코드입니다.
+ * check: 포인트 차감과 칭호 구매는 동시 구매 요청에서 중복 차감/중복 소유가 생기지 않도록 DB 제약과 락을 검토해야 합니다.
+ */
 public class TitleServiceImpl implements TitleService {
 
     private final MemberRepository memberRepository;
@@ -48,6 +52,9 @@ public class TitleServiceImpl implements TitleService {
     private final TitleRepository titleRepository;
     private final PointService pointService;
 
+    /**
+     * 회원의 기본/보유/잠김 칭호 목록을 구성하는 메서드입니다.
+     */
     @Override
     public TitleListResponse getTitleList(Long userId) {
         MemberProfile profile = memberProfileRepository.findByMemberId(userId)
@@ -107,6 +114,9 @@ public class TitleServiceImpl implements TitleService {
         return new TitleListResponse(defaultTitles, ownedTitles, lockedTitles);
     }
 
+    /**
+     * 회원이 보유한 칭호를 장착하고 기존 장착 칭호를 해제하는 메서드입니다.
+     */
     @Override
     public TitleEquipResponse equipTitle(Long userId, Long titleId) {
         memberProfileRepository.findByMemberId(userId)
@@ -131,6 +141,10 @@ public class TitleServiceImpl implements TitleService {
         );
     }
 
+    /**
+     * 포인트 구매형 칭호를 구매하고 포인트를 차감하는 메서드입니다.
+     * check: 포인트 차감과 소유권 생성은 동시 요청에서 원자적으로 보장해야 합니다.
+     */
     @Override
     public TitlePurchaseResponse purchaseTitle(Long userId, Long titleId) {
         MemberProfile profile = memberProfileRepository.findByMemberId(userId)
@@ -167,6 +181,9 @@ public class TitleServiceImpl implements TitleService {
         );
     }
 
+    /**
+     * TitleListForAdmin 정보를 조회하는 메서드입니다.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<TitleAdminResponse> getTitleListForAdmin(Long adminUserId) {
@@ -177,6 +194,9 @@ public class TitleServiceImpl implements TitleService {
                 .toList();
     }
 
+    /**
+     * 관리자가 새 칭호 마스터 데이터를 생성하는 메서드입니다.
+     */
     @Override
     public TitleCreateResponse createTitle(Long adminUserId, TitleCreateRequest request) {
         validateAdmin(adminUserId);
@@ -204,6 +224,9 @@ public class TitleServiceImpl implements TitleService {
         return toTitleCreateResponse(savedTitle);
     }
 
+    /**
+     * 관리자가 기존 칭호 마스터 데이터를 수정하는 메서드입니다.
+     */
     @Override
     public TitleUpdateResponse updateTitle(Long adminUserId, Long titleId, TitleUpdateRequest request) {
         validateAdmin(adminUserId);
@@ -233,6 +256,9 @@ public class TitleServiceImpl implements TitleService {
         return toTitleUpdateResponse(title);
     }
 
+    /**
+     * 관리자가 칭호를 비활성화하고 장착 회원을 기본 칭호로 이동시키는 메서드입니다.
+     */
     @Override
     public TitleDeleteResponse deleteTitle(Long adminUserId, Long titleId) {
         validateAdmin(adminUserId);

@@ -20,12 +20,21 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional
+/**
+ * 댓글 좋아요 추가와 취소 및 좋아요 수 갱신을 처리하는 서비스 코드입니다.
+ * check: voteId와 commentId의 소속 검증이 필요합니다.
+ * check: 같은 사용자의 중복 좋아요는 DB unique 제약과 동시성 처리가 필요합니다.
+ */
 public class CommentLikeServiceImpl implements CommentLikeService {
 
     private final CommentRepository commentRepository;
     private final CommentLikeRepository commentLikeRepository;
     private final MemberRepository memberRepository;
 
+    /**
+     * 댓글 좋아요를 토글하고 좋아요 수를 갱신하는 메서드입니다.
+     * check: 댓글이 현재 투표에 속하는지 검증해야 합니다.
+     */
     @Override
     public CommentLikeResponseDto likeComment(Long voteId, Long commentId) {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());

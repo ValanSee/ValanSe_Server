@@ -8,6 +8,9 @@ import com.valanse.valanse.dto.Vote.VoteResponseDto;
 
 import java.util.List;
 
+/**
+ * VoteService 기능의 비즈니스 계약을 정의하는 서비스 인터페이스 코드입니다.
+ */
 public interface VoteService {
 
     // 신규 추가: 인기 급상승 토픽 조회

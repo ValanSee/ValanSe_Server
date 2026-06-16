@@ -1,5 +1,8 @@
 package com.valanse.valanse.common.message;
 
+/**
+ * AuthErrorMessage 도메인에서 사용하는 고정 선택 값을 정의하는 enum 코드입니다.
+ */
 public enum AuthErrorMessage {
     DELETE_PERMISSION_DENIED("삭제 권한 없음"),
     ADMIN_ONLY("관리자만 접근 가능합니다."),
@@ -27,14 +30,23 @@ public enum AuthErrorMessage {
         this.message = message;
     }
 
+    /**
+     * AuthErrorMessage의 message 기능을 수행하는 메서드입니다.
+     */
     public String message() {
         return message;
     }
 
+    /**
+     * AuthErrorMessage의 errorCode 기능을 수행하는 메서드입니다.
+     */
     public String errorCode() {
         return errorCode;
     }
 
+    /**
+     * tokenErrorResponse 형태로 데이터를 변환하는 메서드입니다.
+     */
     public String tokenErrorResponse() {
         return "{\"error\":\"" + errorCode + "\",\"message\":\"" + message + "\"}";
     }
