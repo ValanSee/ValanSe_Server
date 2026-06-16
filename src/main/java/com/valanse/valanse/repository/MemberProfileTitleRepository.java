@@ -2,6 +2,8 @@ package com.valanse.valanse.repository;
 
 import com.valanse.valanse.domain.MemberProfileTitle;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -17,6 +19,16 @@ public interface MemberProfileTitleRepository extends JpaRepository<MemberProfil
     List<MemberProfileTitle> findAllByMemberProfileMemberIdAndEquippedTrue(Long memberId);
 
     Optional<MemberProfileTitle> findByMemberProfileMemberIdAndEquippedTrue(Long memberId);
+
+    @Query("""
+            select memberProfileTitle
+            from MemberProfileTitle memberProfileTitle
+            join fetch memberProfileTitle.memberProfile memberProfile
+            join fetch memberProfileTitle.title title
+            where memberProfile.member.id in :memberIds
+              and memberProfileTitle.equipped = true
+            """)
+    List<MemberProfileTitle> findAllEquippedWithTitleByMemberIds(@Param("memberIds") List<Long> memberIds);
 
     List<MemberProfileTitle> findAllByMemberProfileMemberId(Long memberId);
 
