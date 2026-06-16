@@ -7,6 +7,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Getter
+/**
+ * VoteResponseDto API 응답 또는 계층 간 전달 값을 담는 DTO 코드입니다.
+ */
 public class VoteResponseDto {
     private Long voteId;
     private String title;
@@ -17,10 +20,16 @@ public class VoteResponseDto {
     private String creatorTitle;
     private List<String> options;
 
+    /**
+     * VoteResponseDto 의존성을 주입하거나 객체를 초기화하는 생성자입니다.
+     */
     public VoteResponseDto(Vote vote) {
         this(vote, null);
     }
 
+    /**
+     * VoteResponseDto 의존성을 주입하거나 객체를 초기화하는 생성자입니다.
+     */
     public VoteResponseDto(Vote vote, String creatorTitle) {
         this.voteId = vote.getId();
         this.title = vote.getTitle();

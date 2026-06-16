@@ -22,6 +22,9 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Getter
 @Entity
+/**
+ * MemberProfileTitle 정보를 저장하고 연관관계를 표현하는 JPA 도메인 엔티티 코드입니다.
+ */
 public class MemberProfileTitle extends BaseEntity {
 
     @Id
@@ -42,6 +45,9 @@ public class MemberProfileTitle extends BaseEntity {
 
     private LocalDateTime acquiredAt;
 
+    /**
+     * MemberProfileTitle의 prePersist 기능을 수행하는 메서드입니다.
+     */
     @PrePersist
     public void prePersist() {
         if (acquiredAt == null) {
@@ -49,10 +55,16 @@ public class MemberProfileTitle extends BaseEntity {
         }
     }
 
+    /**
+     * MemberProfileTitle의 equip 기능을 수행하는 메서드입니다.
+     */
     public void equip() {
         this.equipped = true;
     }
 
+    /**
+     * MemberProfileTitle의 unequip 기능을 수행하는 메서드입니다.
+     */
     public void unequip() {
         this.equipped = false;
     }

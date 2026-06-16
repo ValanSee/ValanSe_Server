@@ -18,18 +18,31 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 
 @Configuration
+/**
+ * Spring Security 인가 규칙, CORS, JWT 필터 체인을 구성하는 보안 설정 코드입니다.
+ * check: 운영 CORS 허용 도메인은 preview 전체 와일드카드보다 명시적 allowlist로 좁히는 것이 안전합니다.
+ */
 public class SecurityConfig {
     private final JwtTokenFilter jwtTokenFilter;
     // 테스트용 주석
+    /**
+     * SecurityConfig 의존성을 주입하거나 객체를 초기화하는 생성자입니다.
+     */
     public SecurityConfig(JwtTokenFilter jwtTokenFilter) {
         this.jwtTokenFilter = jwtTokenFilter;
     }
 
+    /**
+     * SecurityConfig의 makePassword 기능을 수행하는 메서드입니다.
+     */
     @Bean
     public PasswordEncoder makePassword() {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 
+    /**
+     * SecurityConfig의 securityFilterChain 기능을 수행하는 메서드입니다.
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
@@ -48,6 +61,9 @@ public class SecurityConfig {
                                 "/swagger-resources/**",
                                 "/webjars/**"
                         ).permitAll()
+
+                        .requestMatchers(HttpMethod.POST, "/analytics/events/page-view").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/admin/analytics/mau").hasRole("ADMIN")
 
                         // ============================================
                         // HTTP 메서드별 설정 (중요! 순서 지키기!)
@@ -92,6 +108,10 @@ public class SecurityConfig {
                 .build();
     }
 
+    /**
+     * SecurityConfig의 corsConfigurationSource 기능을 수행하는 메서드입니다.
+     * check: 운영 도메인과 개발/preview 도메인 허용 정책을 profile별로 분리하는 것이 좋습니다.
+     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();

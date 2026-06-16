@@ -3,6 +3,9 @@ package com.valanse.valanse.dto.Title;
 import com.valanse.valanse.domain.enums.TitleAcquisitionType;
 import com.valanse.valanse.domain.enums.TitleTier;
 
+/**
+ * TitleUpdateRequest API 요청 값을 전달하는 DTO 코드입니다.
+ */
 public record TitleUpdateRequest(
         String code,
         String title,

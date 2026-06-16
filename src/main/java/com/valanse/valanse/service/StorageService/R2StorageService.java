@@ -2,6 +2,7 @@ package com.valanse.valanse.service.StorageService;
 
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.common.config.R2Properties;
+import com.valanse.valanse.common.message.StorageErrorMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,10 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+/**
+ * Cloudflare R2에 이미지 파일을 업로드하고 공개 URL을 생성하는 스토리지 서비스 코드입니다.
+ * check: MIME 타입뿐 아니라 실제 이미지 시그니처 검증을 추가하는 것이 안전합니다.
+ */
 public class R2StorageService implements StorageService {
 
     private static final long MAX_IMAGE_SIZE = 5 * 1024 * 1024;
@@ -31,6 +36,10 @@ public class R2StorageService implements StorageService {
     private final S3Client s3Client;
     private final R2Properties properties;
 
+    /**
+     * 이미지 파일을 검증한 뒤 Cloudflare R2에 업로드하고 공개 URL을 반환하는 메서드입니다.
+     * check: 파일 내용 기반 이미지 검증과 악성 파일 차단 정책을 추가해야 합니다.
+     */
     @Override
     public String uploadImage(MultipartFile file, String directory) {
         validateImage(file);
@@ -46,9 +55,9 @@ public class R2StorageService implements StorageService {
         try {
             s3Client.putObject(request, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
         } catch (IOException e) {
-            throw new ApiException("이미지 파일을 읽을 수 없습니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(StorageErrorMessage.IMAGE_FILE_READ_FAILED.message(), HttpStatus.BAD_REQUEST);
         } catch (S3Exception e) {
-            throw new ApiException("이미지 업로드에 실패했습니다.", HttpStatus.BAD_GATEWAY);
+            throw new ApiException(StorageErrorMessage.IMAGE_UPLOAD_FAILED.message(), HttpStatus.BAD_GATEWAY);
         }
 
         return properties.getPublicUrl().replaceAll("/+$", "") + "/" + objectKey;
@@ -56,15 +65,15 @@ public class R2StorageService implements StorageService {
 
     private void validateImage(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new ApiException("업로드할 이미지 파일을 선택해주세요.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(StorageErrorMessage.IMAGE_FILE_REQUIRED.message(), HttpStatus.BAD_REQUEST);
         }
 
         if (file.getSize() > MAX_IMAGE_SIZE) {
-            throw new ApiException("이미지는 5MB 이하만 업로드할 수 있습니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(StorageErrorMessage.IMAGE_SIZE_EXCEEDED.message(), HttpStatus.BAD_REQUEST);
         }
 
         if (!ALLOWED_IMAGE_TYPES.contains(file.getContentType())) {
-            throw new ApiException("jpg, png, webp, gif 이미지 파일만 업로드할 수 있습니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(StorageErrorMessage.IMAGE_CONTENT_TYPE_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
     }
 

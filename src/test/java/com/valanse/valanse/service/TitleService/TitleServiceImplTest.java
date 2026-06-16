@@ -1,6 +1,8 @@
 package com.valanse.valanse.service.TitleService;
 
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.AuthErrorMessage;
+import com.valanse.valanse.common.message.ProfileErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.MemberProfileTitle;
@@ -23,6 +25,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 import java.util.Optional;
@@ -160,12 +163,13 @@ class TitleServiceImplTest {
         when(memberProfileTitleRepository.findByMemberProfileMemberIdAndTitleId(1L, 99L))
                 .thenReturn(Optional.empty());
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        ApiException exception = assertThrows(
+                ApiException.class,
                 () -> titleService.equipTitle(1L, 99L)
         );
 
         assertThat(exception.getMessage()).isEqualTo("보유하지 않은 칭호입니다.");
+        assertThat(exception.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
         verify(memberProfileTitleRepository, never()).findAllByMemberProfileMemberIdAndEquippedTrue(1L);
     }
 
@@ -189,12 +193,13 @@ class TitleServiceImplTest {
         when(memberProfileTitleRepository.findByMemberProfileMemberIdAndTitleId(1L, 99L))
                 .thenReturn(Optional.of(inactiveProfileTitle));
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        ApiException exception = assertThrows(
+                ApiException.class,
                 () -> titleService.equipTitle(1L, 99L)
         );
 
         assertThat(exception.getMessage()).isEqualTo("장착할 수 없는 칭호입니다.");
+        assertThat(exception.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
         verify(memberProfileTitleRepository, never()).findAllByMemberProfileMemberIdAndEquippedTrue(1L);
     }
 
@@ -203,12 +208,13 @@ class TitleServiceImplTest {
     void equipTitle_프로필없음_예외() {
         when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.empty());
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        ApiException exception = assertThrows(
+                ApiException.class,
                 () -> titleService.equipTitle(1L, 1L)
         );
 
-        assertThat(exception.getMessage()).isEqualTo("프로필이 존재하지 않습니다.");
+        assertThat(exception.getMessage()).isEqualTo(ProfileErrorMessage.PROFILE_NOT_FOUND.message());
+        assertThat(exception.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
         verify(memberProfileTitleRepository, never()).findByMemberProfileMemberIdAndTitleId(1L, 1L);
     }
 
@@ -247,12 +253,13 @@ class TitleServiceImplTest {
         when(memberProfileTitleRepository.findByMemberProfileMemberIdAndTitleId(1L, 3L))
                 .thenReturn(Optional.empty());
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        ApiException exception = assertThrows(
+                ApiException.class,
                 () -> titleService.purchaseTitle(1L, 3L)
         );
 
         assertThat(exception.getMessage()).isEqualTo("포인트가 부족합니다. (필요포인트 300P 필요)");
+        assertThat(exception.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(profile.getPoint()).isEqualTo(100L);
         verify(pointService, never()).recordPointUsage(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.any());
         verify(memberProfileTitleRepository, never()).save(org.mockito.ArgumentMatchers.any());
@@ -339,7 +346,7 @@ class TitleServiceImplTest {
                 () -> titleService.createTitle(1L, validCreateRequest())
         );
 
-        assertThat(exception.getMessage()).isEqualTo("관리자만 접근 가능합니다.");
+        assertThat(exception.getMessage()).isEqualTo(AuthErrorMessage.ADMIN_ONLY.message());
         verify(titleRepository, never()).save(any());
     }
 
@@ -456,7 +463,7 @@ class TitleServiceImplTest {
                 () -> titleService.updateTitle(1L, 2L, validUpdateRequest())
         );
 
-        assertThat(exception.getMessage()).isEqualTo("관리자만 접근 가능합니다.");
+        assertThat(exception.getMessage()).isEqualTo(AuthErrorMessage.ADMIN_ONLY.message());
         verify(titleRepository, never()).findById(2L);
     }
 
@@ -527,7 +534,7 @@ class TitleServiceImplTest {
                 () -> titleService.deleteTitle(1L, 2L)
         );
 
-        assertThat(exception.getMessage()).isEqualTo("관리자만 접근 가능합니다.");
+        assertThat(exception.getMessage()).isEqualTo(AuthErrorMessage.ADMIN_ONLY.message());
         verify(titleRepository, never()).findById(2L);
     }
 

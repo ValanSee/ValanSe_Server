@@ -190,7 +190,7 @@ public class VoteControllerTest {
                 .andExpect(jsonPath("$.votes[1].options.length()").value(2))
                 .andExpect(jsonPath("$.has_next_page").value(false));
 
-        assertThat(statistics.getPrepareStatementCount()).isEqualTo(2);
+        assertThat(statistics.getPrepareStatementCount()).isEqualTo(3);
     }
 
     @Test

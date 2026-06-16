@@ -12,6 +12,10 @@ import java.util.Date;
 import java.util.Map;
 
 @Component
+/**
+ * JWT access token과 refresh token 생성 및 검증을 담당하는 인증 유틸 코드입니다.
+ * check: JWT secret은 코드/설정 파일에 고정하지 말고 외부 secret으로 주입해야 합니다.
+ */
 public class JwtTokenProvider {
     // application.yml에서 주입받은 시크릿 키 (Base64 인코딩된 문자열)
     private final String secretKey;
@@ -23,6 +27,9 @@ public class JwtTokenProvider {
     private Key SECRET_KEY;
 
     // 생성자에서 application.yml 설정값을 주입받고 서명 키 생성
+    /**
+     * JwtTokenProvider 의존성을 주입하거나 객체를 초기화하는 생성자입니다.
+     */
     public JwtTokenProvider(@Value("${jwt.secret}") String secretKey,
                             @Value("${jwt.access-token-expiration}") int accessTokenExpiration,
                             @Value("${jwt.refresh-token-expiration}") int refreshTokenExpiration) {
@@ -33,6 +40,9 @@ public class JwtTokenProvider {
     }
 
     // Access Token 생성
+    /**
+     * 사용자 식별자와 role claim을 담은 access token을 생성하는 메서드입니다.
+     */
     public String createAccessToken(Long userId, String role) {
 //        Claims claims = Jwts.claims().setSubject(email);
         Claims claims = Jwts.claims().setSubject(String.valueOf(userId)); // subject에 userId 저장
@@ -47,6 +57,9 @@ public class JwtTokenProvider {
     }
 
     // Refresh Token 생성
+    /**
+     * 사용자 식별자를 담은 refresh token을 생성하는 메서드입니다.
+     */
     public String createRefreshToken(Long userId) {
         Date now = new Date();
         return Jwts.builder()
@@ -58,6 +71,9 @@ public class JwtTokenProvider {
     }
 
     // 액세스 + 리프레시 토큰을 한 번에 발급
+    /**
+     * access token과 refresh token을 한 번에 생성하는 메서드입니다.
+     */
     public Map<String, String> createTokenPair(Long userId, String role) {
         String accessToken = createAccessToken(userId, role);
         String refreshToken = createRefreshToken(userId);  // 👈 수정된 버전 사용
@@ -68,6 +84,9 @@ public class JwtTokenProvider {
     }
 
     // JWT에서 subject(userId)를 꺼내는 메서드
+    /**
+     * JWT에서 subject로 저장된 사용자 식별자를 추출하는 메서드입니다.
+     */
     public String getSubject(String token) {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(SECRET_KEY)
@@ -78,6 +97,9 @@ public class JwtTokenProvider {
     }
 
     // JWT가 유효한지 확인하는 메서드
+    /**
+     * JWT 서명과 만료 여부를 검증하는 메서드입니다.
+     */
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder()

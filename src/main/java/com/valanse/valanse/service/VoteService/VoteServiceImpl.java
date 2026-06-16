@@ -1,6 +1,8 @@
 package com.valanse.valanse.service.VoteService;
 
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.MemberErrorMessage;
+import com.valanse.valanse.common.message.VoteErrorMessage;
 import com.valanse.valanse.domain.*;
 import com.valanse.valanse.domain.enums.PinType;
 import com.valanse.valanse.domain.enums.PointType;
@@ -18,13 +20,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime; // 기존 코드에 있었으므로 유지
+import java.util.Arrays;
 import java.util.List; // 기존 코드에 있었으므로 유지
+import java.util.Map;
 import java.util.Optional; // Optional 임포트 추가 (processVote 메서드에서 사용)
 import java.util.stream.Collectors; // 기존 코드에 있었으므로 유지
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true) // 클래스 레벨에서 기본적으로 읽기 전용 트랜잭션으로 설정
+/**
+ * 투표 생성, 참여/취소, 목록 조회, 핫이슈/트렌딩 선정, 삭제/고정 정책을 처리하는 서비스 코드입니다.
+ * check: voteId와 voteOptionId의 소속 검증을 강화해야 합니다.
+ * check: 투표 카운트 갱신은 동시성 제어 또는 원자적 update 쿼리로 보호하는 것이 좋습니다.
+ */
 public class VoteServiceImpl implements VoteService {
 
     private final VoteRepository voteRepository;
@@ -37,10 +46,13 @@ public class VoteServiceImpl implements VoteService {
     private final PointService pointService;
 
    //작은 민지가 구현한 것
+   /**
+    * 사용자가 직접 생성한 투표 목록을 정렬과 카테고리 조건으로 조회하는 메서드입니다.
+    */
    @Override
    public List<VoteResponseDto> getMyCreatedVotes(Long memberId, String sort, VoteCategory category) {
        Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
-               .orElseThrow(() -> new ApiException("회원이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+               .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
        List<Vote> votes;
 
@@ -52,7 +64,7 @@ public class VoteServiceImpl implements VoteService {
                    voteRepository.findAllByMemberOrderByCreatedAtAsc(member);
        } else {
            if (category == null)
-               throw new ApiException("카테고리를 입력해주세요.", HttpStatus.BAD_REQUEST);
+               throw new ApiException(VoteErrorMessage.CATEGORY_REQUIRED.message(), HttpStatus.BAD_REQUEST);
 
            votes = sort.equals("latest") ?
                    voteRepository.findAllByMemberAndCategoryOrderByCreatedAtDesc(member, category) :
@@ -64,10 +76,13 @@ public class VoteServiceImpl implements VoteService {
                .collect(Collectors.toList());
    }
 
+    /**
+     * 사용자가 참여한 투표 목록을 정렬과 카테고리 조건으로 조회하는 메서드입니다.
+     */
     @Override
     public List<VoteResponseDto> getMyVotedVotes(Long memberId, String sort, VoteCategory category) {
         Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
-                .orElseThrow(() -> new ApiException("회원이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         List<Vote> votes;
 
@@ -79,7 +94,7 @@ public class VoteServiceImpl implements VoteService {
                     voteRepository.findAllByMemberVotedOrderByCreatedAtAsc(member);
         } else {
             if (category == null)
-                throw new ApiException("카테고리를 입력해주세요.", HttpStatus.BAD_REQUEST);
+                throw new ApiException(VoteErrorMessage.CATEGORY_REQUIRED.message(), HttpStatus.BAD_REQUEST);
 
             votes = sort.equals("latest") ?
                     voteRepository.findAllByMemberVotedAndCategoryOrderByCreatedAtDesc(member, category) :
@@ -92,6 +107,9 @@ public class VoteServiceImpl implements VoteService {
     }
 
     //여기서부터 영서 코드
+    /**
+     * 핫이슈로 노출할 투표를 고정값 또는 반응성 기준으로 선정하는 메서드입니다.
+     */
     @Override
     public HotIssueVoteResponse getHotIssueVote() { // 파라미터 없음
         // 0. 고정 게시물이 있다면 반환.
@@ -113,7 +131,7 @@ public class VoteServiceImpl implements VoteService {
             hotIssueVote = yesterdayHotIssue.get();
         } else {
             hotIssueVote = voteRepository.findHotIssueVote()
-                    .orElseThrow(() -> new ApiException("핫이슈 투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+                    .orElseThrow(() -> new ApiException(VoteErrorMessage.HOT_ISSUE_VOTE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
         }
 
         // 3. 투표 생성자 정보 조회 (닉네임) - 기존 로직 유지
@@ -121,6 +139,9 @@ public class VoteServiceImpl implements VoteService {
     }
 
     // 인기 급상승 토픽
+    /**
+     * 최근 기간의 반응성을 기준으로 인기 급상승 투표를 선정하는 메서드입니다.
+     */
     @Override
     public HotIssueVoteResponse getTrendingVote() {
        // 0. 고정 게시물이 있다면 반환.
@@ -148,7 +169,7 @@ public class VoteServiceImpl implements VoteService {
         } else {
             // 7일 내 데이터가 없는 경우 - 이전 데이터 유지 (전체 기간에서 가장 높은 반응성)
             trendingVote = voteRepository.findHotIssueVote()
-                    .orElseThrow(() -> new ApiException("인기 급상승 투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+                    .orElseThrow(() -> new ApiException(VoteErrorMessage.TRENDING_VOTE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
         }
 
         // 3. 투표 생성자 정보 조회 (닉네임) - 기존 로직 유지
@@ -156,18 +177,22 @@ public class VoteServiceImpl implements VoteService {
 
     }
 
+    /**
+     * 사용자의 투표 선택, 취소, 재선택을 처리하고 선택지별 카운트와 전체 카운트를 갱신하는 메서드입니다.
+     * check: 선택지 소속 검증과 동시성 제어가 함께 필요합니다.
+     */
     @Override
     @Transactional // 이 메서드는 데이터를 변경하므로 읽기/쓰기 트랜잭션이 필요합니다. (클래스 레벨의 readOnly = true를 오버라이드)
     public VoteCancleResponseDto processVote(Long userId, Long voteId, Long voteOptionId) {
         // 1. 필수 엔티티들을 조회합니다. (없으면 예외 발생)
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new ApiException("회원이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         Vote vote = voteRepository.findById(voteId)
-                .orElseThrow(() -> new ApiException("투표가 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         VoteOption newVoteOption = voteOptionRepository.findById(voteOptionId)
-                .orElseThrow(() -> new ApiException("투표 선택지가 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_OPTION_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         // 2. 사용자가 이 투표에 대해 이전에 투표한 선택지가 있는지 확인합니다.
         Optional<MemberVoteOption> existingVote = memberVoteOptionRepository.findByMemberIdAndVoteId(userId, voteId);
@@ -255,10 +280,13 @@ public class VoteServiceImpl implements VoteService {
                 updatedVoteOptionCount
         );
     }
+    /**
+     * 투표 상세 정보와 현재 사용자의 투표 여부를 함께 조회하는 메서드입니다.
+     */
     @Override
     public VoteDetailResponse getVoteDetailById(Long voteId) {
         Vote vote = voteRepository.findById(voteId)
-                .orElseThrow(() -> new ApiException("투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_DETAIL_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         // MemberProfile의 nickname을 가져오도록 수정
         String creatorNickname = null;
@@ -321,18 +349,21 @@ public class VoteServiceImpl implements VoteService {
 
 
 
+    /**
+     * 새 투표와 선택지, 댓글 그룹을 생성하고 작성 포인트를 지급하는 메서드입니다.
+     */
     @Override
     @Transactional
     public Long createVote(Long userId, VoteCreateRequest request) {
         // 1. 회원 검증
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new ApiException("회원이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
 
         // **수정된 부분: 제목 길이 검증 시 .trim() 추가**
         String trimmedTitle = request.getTitle() != null ? request.getTitle().trim() : null;
         if (trimmedTitle == null || trimmedTitle.isEmpty() || trimmedTitle.length() > 25) {
-            throw new ApiException("투표 제목은 1자 이상 25자 이하여야 합니다 (공백 제외).", HttpStatus.BAD_REQUEST);
+            throw new ApiException(VoteErrorMessage.VOTE_TITLE_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
 
         // 2. 투표 생성 (아직 데이터베이스에 저장되지 않은 비영속 상태)
@@ -347,7 +378,7 @@ public class VoteServiceImpl implements VoteService {
         // 3. 투표 옵션 생성 및 추가 (최대 4개 옵션 제한)
         List<String> options = request.getOptions();
         if (options == null || options.isEmpty() || options.size() > 4) {
-            throw new ApiException("투표 옵션은 1개 이상 4개 이하여야 합니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(VoteErrorMessage.VOTE_OPTION_COUNT_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
 
         VoteLabel[] labels = VoteLabel.values();
@@ -377,6 +408,9 @@ public class VoteServiceImpl implements VoteService {
         return savedVote.getId(); // 저장된 투표의 ID를 반환
     }
 
+    /**
+     * 커서 기반 페이지네이션으로 투표 목록을 조회하고 목록 응답 DTO를 구성하는 메서드입니다.
+     */
     @Override
     public VoteListResponse getVotesByCategoryAndSort(Member loginUser, String category, String sort, String cursor, int size) {
         validateVoteListRequest(category, sort, cursor, size);
@@ -395,6 +429,14 @@ public class VoteServiceImpl implements VoteService {
                 nextCursor = lastVote.getCreatedAt() + "_" + lastVote.getId();
             }
         }
+
+        List<Long> creatorMemberIds = votes.stream()
+                .map(Vote::getMember)
+                .filter(member -> member != null && member.getId() != null)
+                .map(Member::getId)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, String> equippedTitleNamesByMemberId = getEquippedTitleNamesByMemberIds(creatorMemberIds);
 
         List<VoteListResponse.VoteDto> voteDtos = votes.stream()
                 .map(vote -> {
@@ -429,7 +471,9 @@ public class VoteServiceImpl implements VoteService {
                             .category(vote.getCategory().name())
                             .member_id(vote.getMember() != null ? vote.getMember().getId() : null)
                             .nickname(creatorNickname)
-                            .member_title(getEquippedTitleName(vote.getMember()))
+                            .member_title(vote.getMember() != null
+                                    ? equippedTitleNamesByMemberId.get(vote.getMember().getId())
+                                    : null)
                             .created_at(vote.getCreatedAt())
                             .total_vote_count(vote.getTotalVoteCount())
                             .total_comment_count(totalCommentCount)
@@ -448,7 +492,7 @@ public class VoteServiceImpl implements VoteService {
 
     private void validateVoteListRequest(String category, String sort, String cursor, int size) {
         if (size < 1) {
-            throw new ApiException("size는 1 이상이어야 합니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(VoteErrorMessage.SIZE_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
 
         validateCategory(category);
@@ -458,23 +502,23 @@ public class VoteServiceImpl implements VoteService {
 
     private void validateCategory(String category) {
         if (category == null || category.isBlank()) {
-            throw new ApiException("category는 ALL, FOOD, LOVE, BUY, SPORT, WORRY, ETC 중 하나여야 합니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(VoteErrorMessage.CATEGORY_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
 
-        try {
-            VoteCategory.valueOf(category.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new ApiException("category는 ALL, FOOD, LOVE, BUY, SPORT, WORRY, ETC 중 하나여야 합니다.", HttpStatus.BAD_REQUEST);
+        boolean validCategory = Arrays.stream(VoteCategory.values())
+                .anyMatch(voteCategory -> voteCategory.name().equalsIgnoreCase(category));
+        if (!validCategory) {
+            throw new ApiException(VoteErrorMessage.CATEGORY_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
     }
 
     private void validateSort(String sort) {
         if (sort == null || sort.isBlank()) {
-            throw new ApiException("sort는 latest 또는 popular 중 하나여야 합니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(VoteErrorMessage.SORT_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
 
         if (!"latest".equalsIgnoreCase(sort) && !"popular".equalsIgnoreCase(sort)) {
-            throw new ApiException("sort는 latest 또는 popular 중 하나여야 합니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(VoteErrorMessage.SORT_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -484,14 +528,14 @@ public class VoteServiceImpl implements VoteService {
         }
 
         if (cursor.isBlank()) {
-            throw new ApiException("cursor 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(VoteErrorMessage.CURSOR_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
 
         try {
             if ("popular".equalsIgnoreCase(sort)) {
                 String[] parts = cursor.split("_");
                 if (parts.length != 3) {
-                    throw new IllegalArgumentException();
+                    throw new ApiException(VoteErrorMessage.CURSOR_INVALID.message(), HttpStatus.BAD_REQUEST);
                 }
                 Integer.parseInt(parts[0]);
                 LocalDateTime.parse(parts[1]);
@@ -499,28 +543,31 @@ public class VoteServiceImpl implements VoteService {
             } else {
                 String[] parts = cursor.split("_");
                 if (parts.length != 2) {
-                    throw new IllegalArgumentException();
+                    throw new ApiException(VoteErrorMessage.CURSOR_INVALID.message(), HttpStatus.BAD_REQUEST);
                 }
                 LocalDateTime.parse(parts[0]);
                 Long.parseLong(parts[1]);
             }
         } catch (RuntimeException e) {
-            throw new ApiException("cursor 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(VoteErrorMessage.CURSOR_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
     }
 
+    /**
+     * 투표 작성자 또는 관리자가 투표를 소프트 삭제하는 메서드입니다.
+     */
     @Override
     @Transactional
     public void deleteVote(Long userId, Long voteId) {
         Vote vote = voteRepository.findById(voteId)
-                .orElseThrow(() -> new ApiException("투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_DETAIL_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new ApiException("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         // 권한 확인 - 자기 자신 혹은 관리자
         if (!vote.getMember().getId().equals(userId) && member.getRole() != Role.ADMIN) {
-            throw new ApiException("삭제 권한이 없습니다.", HttpStatus.FORBIDDEN);
+            throw new ApiException(VoteErrorMessage.DELETE_PERMISSION_DENIED.message(), HttpStatus.FORBIDDEN);
         }
 
         // BaseEntity의 softDelete() 메서드 사용
@@ -531,12 +578,15 @@ public class VoteServiceImpl implements VoteService {
     @Override
     @Transactional
     // 고정 , 고정 해제 기능은 vote 엔티티에 메서드로 존재
+    /**
+     * 관리자 권한으로 투표의 HOT/TRENDING 고정 상태를 변경하는 메서드입니다.
+     */
     public void updatePinStatus(Member member, Long voteId, PinType pinType) {
         if (member.getRole() != Role.ADMIN) {
-            throw new ApiException("권한이 없습니다.", HttpStatus.FORBIDDEN);
+            throw new ApiException(VoteErrorMessage.PERMISSION_DENIED.message(), HttpStatus.FORBIDDEN);
         }
         Vote vote = voteRepository.findById(voteId)
-                .orElseThrow(() -> new ApiException("게시물이 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(VoteErrorMessage.POST_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
         if (pinType != PinType.NONE) {
             // 이미 고정된 다른 게시물이 존재한다면 해당 게시물의 고정 해제
             voteRepository.findByPinType(pinType).ifPresent(existing ->
@@ -600,6 +650,22 @@ public class VoteServiceImpl implements VoteService {
                 .map(MemberProfileTitle::getTitle)
                 .map(Title::getName)
                 .orElse(null);
+    }
+
+    private Map<Long, String> getEquippedTitleNamesByMemberIds(List<Long> memberIds) {
+        if (memberIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return memberProfileTitleRepository.findAllEquippedWithTitleByMemberIds(memberIds).stream()
+                .filter(memberProfileTitle -> memberProfileTitle.getMemberProfile() != null)
+                .filter(memberProfileTitle -> memberProfileTitle.getMemberProfile().getMember() != null)
+                .filter(memberProfileTitle -> memberProfileTitle.getTitle() != null)
+                .collect(Collectors.toMap(
+                        memberProfileTitle -> memberProfileTitle.getMemberProfile().getMember().getId(),
+                        memberProfileTitle -> memberProfileTitle.getTitle().getName(),
+                        (existing, replacement) -> existing
+                ));
     }
 
 }

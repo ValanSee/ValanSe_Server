@@ -14,6 +14,9 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+/**
+ * HotIssueVoteResponse API 응답 또는 계층 간 전달 값을 담는 DTO 코드입니다.
+ */
 public class HotIssueVoteResponse {
     private Long voteId; // 가장 투표 참여 횟수가 많은 투표의 id
     private String title; // 가장 투표 참여 횟수가 많은 투표의 제목

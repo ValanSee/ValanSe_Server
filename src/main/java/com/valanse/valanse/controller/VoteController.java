@@ -1,5 +1,7 @@
 // src/main/java/com/valanse/valanse/controller/VoteController.java
 package com.valanse.valanse.controller;
+import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.VoteErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.PinType;
 import com.valanse.valanse.service.MemberService.MemberService;
@@ -10,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,6 +21,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import com.valanse.valanse.domain.enums.VoteCategory;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Slf4j
@@ -25,6 +29,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/votes") // 투표 관련 API의 기본 경로
 @RequiredArgsConstructor
+/**
+ * 투표 생성, 목록 조회, 상세 조회, 참여, 삭제, 고정 요청을 처리하는 컨트롤러 코드입니다.
+ */
 public class VoteController {
 
     private final VoteService voteService;
@@ -35,6 +42,9 @@ public class VoteController {
             summary = "내가 만든 밸런스게임 목록 가져오기",
             description = "내가 만든 밸런스게임 목록을 시간순(latest/oldest)으로 반환합니다."
     )
+    /**
+     * 사용자가 직접 생성한 투표 목록을 정렬과 카테고리 조건으로 조회하는 메서드입니다.
+     */
     public ResponseEntity<List<VoteResponseDto>> getMyCreatedVotes(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(required = false) String category,       // 추가
@@ -56,6 +66,9 @@ public class VoteController {
             summary = "내가 투표한 밸런스게임 목록 가져오기",
             description = "내가 투표한 밸런스게임 목록을 시간순(latest/oldest)으로 반환합니다."
     )
+    /**
+     * 사용자가 참여한 투표 목록을 정렬과 카테고리 조건으로 조회하는 메서드입니다.
+     */
     public ResponseEntity<List<VoteResponseDto>> getMyVotedVotes(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(required = false) String category,       // 추가
@@ -73,11 +86,10 @@ public class VoteController {
     }
 
     private VoteCategory convertCategory(String category) {
-        try {
-            return VoteCategory.valueOf(category.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid category: " + category);
-        }
+        return Arrays.stream(VoteCategory.values())
+                .filter(voteCategory -> voteCategory.name().equalsIgnoreCase(category))
+                .findFirst()
+                .orElseThrow(() -> new ApiException(VoteErrorMessage.CATEGORY_INVALID.message(), HttpStatus.BAD_REQUEST));
     }
 
    //여기서 부터 영서 부분
@@ -93,6 +105,9 @@ public class VoteController {
                     "  createdAt -> 투표 생성 날짜\n" +
                     "  options -> 투표 옵션 리스트 (content, vote_count)"
     )
+    /**
+     * 핫이슈로 노출할 투표를 고정값 또는 반응성 기준으로 선정하는 메서드입니다.
+     */
     @GetMapping("/best") // 새로운 엔드포인트: /votes/best (GET 메서드)
     public ResponseEntity<HotIssueVoteResponse> getHotIssueVote() {
         HotIssueVoteResponse response = voteService.getHotIssueVote();
@@ -112,6 +127,9 @@ public class VoteController {
                     "  createdAt -> 투표 생성 날짜\n" +
                     "  options -> 투표 옵션 리스트 (content, vote_count)"
     )
+    /**
+     * 최근 기간의 반응성을 기준으로 인기 급상승 투표를 선정하는 메서드입니다.
+     */
     @GetMapping("/trending")
     public ResponseEntity<HotIssueVoteResponse> getTrendingVote() {
         HotIssueVoteResponse response = voteService.getTrendingVote();
@@ -127,6 +145,10 @@ public class VoteController {
                     " voteOptionId -> POST 요청 후 업데이트 된 선택지의 id\n" +
                     " voteOptionCount -> POST 요청 후 업데이트 된 선택지 별 투표 수"
     )
+    /**
+     * 사용자의 투표 선택, 취소, 재선택을 처리하고 선택지별 카운트와 전체 카운트를 갱신하는 메서드입니다.
+     * check: 선택지 소속 검증과 동시성 제어가 함께 필요합니다.
+     */
     @PostMapping("/{voteId}/vote-options/{voteOptionId}") // Path Variable 사용
     public ResponseEntity<VoteCancleResponseDto> processVote(
             @PathVariable("voteId") Long voteId, // URL 경로에서 voteId를 추출
@@ -146,6 +168,9 @@ public class VoteController {
             summary = "밸런스 게임 클릭했을 때 화면 불러오기",
             description = "ID를 통해 특정 투표의 상세 정보(제목, 옵션, 카테고리 등)를 조회합니다. 카테고리는 ENUM타입으로 LOVE, FOOD, ETC 만 존재합니다."
     )
+    /**
+     * VoteDetail 정보를 조회하는 메서드입니다.
+     */
     @GetMapping("/{voteId}")
     public ResponseEntity<VoteDetailResponse> getVoteDetail(@PathVariable("voteId") Long voteId) {
         VoteDetailResponse response = voteService.getVoteDetailById(voteId);
@@ -158,6 +183,9 @@ public class VoteController {
             description = "새로운 투표와 해당 투표의 옵션을 생성합니다. 각 투표는 최대 4개의 옵션을 가질 수 있습니다. \n" +
                     " Category에는 FOOD, LOVE, BUY, SPORT, WORRY, ETC 이 6가지만 올 수 있습니다. 내부에서 ENUM으로 처리됩니다."
     )
+    /**
+     * 새 투표와 선택지, 댓글 그룹을 생성하고 작성 포인트를 지급하는 메서드입니다.
+     */
     @PostMapping
     public ResponseEntity<VoteCreateResponse> createVote(
             @RequestBody VoteCreateRequest request
@@ -173,6 +201,9 @@ public class VoteController {
                 " ALL은 대소문자 구분없이 String으로 내부에서 처리합니다. FOOD, LOVE, BUY, SPORT, WORRY, ETC는 enum 타입으로 내부에서 처리됩니다. 만약에 category와 sort 파라미터가 없다면 모두 기본값인 ALL 과 latest로 자동 처리됩니다.\n" +
                 " 그러나 category = , sort= 와 같이 =뒤에 비어있는 경우는 불가능합니다. 아예 존재하지 않을 경우만 기본값으로 설정됩니다."
 )
+/**
+ * Votes 정보를 조회하는 메서드입니다.
+ */
 @GetMapping
 public ResponseEntity<VoteListResponse> getVotes(
         @RequestParam(value = "category", required = false, defaultValue = "ALL") String category,
@@ -200,6 +231,9 @@ public ResponseEntity<VoteListResponse> getVotes(
         return "createdAt"; // 기본은 최신순
     }
 
+    /**
+     * 투표 작성자 또는 관리자가 투표를 소프트 삭제하는 메서드입니다.
+     */
     @DeleteMapping("/{voteId}")
     @Operation(summary = "투표 삭제", description = "내가 작성한 투표를 삭제합니다.")
     public ResponseEntity<Void> deleteVote(@PathVariable("voteId") Long voteId) {
@@ -208,6 +242,9 @@ public ResponseEntity<VoteListResponse> getVotes(
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * 관리자 권한으로 투표의 HOT/TRENDING 고정 상태를 변경하는 메서드입니다.
+     */
     @PatchMapping("/{voteId}/pin")
     @Operation(summary = "고정", description = "관리자 권한으로 게시물을 고정합니다.")
     public ResponseEntity<Void> updatePinStatus(

@@ -19,8 +19,14 @@ import org.springframework.context.annotation.Configuration;
      }
 )
 @Configuration
+/**
+ * 애플리케이션 인프라 설정을 담당하는 설정 코드입니다.
+ */
 public class SwaggerConfig {
 
+    /**
+     * SwaggerConfig의 openAPI 기능을 수행하는 메서드입니다.
+     */
     @Bean
     public OpenAPI openAPI() {
         final String jwtSchemeName = "bearerAuth";

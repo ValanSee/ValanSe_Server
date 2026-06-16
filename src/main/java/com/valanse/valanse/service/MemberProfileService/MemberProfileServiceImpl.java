@@ -1,5 +1,7 @@
 package com.valanse.valanse.service.MemberProfileService;
 
+import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.MemberErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.MemberProfileTitle;
@@ -15,6 +17,7 @@ import com.valanse.valanse.repository.MemberRepository;
 import com.valanse.valanse.repository.TitleRepository;
 import com.valanse.valanse.service.PointService.PointService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +28,9 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 @Transactional
+/**
+ * 회원 프로필 생성/수정, 닉네임 검증, 기본 칭호 지급을 처리하는 서비스 코드입니다.
+ */
 public class MemberProfileServiceImpl implements MemberProfileService {
 
     private final MemberRepository memberRepository;
@@ -33,20 +39,25 @@ public class MemberProfileServiceImpl implements MemberProfileService {
     private final TitleRepository titleRepository;
     private final PointService pointService;
 
+    /**
+     * OrUpdateProfile 데이터를 저장하는 메서드입니다.
+     */
     @Override
     public void saveOrUpdateProfile(MemberProfileRequest dto) {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
 
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
+                .orElseThrow(() -> apiException(MemberErrorMessage.MEMBER_NOT_FOUND, HttpStatus.NOT_FOUND));
+
+        validateNickname(dto.nickname());
 
         // ✅ 추가: MBTI 검증
         if (dto.mbtiIe() == null || dto.mbtiTf() == null) {
-            throw new IllegalArgumentException("MBTI를 모두 선택해주세요");
+            throw apiException(MemberErrorMessage.MBTI_REQUIRED, HttpStatus.BAD_REQUEST);
         }
 
         if (dto.mbti() == null || dto.mbti().length() != 4) {
-            throw new IllegalArgumentException("MBTI는 4자리여야 합니다 (예: ENFP)");
+            throw apiException(MemberErrorMessage.MBTI_INVALID_LENGTH, HttpStatus.BAD_REQUEST);
         }
 
         // 기존 프로필 조회
@@ -59,7 +70,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
             // 닉네임이 변경되었을 때만 중복 체크
             if (!profile.getNickname().equals(dto.nickname())) {
                 if (memberProfileRepository.existsByNicknameAndDeletedAtIsNull(dto.nickname())) {
-                    throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
+                    throw apiException(MemberErrorMessage.NICKNAME_DUPLICATED, HttpStatus.BAD_REQUEST);
                 }
             }
 
@@ -69,7 +80,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         } else {
             // ✅ 신규 생성: 무조건 중복 체크 (soft delete된 회원 닉네임 제외)
             if (memberProfileRepository.existsByNicknameAndDeletedAtIsNull(dto.nickname())) {
-                throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
+                throw apiException(MemberErrorMessage.NICKNAME_DUPLICATED, HttpStatus.BAD_REQUEST);
             }
 
             // 새 객체 생성 후 저장
@@ -91,13 +102,16 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         }
     }
 
+    /**
+     * Profile 정보를 조회하는 메서드입니다.
+     */
     @Transactional(readOnly = true)
     @Override
     public MemberProfileResponse getProfile() {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
 
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new IllegalArgumentException("회원이 존재하지 않습니다."));
+                .orElseThrow(() -> apiException(MemberErrorMessage.MEMBER_NOT_FOUND, HttpStatus.NOT_FOUND));
 
         MemberProfile profile = memberProfileRepository.findByMemberId(userId)
                 .orElse(null);
@@ -121,11 +135,17 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         return new MemberProfileResponse(info);
     }
 
+    /**
+     * isAvailableNickname 조건을 판별하는 메서드입니다.
+     */
     @Override
     public boolean isAvailableNickname(String nickname) {
         return !memberProfileRepository.existsByNicknameAndDeletedAtIsNull(nickname);
     }
 
+    /**
+     * isMeaningfulNickname 조건을 판별하는 메서드입니다.
+     */
     @Override
     public boolean isMeaningfulNickname(String nickname) {
         // 0. 전체 공백 허용 x
@@ -149,13 +169,10 @@ public class MemberProfileServiceImpl implements MemberProfileService {
             return false;
         }
 
-        // 3. 길이제한 (한글 8/ 영어 16)
+        // 3. 길이제한 (한글/영어 구분 없이 16자)
         int length = nickname.length();
 
-        if (hasKorean && length > 8) {
-            return false;
-        }
-        else if (hasEnglish && length > 16) {
+        if (length > 16) {
             return false;
         }
 
@@ -182,12 +199,33 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         return true;
     }
 
+    private void validateNickname(String nickname) {
+        if (nickname == null || nickname.isBlank()) {
+            throw apiException(MemberErrorMessage.NICKNAME_REQUIRED, HttpStatus.BAD_REQUEST);
+        }
+
+        if (!isMeaningfulNickname(nickname)) {
+            throw apiException(MemberErrorMessage.NICKNAME_INVALID_FORMAT, HttpStatus.BAD_REQUEST);
+        }
+
+        if (!isCleanNickname(nickname)) {
+            throw apiException(MemberErrorMessage.NICKNAME_NOT_CLEAN, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private ApiException apiException(MemberErrorMessage errorMessage, HttpStatus status) {
+        return new ApiException(errorMessage.message(), status);
+    }
+
     private static final Set<String> BAD_WORDS = Set.of(
             "시발", "씨발", "병신", "개새끼",
             "섹스", "보지", "자지", "좆", "고아",
             "애미"
     );
 
+    /**
+     * isCleanNickname 조건을 판별하는 메서드입니다.
+     */
     @Override
     public boolean isCleanNickname(String nickname) {
         if (nickname == null || nickname.isBlank()) {
@@ -205,6 +243,9 @@ public class MemberProfileServiceImpl implements MemberProfileService {
         return true;
     }
 
+    /**
+     * MyProfile 정보를 조회하는 메서드입니다.
+     */
     @Transactional(readOnly = true)
     @Override
     public MemberMyPageResponse getMyProfile() {

@@ -1,5 +1,7 @@
 package com.valanse.valanse.service.MemberProfileService;
 
+import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.MemberErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.MemberProfileTitle;
@@ -155,11 +157,11 @@ class MemberProfileServiceImplTest {
                 .thenReturn(true);
 
         // when & then
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        ApiException exception = assertThrows(
+                ApiException.class,
                 () -> memberProfileService.saveOrUpdateProfile(request)
         );
-        assertThat(exception.getMessage()).isEqualTo("이미 사용 중인 닉네임입니다.");
+        assertThat(exception.getMessage()).isEqualTo(MemberErrorMessage.NICKNAME_DUPLICATED.message());
         verify(memberProfileRepository, never()).save(any());
     }
 
@@ -252,9 +254,9 @@ class MemberProfileServiceImplTest {
         );
         when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ApiException ex = assertThrows(ApiException.class,
                 () -> memberProfileService.saveOrUpdateProfile(request));
-        assertThat(ex.getMessage()).isEqualTo("MBTI는 4자리여야 합니다 (예: ENFP)");
+        assertThat(ex.getMessage()).isEqualTo(MemberErrorMessage.MBTI_INVALID_LENGTH.message());
         verify(memberProfileRepository, never()).save(any());
     }
 
@@ -266,9 +268,9 @@ class MemberProfileServiceImplTest {
         );
         when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ApiException ex = assertThrows(ApiException.class,
                 () -> memberProfileService.saveOrUpdateProfile(request));
-        assertThat(ex.getMessage()).isEqualTo("MBTI는 4자리여야 합니다 (예: ENFP)");
+        assertThat(ex.getMessage()).isEqualTo(MemberErrorMessage.MBTI_INVALID_LENGTH.message());
     }
 
     @Test
@@ -279,9 +281,9 @@ class MemberProfileServiceImplTest {
         );
         when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ApiException ex = assertThrows(ApiException.class,
                 () -> memberProfileService.saveOrUpdateProfile(request));
-        assertThat(ex.getMessage()).isEqualTo("MBTI를 모두 선택해주세요");
+        assertThat(ex.getMessage()).isEqualTo(MemberErrorMessage.MBTI_REQUIRED.message());
         verify(memberProfileRepository, never()).save(any());
     }
 
@@ -293,9 +295,65 @@ class MemberProfileServiceImplTest {
         );
         when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ApiException ex = assertThrows(ApiException.class,
                 () -> memberProfileService.saveOrUpdateProfile(request));
-        assertThat(ex.getMessage()).isEqualTo("MBTI를 모두 선택해주세요");
+        assertThat(ex.getMessage()).isEqualTo(MemberErrorMessage.MBTI_REQUIRED.message());
+    }
+
+    @Test
+    @DisplayName("프로필 저장 시 닉네임 형식이 올바르지 않으면 에러 코드를 반환한다")
+    void 닉네임_형식_유효성_실패() {
+        MemberProfileRequest request = new MemberProfileRequest(
+                "테스트!",
+                Gender.MALE,
+                Age.TWENTY,
+                MbtiIe.E,
+                MbtiTf.T,
+                "ENTP"
+        );
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> memberProfileService.saveOrUpdateProfile(request));
+        assertThat(ex.getMessage()).isEqualTo(MemberErrorMessage.NICKNAME_INVALID_FORMAT.message());
+        verify(memberProfileRepository, never()).findByMemberId(any());
+        verify(memberProfileRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("닉네임 길이는 한글과 영어 모두 16자까지 허용한다")
+    void 닉네임_길이_16자까지_허용() {
+        assertThat(memberProfileService.isMeaningfulNickname("가나다라마바사아자차카타파하허호")).isTrue();
+        assertThat(memberProfileService.isMeaningfulNickname("abcdefghijklmnop")).isTrue();
+    }
+
+    @Test
+    @DisplayName("닉네임 길이는 한글과 영어 모두 17자부터 거부한다")
+    void 닉네임_길이_17자부터_거부() {
+        assertThat(memberProfileService.isMeaningfulNickname("가나다라마바사아자차카타파하허호구")).isFalse();
+        assertThat(memberProfileService.isMeaningfulNickname("abcdefghijklmnopq")).isFalse();
+    }
+
+    @Test
+    @DisplayName("프로필 저장 시 금칙어 닉네임이면 에러 코드를 반환한다")
+    void 닉네임_금칙어_유효성_실패() {
+        MemberProfileRequest request = new MemberProfileRequest(
+                "시발",
+                Gender.MALE,
+                Age.TWENTY,
+                MbtiIe.E,
+                MbtiTf.T,
+                "ENTP"
+        );
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> memberProfileService.saveOrUpdateProfile(request));
+        assertThat(ex.getMessage()).isEqualTo(MemberErrorMessage.NICKNAME_NOT_CLEAN.message());
+        verify(memberProfileRepository, never()).findByMemberId(any());
+        verify(memberProfileRepository, never()).save(any());
     }
 
     @Test
@@ -315,9 +373,9 @@ class MemberProfileServiceImplTest {
         when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.of(existingProfile));
         when(memberProfileRepository.existsByNicknameAndDeletedAtIsNull("중복닉네임")).thenReturn(true);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ApiException ex = assertThrows(ApiException.class,
                 () -> memberProfileService.saveOrUpdateProfile(request));
-        assertThat(ex.getMessage()).isEqualTo("이미 사용 중인 닉네임입니다.");
+        assertThat(ex.getMessage()).isEqualTo(MemberErrorMessage.NICKNAME_DUPLICATED.message());
         verify(memberProfileRepository, never()).save(any());
     }
 

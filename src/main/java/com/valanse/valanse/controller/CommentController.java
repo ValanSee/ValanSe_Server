@@ -23,6 +23,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/votes/{voteId}/comments")
 @RequiredArgsConstructor
+/**
+ * 투표별 댓글, 대댓글, 좋아요 요청을 처리하는 컨트롤러 코드입니다.
+ */
 public class CommentController {
 
     private final CommentService commentService;
@@ -33,6 +36,10 @@ public class CommentController {
             summary = "댓글 작성",
             description = "댓글을 작성하는 API입니다."
     )
+    /**
+     * 투표에 부모 댓글 또는 대댓글을 작성하고 댓글 카운트와 포인트를 갱신하는 메서드입니다.
+     * check: 대댓글 parent가 현재 투표의 댓글인지 확인해야 합니다.
+     */
     @PostMapping
     public ResponseEntity<CommentPostResponse> createComment(
             @PathVariable("voteId") Long voteId,
@@ -47,6 +54,9 @@ public class CommentController {
             summary = "댓글 조회",
             description = "댓글을 조회하는 API입니다."
     )
+    /**
+     * Comments 정보를 조회하는 메서드입니다.
+     */
     @GetMapping
     public PagedCommentResponse getComments(
             @PathVariable("voteId") Long voteId,
@@ -72,6 +82,9 @@ public class CommentController {
             summary = "댓글 썸네일 조회",
             description = "해당 투표에 달린 댓글 중 좋아요 수가 가장 많은 댓글을 조회합니다."
     )
+    /**
+     * BestComment 정보를 조회하는 메서드입니다.
+     */
     @GetMapping("/best")
     public BestCommentResponseDto getBestComment(@PathVariable("voteId") Long voteId) {
         return commentService.getBestCommentByVoteId(voteId);
@@ -81,6 +94,10 @@ public class CommentController {
             summary = "댓글 좋아요 수정",
             description = "댓글의 좋아요를 누르거나 취소하는 API입니다."
     )
+    /**
+     * 댓글 좋아요를 토글하고 좋아요 수를 갱신하는 메서드입니다.
+     * check: 댓글이 현재 투표에 속하는지 검증해야 합니다.
+     */
     @PostMapping("/{commentId}/like")
     public ResponseEntity<CommentLikeResponseDto> likeComment(
             @PathVariable("voteId") Long voteId,
@@ -94,6 +111,9 @@ public class CommentController {
             summary = "대댓글 조회",
             description = "대댓글을 조회하는 API입니다."
     )
+    /**
+     * 특정 부모 댓글의 대댓글 목록과 작성자/삭제 가능 여부 정보를 조회하는 메서드입니다.
+     */
     @GetMapping("/{commentId}/replies")
     public ResponseEntity<List<CommentReplyResponseDto>> getReplies(
             @PathVariable("voteId") Long voteId,

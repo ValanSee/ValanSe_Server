@@ -16,6 +16,9 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+/**
+ * PointHistory 정보를 저장하고 연관관계를 표현하는 JPA 도메인 엔티티 코드입니다.
+ */
 public class PointHistory {
 
     @Id
@@ -37,6 +40,9 @@ public class PointHistory {
 
     private LocalDateTime createdAt;
 
+    /**
+     * PointHistory의 prePersist 기능을 수행하는 메서드입니다.
+     */
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();

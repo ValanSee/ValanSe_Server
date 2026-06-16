@@ -1,6 +1,7 @@
 package com.valanse.valanse.service.MemberService;
 
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.MemberErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.enums.Role;
@@ -99,6 +100,6 @@ class MemberServiceImplTest {
         // when & then
         ApiException exception = assertThrows(ApiException.class,
                 () -> memberService.deleteMemberById());
-        assertEquals("사용자를 찾을 수 없습니다", exception.getMessage());
+        assertEquals(MemberErrorMessage.MEMBER_NOT_FOUND.message(), exception.getMessage());
     }
 }

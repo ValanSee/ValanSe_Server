@@ -1,6 +1,9 @@
 package com.valanse.valanse.service.ReportService;
 
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.AuthErrorMessage;
+import com.valanse.valanse.common.message.ReportErrorMessage;
+import com.valanse.valanse.common.message.VoteErrorMessage;
 import com.valanse.valanse.domain.Comment;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.Report;
@@ -22,6 +25,9 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Transactional
+/**
+ * 신고 대상 검증, 중복 신고 방지, 관리자 신고 목록 조회를 처리하는 서비스 코드입니다.
+ */
 public class ReportServiceImpl implements ReportService{
 
     private final VoteRepository voteRepository;
@@ -29,29 +35,32 @@ public class ReportServiceImpl implements ReportService{
     private final ReportRepository reportRepository;
     private final ReportRepositoryCustom reportRepositoryCustom;
 
+    /**
+     * 투표 또는 댓글 신고를 생성하고 본인/중복 신고를 차단하는 메서드입니다.
+     */
     @Override
     public void report(Member member, Long targetId, ReportType reportType){
 
         // ReportType 에 따라서 구분.
         if (reportType == ReportType.VOTE) {
             Vote vote = voteRepository.findById(targetId)
-                    .orElseThrow(() -> new ApiException("투표를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+                    .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_DETAIL_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
             if (vote.getMember().getId().equals(member.getId())) {
-                throw new ApiException("자신의 투표는 신고할 수 없습니다.", HttpStatus.BAD_REQUEST);
+                throw new ApiException(ReportErrorMessage.OWN_VOTE_REPORT_NOT_ALLOWED.message(), HttpStatus.BAD_REQUEST);
             }
         }
 
         if (reportType == ReportType.COMMENT) {
             Comment comment = commentRepository.findById(targetId)
-                    .orElseThrow(() -> new ApiException("댓글을 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+                    .orElseThrow(() -> new ApiException(ReportErrorMessage.COMMENT_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
             if (comment.getMember().getId().equals(member.getId())) {
-                throw new ApiException("자신의 댓글은 신고할 수 없습니다.", HttpStatus.BAD_REQUEST);
+                throw new ApiException(ReportErrorMessage.OWN_COMMENT_REPORT_NOT_ALLOWED.message(), HttpStatus.BAD_REQUEST);
             }
         }
 
         // 신고를 이미 했다면 에러 발생
         if (reportRepository.existsByMemberAndReportTypeAndTargetId(member, reportType, targetId)) {
-            throw new ApiException("이미 신고한 대상입니다.", HttpStatus.BAD_REQUEST);
+            throw new ApiException(ReportErrorMessage.ALREADY_REPORTED.message(), HttpStatus.BAD_REQUEST);
         }
 
         Report report = Report.builder()
@@ -63,11 +72,14 @@ public class ReportServiceImpl implements ReportService{
         reportRepository.save(report);
     }
 
+    /**
+     * 관리자가 신고 누적 대상 목록을 조회하는 메서드입니다.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<ReportedTargetResponse> getReportedTargets(Member member, ReportType type, String sort) {
         if (member.getRole() != Role.ADMIN) {
-            throw new ApiException("관리자만 접근 가능합니다.", HttpStatus.FORBIDDEN);
+            throw new ApiException(AuthErrorMessage.ADMIN_ONLY.message(), HttpStatus.FORBIDDEN);
         }
         return reportRepositoryCustom.findReportedTargets(type, sort);
     }

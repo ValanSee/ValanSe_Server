@@ -1,5 +1,6 @@
 package com.valanse.valanse.common.auth;
 
+import com.valanse.valanse.common.message.AuthErrorMessage;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -31,6 +32,10 @@ import java.util.List;
  * 4. 만료되거나 유효하지 않으면 401 반환 (프론트엔드 자동 갱신 트리거)
  */
 @Component
+/**
+ * HTTP 요청의 Bearer token을 검증하고 SecurityContext에 인증 정보를 주입하는 필터 코드입니다.
+ * check: JwtTokenProvider와 동일한 서명 키 파싱 방식을 사용하도록 통일해야 합니다.
+ */
 public class JwtTokenFilter extends OncePerRequestFilter {
 
     @Value("${jwt.secret}")
@@ -109,7 +114,7 @@ public class JwtTokenFilter extends OncePerRequestFilter {
                 // 자동으로 /auth/reissue 호출하여 토큰 갱신
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 401
                 response.setContentType("application/json;charset=UTF-8");
-                response.getWriter().write("{\"error\":\"EXPIRED_TOKEN\",\"message\":\"토큰이 만료되었습니다.\"}");
+                response.getWriter().write(AuthErrorMessage.EXPIRED_TOKEN.tokenErrorResponse());
                 return; // 필터 체인 중단!
 
             } catch (io.jsonwebtoken.security.SecurityException |
@@ -119,7 +124,7 @@ public class JwtTokenFilter extends OncePerRequestFilter {
                 // ============================================
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType("application/json;charset=UTF-8");
-                response.getWriter().write("{\"error\":\"INVALID_TOKEN\",\"message\":\"유효하지 않은 토큰입니다.\"}");
+                response.getWriter().write(AuthErrorMessage.INVALID_TOKEN.tokenErrorResponse());
                 return;
 
             } catch (Exception e) {
@@ -128,7 +133,7 @@ public class JwtTokenFilter extends OncePerRequestFilter {
                 // ============================================
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType("application/json;charset=UTF-8");
-                response.getWriter().write("{\"error\":\"TOKEN_ERROR\",\"message\":\"토큰 처리 중 오류가 발생했습니다.\"}");
+                response.getWriter().write(AuthErrorMessage.TOKEN_ERROR.tokenErrorResponse());
                 return;
             }
         }

@@ -1,8 +1,11 @@
 package com.valanse.valanse.service.CommentService;
 
-import com.querydsl.core.types.dsl.Expressions;
-import com.querydsl.core.types.dsl.NumberTemplate;
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.AuthErrorMessage;
+import com.valanse.valanse.common.message.CommentErrorMessage;
+import com.valanse.valanse.common.message.MemberErrorMessage;
+import com.valanse.valanse.common.message.ProfileErrorMessage;
+import com.valanse.valanse.common.message.VoteErrorMessage;
 import com.valanse.valanse.domain.*;
 import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.domain.enums.Role;
@@ -16,19 +19,22 @@ import org.springframework.data.domain.Slice;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
 
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
+/**
+ * 댓글 생성, 대댓글 조회, 댓글 삭제 권한과 댓글 카운트 정책을 처리하는 서비스 코드입니다.
+ * check: parentId가 현재 voteId의 댓글인지 검증하는 로직이 필요합니다.
+ * check: 댓글/대댓글 카운트 감소가 중복 삭제나 동시 요청에서 음수가 되지 않도록 보호해야 합니다.
+ */
 public class CommentServiceImpl implements CommentService {
 
     private final MemberRepository memberRepository;
@@ -39,46 +45,42 @@ public class CommentServiceImpl implements CommentService {
     private final MemberProfileTitleRepository memberProfileTitleRepository;
     private final PointService pointService;
 
+    /**
+     * 댓글 작성자 또는 관리자가 댓글을 소프트 삭제하고 관련 카운트를 감소시키는 메서드입니다.
+     */
     @Override
     public void deleteMyComment(Member member, Long commentId) {
-        commentRepository.findById(commentId).ifPresentOrElse(comment -> {
-            Long writerId = comment.getMember().getId();
-            Long loginId = member.getId();
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new ApiException(CommentErrorMessage.COMMENT_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
-            System.out.println("[삭제 시도] 댓글 ID: " + commentId);
-            System.out.println("작성자 ID: " + writerId + ", 요청자 ID: " + loginId);
+        Long writerId = comment.getMember().getId();
+        Long loginId = member.getId();
 
-            if (!writerId.equals(loginId) && member.getRole() != Role.ADMIN) {
-                System.out.println("삭제 권한 없음: 요청자 ≠ 작성자, 관리자 x");
-                throw new IllegalArgumentException("삭제 권한 없음");
-            }
+        if (!writerId.equals(loginId) && member.getRole() != Role.ADMIN) {
+            throw new ApiException(AuthErrorMessage.DELETE_PERMISSION_DENIED.message(), HttpStatus.FORBIDDEN);
+        }
 
-            // Soft delete 처리
-            comment.setDeletedAt(LocalDateTime.now());
-            commentRepository.save(comment);
+        // Soft delete 처리
+        comment.setDeletedAt(LocalDateTime.now());
+        commentRepository.save(comment);
 
-            // ✅ 추가: 카운트 감소 로직
-            if (comment.getParent() == null) {
-                // 부모 댓글인 경우: totalCommentCount 감소
-                CommentGroup commentGroup = comment.getCommentGroup();
-                commentGroup.setTotalCommentCount(commentGroup.getTotalCommentCount() - 1);
-                commentGroupRepository.save(commentGroup);
-                System.out.println("부모 댓글 삭제 → totalCommentCount 감소: " + commentGroup.getTotalCommentCount());
-            } else {
-                // 대댓글인 경우: 부모 댓글의 replyCount 감소
-                Comment parent = comment.getParent();
-                parent.updateReplyCount(parent.getReplyCount() - 1);
-                commentRepository.save(parent);
-                System.out.println("대댓글 삭제 → 부모 댓글 replyCount 감소: " + parent.getReplyCount());
-            }
-
-            System.out.println("댓글 ID " + commentId + " → 삭제 완료");
-
-        }, () -> {
-            System.out.println("삭제 실패: 해당 댓글 ID " + commentId + " 없음");
-        });
+        // ✅ 추가: 카운트 감소 로직
+        if (comment.getParent() == null) {
+            // 부모 댓글인 경우: totalCommentCount 감소
+            CommentGroup commentGroup = comment.getCommentGroup();
+            commentGroup.setTotalCommentCount(commentGroup.getTotalCommentCount() - 1);
+            commentGroupRepository.save(commentGroup);
+        } else {
+            // 대댓글인 경우: 부모 댓글의 replyCount 감소
+            Comment parent = comment.getParent();
+            parent.updateReplyCount(parent.getReplyCount() - 1);
+            commentRepository.save(parent);
+        }
     }
 
+    /**
+     * 사용자가 작성한 댓글 목록을 최신순 또는 오래된순으로 조회하는 메서드입니다.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<MyCommentResponseDto> getMyComments(Member member, String sort) {
@@ -90,7 +92,7 @@ public class CommentServiceImpl implements CommentService {
         } else if ("latest".equalsIgnoreCase(sort)) {
             comments = commentRepository.findByMemberIdAndDeletedAtIsNullOrderByCreatedAtDesc(memberId);
         } else {
-            throw new IllegalArgumentException("sort 파라미터는 'latest' 또는 'oldest'만 허용됩니다.");
+            throw new ApiException(CommentErrorMessage.WRONG_SORT_PARAMETER.message(), HttpStatus.BAD_REQUEST);
         }
 
         return comments.stream()
@@ -98,12 +100,16 @@ public class CommentServiceImpl implements CommentService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 투표에 부모 댓글 또는 대댓글을 작성하고 댓글 카운트와 포인트를 갱신하는 메서드입니다.
+     * check: 대댓글 parent가 현재 투표의 댓글인지 확인해야 합니다.
+     */
     @Override
     public Long createComment(Long voteId, Long userId, CommentPostRequest request) {
         Vote vote = voteRepository.findById(voteId)
-                .orElseThrow(() -> new IllegalArgumentException("Vote not found"));
+                .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
         Member member = memberRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Member not found"));
+                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         // 1. CommentGroup 찾기 (없으면 생성)
         CommentGroup commentGroup = commentGroupRepository.findByVoteId(voteId)
@@ -119,7 +125,7 @@ public class CommentServiceImpl implements CommentService {
         Comment parent = null;
         if (request.getParentId() != null) {
             parent = commentRepository.findById(request.getParentId())
-                    .orElseThrow(() -> new IllegalArgumentException("해당 id에 해당하는 부모 댓글이 존재하지 않습니다."));
+                    .orElseThrow(() -> new ApiException(CommentErrorMessage.PARENT_COMMENT_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
             parent.updateReplyCount(parent.getReplyCount() + 1); // replyCount 증가
             commentRepository.save(parent);
         }
@@ -151,6 +157,9 @@ public class CommentServiceImpl implements CommentService {
         return savedCommentId;
     }
 
+    /**
+     * 특정 투표의 부모 댓글 목록을 페이지 단위로 조회하는 메서드입니다.
+     */
     @Override
     @Transactional(readOnly = true)
     public PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable, Long loginId, Boolean isAdmin) {
@@ -164,6 +173,9 @@ public class CommentServiceImpl implements CommentService {
                 .build();
     }
 
+    /**
+     * 특정 투표에서 좋아요가 가장 많은 대표 댓글과 댓글 수를 조회하는 메서드입니다.
+     */
     @Override
     @Transactional(readOnly = true)
     public BestCommentResponseDto getBestCommentByVoteId(Long voteId) {
@@ -191,12 +203,15 @@ public class CommentServiceImpl implements CommentService {
     }
 
 
+    /**
+     * 특정 부모 댓글의 대댓글 목록과 작성자/삭제 가능 여부 정보를 조회하는 메서드입니다.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<CommentReplyResponseDto> getReplies(Member loginUser, Long voteId, Long parentCommentId) {
         // 유효한 투표인지 확인
         Vote vote = voteRepository.findById(voteId)
-                .orElseThrow(() -> new IllegalArgumentException("투표가 존재하지 않습니다."));
+                .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         // 대댓글 조회
         List<Comment> replies = commentRepository.findAllByParentId(parentCommentId);
@@ -204,7 +219,7 @@ public class CommentServiceImpl implements CommentService {
         return replies.stream()
                 .map(reply -> {
                     MemberProfile profile = memberProfileRepository.findByMemberId(reply.getMember().getId())
-                            .orElseThrow(() -> new IllegalArgumentException("회원 프로필이 존재하지 않습니다."));
+                            .orElseThrow(() -> new ApiException(ProfileErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
                     VoteLabel label = reply.getMember().getMemberVoteOptions().stream()
                             .filter(opt -> opt.getVoteOption().getVote().getId().equals(voteId))

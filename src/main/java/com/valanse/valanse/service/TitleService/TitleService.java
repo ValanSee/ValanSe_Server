@@ -12,6 +12,9 @@ import com.valanse.valanse.dto.Title.TitleUpdateResponse;
 
 import java.util.List;
 
+/**
+ * TitleService 기능의 비즈니스 계약을 정의하는 서비스 인터페이스 코드입니다.
+ */
 public interface TitleService {
     TitleListResponse getTitleList(Long userId);
 

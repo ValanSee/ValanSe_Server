@@ -1,6 +1,7 @@
 package com.valanse.valanse.service.MemberService;
 
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.MemberErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.repository.MemberRepository;
@@ -15,11 +16,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 @RequiredArgsConstructor
+/**
+ * OAuth 회원 생성, 회원 조회, 회원 탈퇴 처리를 담당하는 서비스 코드입니다.
+ */
 public class MemberServiceImpl implements MemberService {
     private final MemberRepository memberRepository;
     private final MemberProfileRepository memberProfileRepository;
     private final PointService pointService;
 
+    /**
+     * MemberBySocialId 정보를 조회하는 메서드입니다.
+     */
     @Transactional(readOnly = true)
     @Override
     public Member getMemberBySocialId(String socialId) {
@@ -27,6 +34,9 @@ public class MemberServiceImpl implements MemberService {
         return member;
     }
 
+    /**
+     * Oauth 데이터를 생성하는 메서드입니다.
+     */
     @Override
     public Member createOauth(String socialId, String email, String name, String profile_image_url, String access_token, String refresh_token) {
         Member member = Member.builder()
@@ -45,11 +55,14 @@ public class MemberServiceImpl implements MemberService {
         return member;
     }
 
+    /**
+     * MemberById 데이터를 삭제하는 메서드입니다.
+     */
     @Override
     public Member deleteMemberById() {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
-                .orElseThrow(() -> new ApiException("사용자를 찾을 수 없습니다", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         member.softDelete(); // Soft delete 처리
 
@@ -61,10 +74,13 @@ public class MemberServiceImpl implements MemberService {
     }
 
     //  추가된 메서드
+    /**
+     * ById 조건에 맞는 데이터를 찾는 메서드입니다.
+     */
     @Transactional(readOnly = true)
     @Override
     public Member findById(Long id) {
         return memberRepository.findByIdAndDeletedAtIsNull(id)
-                .orElseThrow(() -> new ApiException("사용자를 찾을 수 없습니다", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
     }
 }
