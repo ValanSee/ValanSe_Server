@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,9 +21,12 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import com.valanse.valanse.domain.enums.VoteCategory;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Tag(name = "투표 API", description = "투표 관련 API")
@@ -186,12 +190,23 @@ public class VoteController {
     /**
      * 새 투표와 선택지, 댓글 그룹을 생성하고 작성 포인트를 지급하는 메서드입니다.
      */
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<VoteCreateResponse> createVote(
             @RequestBody VoteCreateRequest request
     ) {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         Long voteId = voteService.createVote(userId, request);
+        return ResponseEntity.ok(new VoteCreateResponse(voteId));
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<VoteCreateResponse> createVoteWithImages(
+            @RequestPart("request") VoteCreateRequest request,
+            MultipartHttpServletRequest multipartRequest
+    ) {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        Map<String, MultipartFile> optionImageFiles = multipartRequest.getFileMap();
+        Long voteId = voteService.createVote(userId, request, optionImageFiles);
         return ResponseEntity.ok(new VoteCreateResponse(voteId));
     }
 
