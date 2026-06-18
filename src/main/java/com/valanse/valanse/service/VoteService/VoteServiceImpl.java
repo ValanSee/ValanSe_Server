@@ -305,6 +305,7 @@ public class VoteServiceImpl implements VoteService {
                 .map(option -> VoteDetailResponse.VoteOptionDto.builder()
                         .optionId(option.getId())
                         .content(option.getContent())
+                        .imageUrl(option.getImageUrl())
                         .voteCount(option.getVoteCount())
                         .label(option.getLabel().name())
                         .build())
@@ -495,6 +496,7 @@ public class VoteServiceImpl implements VoteService {
                             .map(option -> VoteListResponse.VoteOptionListDto.builder()
                                     .id(option.getId())
                                     .content(option.getContent())
+                                    .imageUrl(option.getImageUrl())
                                     .build())
                             .collect(Collectors.toList());
 
@@ -667,6 +669,7 @@ public class VoteServiceImpl implements VoteService {
                 .map(option -> HotIssueVoteOptionDto.builder() // HotIssueVoteOptionDto 빌더 사용
                         .optionId(option.getId())  //option ID넣기
                         .content(option.getContent()) // 옵션 내용 설정
+                        .imageUrl(option.getImageUrl())
                         .vote_count(option.getVoteCount()) // 투표 수 설정
                         .build())
                 .collect(Collectors.toList()); // 리스트로 수집
