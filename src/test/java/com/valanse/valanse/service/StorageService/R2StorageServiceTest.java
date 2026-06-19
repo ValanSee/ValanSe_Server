@@ -8,12 +8,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 class R2StorageServiceTest {
@@ -59,5 +61,19 @@ class R2StorageServiceTest {
 
         ApiException exception = assertThrows(ApiException.class, () -> storageService.uploadImage(file, "images"));
         assertThat(exception.getMessage()).isEqualTo(StorageErrorMessage.IMAGE_CONTENT_TYPE_INVALID.message());
+    }
+
+    @Test
+    void R2_공개_URL이면_object_key를_추출해_이미지를_삭제한다() {
+        storageService.deleteImageByUrl("https://cdn.example.com/member_profile_image/old.png");
+
+        verify(s3Client).deleteObject(any(DeleteObjectRequest.class));
+    }
+
+    @Test
+    void R2_공개_URL이_아니면_이미지를_삭제하지_않는다() {
+        storageService.deleteImageByUrl("https://k.kakaocdn.net/profile/image.png");
+
+        verify(s3Client, never()).deleteObject(any(DeleteObjectRequest.class));
     }
 }

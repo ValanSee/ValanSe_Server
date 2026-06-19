@@ -68,4 +68,8 @@ public class Member extends BaseEntity {
     @Builder.Default
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)
     private List<Vote> votes = new ArrayList<>();
+
+    public void updateProfileImageUrl(String profileImageUrl) {
+        this.profile_image_url = profileImageUrl;
+    }
 }
