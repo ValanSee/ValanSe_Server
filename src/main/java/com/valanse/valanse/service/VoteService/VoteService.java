@@ -5,8 +5,10 @@ import com.valanse.valanse.domain.enums.PinType;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import com.valanse.valanse.dto.Vote.VoteResponseDto;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * VoteService 기능의 비즈니스 계약을 정의하는 서비스 인터페이스 코드입니다.
@@ -26,6 +28,7 @@ public interface VoteService {
     VoteDetailResponse getVoteDetailById(Long voteId);
     List<VoteResponseDto> getMyCreatedVotes(Long memberId, String sort, VoteCategory category);
     Long createVote(Long userId, VoteCreateRequest request);
+    Long createVote(Long userId, VoteCreateRequest request, Map<String, MultipartFile> optionImageFiles);
     List<VoteResponseDto> getMyVotedVotes(Long memberId, String sort, VoteCategory category);
     // /votes get 메서드 cursor기반으로 변경
     VoteListResponse getVotesByCategoryAndSort(Member loginUser, String category, String sort, String cursor, int size);

@@ -26,6 +26,8 @@ public class VoteOption extends BaseEntity {
 
     private String content;
 
+    private String imageUrl;
+
     @Builder.Default // voteCount 초기값 0 설정
     private Integer voteCount = 0;
 
