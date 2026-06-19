@@ -13,7 +13,15 @@ spring:
       ddl-auto: create
     database-platform: org.hibernate.dialect.H2Dialect
     open-in-view: false
-    show-sql: true
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  data:
+    redis:
+      repositories:
+        enabled: false
 
   sql:
     init:
