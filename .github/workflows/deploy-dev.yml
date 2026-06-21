@@ -19,9 +19,16 @@ jobs:
           java-version: 17
 
       - name: application.yml 파일 만들기
+        env:
+          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: |
           mkdir -p src/main/resources
           echo "${{ secrets.APPLICATION_PROPERTIES }}" > src/main/resources/application.yml
+          test -n "$ADMIN_USERNAME"
+          test -n "$ADMIN_PASSWORD"
+          perl -0pi -e 's/\$\{ADMIN_USERNAME:[^}]*\}/$ENV{ADMIN_USERNAME}/g' src/main/resources/application.yml
+          perl -0pi -e 's/\$\{ADMIN_PASSWORD:[^}]*\}/$ENV{ADMIN_PASSWORD}/g' src/main/resources/application.yml
 
       - name: 테스트 & 빌드
         run: ./gradlew clean build -x test
@@ -52,14 +59,12 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ap-northeast-2
-          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
-          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script_stop: true
-          envs: AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_DEFAULT_REGION,ADMIN_USERNAME,ADMIN_PASSWORD
+          envs: AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_DEFAULT_REGION
           script: |
             cd ~/valanse
             
@@ -68,25 +73,9 @@ jobs:
             
             # dev 이미지 pull
             docker pull ${{ steps.login-ecr.outputs.registry }}/cicdprac:dev
-
-            # runtime 관리자 계정 환경변수 주입
-            test -n "$ADMIN_USERNAME"
-            test -n "$ADMIN_PASSWORD"
-            printf '%s\n' \
-              "services:" \
-              "  valanse-dev:" \
-              "    environment:" \
-              '      ADMIN_USERNAME: ${ADMIN_USERNAME}' \
-              '      ADMIN_PASSWORD: ${ADMIN_PASSWORD}' \
-              "  valanse-dev-server:" \
-              "    environment:" \
-              '      ADMIN_USERNAME: ${ADMIN_USERNAME}' \
-              '      ADMIN_PASSWORD: ${ADMIN_PASSWORD}' \
-              > docker-compose.dev.override.yml
-            docker compose -f docker-compose.yml -f docker-compose.dev.override.yml config > /tmp/valanse-dev-compose.yml
             
             # development 컨테이너들 재시작 (8081 + 8082)
-            docker compose -f docker-compose.yml -f docker-compose.dev.override.yml up -d --force-recreate valanse-dev valanse-dev-server
+            docker compose up -d valanse-dev valanse-dev-server
             
             # 사용하지 않는 이미지 정리
             docker image prune -f
