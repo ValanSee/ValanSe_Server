@@ -70,17 +70,20 @@ jobs:
             docker pull ${{ steps.login-ecr.outputs.registry }}/cicdprac:dev
 
             # runtime 관리자 계정 환경변수 주입
-            cat > docker-compose.dev.override.yml <<'EOF'
-            services:
-              valanse-dev:
-                environment:
-                  ADMIN_USERNAME: ${ADMIN_USERNAME}
-                  ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-              valanse-dev-server:
-                environment:
-                  ADMIN_USERNAME: ${ADMIN_USERNAME}
-                  ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-            EOF
+            test -n "$ADMIN_USERNAME"
+            test -n "$ADMIN_PASSWORD"
+            printf '%s\n' \
+              "services:" \
+              "  valanse-dev:" \
+              "    environment:" \
+              '      ADMIN_USERNAME: ${ADMIN_USERNAME}' \
+              '      ADMIN_PASSWORD: ${ADMIN_PASSWORD}' \
+              "  valanse-dev-server:" \
+              "    environment:" \
+              '      ADMIN_USERNAME: ${ADMIN_USERNAME}' \
+              '      ADMIN_PASSWORD: ${ADMIN_PASSWORD}' \
+              > docker-compose.dev.override.yml
+            docker compose -f docker-compose.yml -f docker-compose.dev.override.yml config > /tmp/valanse-dev-compose.yml
             
             # development 컨테이너들 재시작 (8081 + 8082)
             docker compose -f docker-compose.yml -f docker-compose.dev.override.yml up -d --force-recreate valanse-dev valanse-dev-server

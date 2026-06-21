@@ -70,13 +70,16 @@ jobs:
             docker pull ${{ steps.login-ecr.outputs.registry }}/cicdprac:prod
 
             # runtime 관리자 계정 환경변수 주입
-            cat > docker-compose.prod.override.yml <<'EOF'
-            services:
-              valanse-server:
-                environment:
-                  ADMIN_USERNAME: ${ADMIN_USERNAME}
-                  ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-            EOF
+            test -n "$ADMIN_USERNAME"
+            test -n "$ADMIN_PASSWORD"
+            printf '%s\n' \
+              "services:" \
+              "  valanse-server:" \
+              "    environment:" \
+              '      ADMIN_USERNAME: ${ADMIN_USERNAME}' \
+              '      ADMIN_PASSWORD: ${ADMIN_PASSWORD}' \
+              > docker-compose.prod.override.yml
+            docker compose -f docker-compose.yml -f docker-compose.prod.override.yml config > /tmp/valanse-prod-compose.yml
             
             # production 컨테이너만 재시작
             docker compose -f docker-compose.yml -f docker-compose.prod.override.yml up -d --force-recreate valanse-server
