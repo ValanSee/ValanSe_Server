@@ -18,8 +18,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
+import java.security.Key;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 
 /**
@@ -59,6 +62,7 @@ public class JwtTokenFilter extends OncePerRequestFilter {
 
         // 인증 관련 엔드포인트 (토큰 검사하면 순환 참조!)
         return uri.equals("/auth/kakao/login") ||
+                uri.equals("/auth/admin/login") ||
                 uri.equals("/auth/reissue") ||
                 uri.equals("/error") ||
                 uri.equals("/health") ||
@@ -86,7 +90,7 @@ public class JwtTokenFilter extends OncePerRequestFilter {
             try {
                 // 토큰 파싱 및 검증
                 Claims claims = Jwts.parserBuilder()
-                        .setSigningKey(secretKey)
+                        .setSigningKey(getSigningKey())
                         .build()
                         .parseClaimsJws(jwtToken)
                         .getBody();
@@ -144,5 +148,9 @@ public class JwtTokenFilter extends OncePerRequestFilter {
         // - 토큰이 없거나
         // - 토큰이 유효해서 인증 설정 완료
         filterChain.doFilter(request, response);
+    }
+
+    private Key getSigningKey() {
+        return new SecretKeySpec(Base64.getDecoder().decode(secretKey), "HmacSHA256");
     }
 }
