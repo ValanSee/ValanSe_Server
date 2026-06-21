@@ -4,9 +4,7 @@ import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.common.auth.JwtTokenProvider;
 import com.valanse.valanse.common.message.AuthErrorMessage;
 import com.valanse.valanse.domain.Member;
-import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.dto.Login.AccessTokenDto;
-import com.valanse.valanse.dto.Login.AdminLoginRequest;
 import com.valanse.valanse.dto.Login.KakaoProfileDto;
 import com.valanse.valanse.dto.Login.RedirectDto;
 import com.valanse.valanse.dto.Login.ReissueRequestDto;
@@ -44,12 +42,6 @@ public class AuthController {
     @Value("${jwt.refresh-token-expiration}")
     private int refreshTokenExpirationMinutes;
 
-    @Value("${admin.username:admin}")
-    private String adminUsername;
-
-    @Value("${admin.password:admin}")
-    private String adminPassword;
-
     private long refreshTokenExpirationMillis;
 
     /**
@@ -58,25 +50,6 @@ public class AuthController {
     @PostConstruct
     public void init() {
         this.refreshTokenExpirationMillis = refreshTokenExpirationMinutes * 60L * 1000L;
-    }
-
-    @PostMapping("/admin/login")
-    @Operation(summary = "관리자 로그인", description = "CMS 관리자 계정으로 로그인하고 ADMIN 권한 JWT를 발급합니다.")
-    public ResponseEntity<Map<String, Object>> adminLogin(@RequestBody AdminLoginRequest request) {
-        if (!adminUsername.equals(request.getUsername()) || !adminPassword.equals(request.getPassword())) {
-            throw new ApiException(AuthErrorMessage.ADMIN_ONLY.message(), HttpStatus.UNAUTHORIZED);
-        }
-
-        Map<String, String> jwtToken = jwtTokenProvider.createTokenPair(0L, Role.ADMIN.toString());
-        refreshTokenService.saveRefreshToken("0", jwtToken.get("refreshToken"), refreshTokenExpirationMillis);
-
-        Map<String, Object> loginInfo = new HashMap<>();
-        loginInfo.put("id", 0L);
-        loginInfo.put("role", Role.ADMIN.toString());
-        loginInfo.put("accessToken", jwtToken.get("accessToken"));
-        loginInfo.put("refreshToken", jwtToken.get("refreshToken"));
-
-        return ResponseEntity.ok(loginInfo);
     }
 
     @Operation(
