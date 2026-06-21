@@ -28,8 +28,13 @@ spring:
       mode: never
 
 jwt:
-  secret: ZHVtbXktc2VjcmV0LWZvci10ZXN0
-  expiration: 3000
+  secret: ZHVtbXktc2VjcmV0LWZvci10ZXN0LWR1bW15LXNlY3JldC1mb3ItdGVzdA==
+  access-token-expiration: 15
+  refresh-token-expiration: 10080
+
+admin:
+  username: admin
+  password: admin
 oauth:
   kakao:
     client-id: test-client-id
