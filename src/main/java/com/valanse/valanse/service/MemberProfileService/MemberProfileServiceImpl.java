@@ -9,6 +9,7 @@ import com.valanse.valanse.domain.Title;
 import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.domain.enums.TitleAcquisitionType;
 import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
+import com.valanse.valanse.dto.MemberProfile.MemberProfileImageResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 import com.valanse.valanse.repository.MemberProfileRepository;
@@ -16,11 +17,13 @@ import com.valanse.valanse.repository.MemberProfileTitleRepository;
 import com.valanse.valanse.repository.MemberRepository;
 import com.valanse.valanse.repository.TitleRepository;
 import com.valanse.valanse.service.PointService.PointService;
+import com.valanse.valanse.service.StorageService.StorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Optional;
 import java.util.Set;
@@ -38,6 +41,7 @@ public class MemberProfileServiceImpl implements MemberProfileService {
     private final MemberProfileTitleRepository memberProfileTitleRepository;
     private final TitleRepository titleRepository;
     private final PointService pointService;
+    private final StorageService storageService;
 
     /**
      * OrUpdateProfile 데이터를 저장하는 메서드입니다.
@@ -100,6 +104,22 @@ public class MemberProfileServiceImpl implements MemberProfileService {
             // 신규 프로필 생성 시 회원가입 포인트 지급
             pointService.givePoint(userId, PointType.SIGN_UP);
         }
+    }
+
+    @Override
+    public MemberProfileImageResponse updateProfileImage(MultipartFile file) {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+
+        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> apiException(MemberErrorMessage.MEMBER_NOT_FOUND, HttpStatus.NOT_FOUND));
+
+        String previousImageUrl = member.getProfile_image_url();
+        String imageUrl = storageService.uploadImage(file, "member_profile_image");
+
+        storageService.deleteImageByUrl(previousImageUrl);
+        member.updateProfileImageUrl(imageUrl);
+
+        return new MemberProfileImageResponse(imageUrl);
     }
 
     /**

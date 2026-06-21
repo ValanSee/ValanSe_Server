@@ -1,5 +1,6 @@
 package com.valanse.valanse.dto.Vote;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import com.valanse.valanse.domain.Vote;
@@ -18,7 +19,7 @@ public class VoteResponseDto {
     private int totalVoteCount;
     private String createdAt;
     private String creatorTitle;
-    private List<String> options;
+    private List<OptionDto> options;
 
     /**
      * VoteResponseDto 의존성을 주입하거나 객체를 초기화하는 생성자입니다.
@@ -40,7 +41,14 @@ public class VoteResponseDto {
         this.creatorTitle = creatorTitle;
         this.options = vote.getVoteOptions()
                 .stream()
-                .map(option -> option.getContent())  //  VoteOption에서 content 추출
+                .map(option -> new OptionDto(option.getContent(), option.getImageUrl()))
                 .collect(Collectors.toList());
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class OptionDto {
+        private String content;
+        private String imageUrl;
     }
 }

@@ -15,6 +15,7 @@ import com.valanse.valanse.dto.Vote.VoteCreateRequest;
 import com.valanse.valanse.dto.Vote.VoteDetailResponse;
 import com.valanse.valanse.repository.*;
 import com.valanse.valanse.service.PointService.PointService;
+import com.valanse.valanse.service.StorageService.StorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,11 +25,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
@@ -50,6 +54,7 @@ class VoteServiceImplTest {
     @Mock private MemberProfileRepository memberProfileRepository;
     @Mock private MemberProfileTitleRepository memberProfileTitleRepository;
     @Mock private PointService pointService;
+    @Mock private StorageService storageService;
 
     // ──────────────────────────────────────────────
     // createVote
@@ -110,7 +115,13 @@ class VoteServiceImplTest {
 
         VoteCreateRequest request = VoteCreateRequest.builder()
                 .title("테스트 투표")
-                .options(List.of("1", "2", "3", "4", "5"))
+                .options(List.of(
+                        VoteCreateRequest.OptionRequest.builder().key("A").content("1").build(),
+                        VoteCreateRequest.OptionRequest.builder().key("B").content("2").build(),
+                        VoteCreateRequest.OptionRequest.builder().key("C").content("3").build(),
+                        VoteCreateRequest.OptionRequest.builder().key("D").content("4").build(),
+                        VoteCreateRequest.OptionRequest.builder().key("E").content("5").build()
+                ))
                 .build();
 
         ApiException ex = assertThrows(ApiException.class, () -> voteService.createVote(1L, request));
@@ -124,7 +135,12 @@ class VoteServiceImplTest {
 
         VoteCreateRequest request = VoteCreateRequest.builder()
                 .title("테스트용 투표")
-                .options(List.of("1번", "2번", "3번", "4번"))
+                .options(List.of(
+                        VoteCreateRequest.OptionRequest.builder().key("A").content("1번").build(),
+                        VoteCreateRequest.OptionRequest.builder().key("B").content("2번").build(),
+                        VoteCreateRequest.OptionRequest.builder().key("C").content("3번").build(),
+                        VoteCreateRequest.OptionRequest.builder().key("D").content("4번").build()
+                ))
                 .category(VoteCategory.ALL)
                 .build();
 
@@ -145,6 +161,96 @@ class VoteServiceImplTest {
 
         verify(commentGroupRepository).save(any(CommentGroup.class));
         verify(pointService, times(1)).givePoint(any(), any());
+    }
+
+    @Test
+    @DisplayName("투표 생성 시 imageKey와 같은 이름의 파일을 옵션 이미지로 저장한다")
+    void 투표생성_옵션이미지_성공() {
+        Member member = new Member();
+
+        VoteCreateRequest request = VoteCreateRequest.builder()
+                .title("테스트용 투표")
+                .options(List.of(
+                        VoteCreateRequest.OptionRequest.builder()
+                                .key("A").content("1번").imageKey("option-a-image").build(),
+                        VoteCreateRequest.OptionRequest.builder()
+                                .key("B").content("2번").imageKey(null).build(),
+                        VoteCreateRequest.OptionRequest.builder()
+                                .key("C").content("3번").imageKey("option-c-image").build()
+                ))
+                .category(VoteCategory.ALL)
+                .build();
+
+        MultipartFile aImage = new MockMultipartFile("option-a-image", "a.png", "image/png", "a".getBytes());
+        MultipartFile cImage = new MockMultipartFile("option-c-image", "c.png", "image/png", "c".getBytes());
+
+        Vote savedVote = Vote.builder()
+                .id(100L).title(request.getTitle())
+                .category(request.getCategory()).member(member).build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(any())).thenReturn(Optional.of(member));
+        when(storageService.uploadImage(aImage, "vote-options")).thenReturn("https://cdn.example.com/a.png");
+        when(storageService.uploadImage(cImage, "vote-options")).thenReturn("https://cdn.example.com/c.png");
+        when(voteRepository.save(any())).thenReturn(savedVote);
+
+        Long voteId = voteService.createVote(1L, request, Map.of(
+                "option-a-image", aImage,
+                "option-c-image", cImage
+        ));
+
+        assertThat(voteId).isEqualTo(100L);
+
+        ArgumentCaptor<Vote> voteCaptor = ArgumentCaptor.forClass(Vote.class);
+        verify(voteRepository).save(voteCaptor.capture());
+        assertThat(voteCaptor.getValue().getVoteOptions())
+                .extracting(VoteOption::getImageUrl)
+                .containsExactly("https://cdn.example.com/a.png", null, "https://cdn.example.com/c.png");
+    }
+
+    @Test
+    @DisplayName("imageKey에 해당하는 파일이 없으면 예외가 발생한다")
+    void 투표생성_옵션이미지_파일없음() {
+        when(memberRepository.findByIdAndDeletedAtIsNull(any())).thenReturn(Optional.of(new Member()));
+
+        VoteCreateRequest request = VoteCreateRequest.builder()
+                .title("테스트용 투표")
+                .options(List.of(
+                        VoteCreateRequest.OptionRequest.builder()
+                                .key("A").content("1번").imageKey("option-a-image").build()
+                ))
+                .category(VoteCategory.ALL)
+                .build();
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> voteService.createVote(1L, request, Map.of()));
+
+        assertThat(ex.getMessage()).isEqualTo("투표 옵션 이미지 파일을 찾을 수 없습니다.");
+        assertThat(ex.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verify(storageService, never()).uploadImage(any(), any());
+    }
+
+    @Test
+    @DisplayName("imageKey가 중복되면 예외가 발생한다")
+    void 투표생성_옵션이미지키_중복() {
+        when(memberRepository.findByIdAndDeletedAtIsNull(any())).thenReturn(Optional.of(new Member()));
+
+        VoteCreateRequest request = VoteCreateRequest.builder()
+                .title("테스트용 투표")
+                .options(List.of(
+                        VoteCreateRequest.OptionRequest.builder()
+                                .key("A").content("1번").imageKey("same-image").build(),
+                        VoteCreateRequest.OptionRequest.builder()
+                                .key("B").content("2번").imageKey("same-image").build()
+                ))
+                .category(VoteCategory.ALL)
+                .build();
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> voteService.createVote(1L, request, Map.of()));
+
+        assertThat(ex.getMessage()).isEqualTo("투표 옵션 이미지 키는 중복될 수 없습니다.");
+        assertThat(ex.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verify(storageService, never()).uploadImage(any(), any());
     }
 
     // ──────────────────────────────────────────────
