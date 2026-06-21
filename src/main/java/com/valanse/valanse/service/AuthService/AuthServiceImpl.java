@@ -3,7 +3,6 @@ package com.valanse.valanse.service.AuthService;
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.common.auth.JwtTokenProvider;
 import com.valanse.valanse.common.message.AuthErrorMessage;
-import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.service.RefreshTokenService.RefreshTokenServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -67,8 +66,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // 4. 새 access token 발급
-        String role = "0".equals(userId) ? Role.ADMIN.toString() : Role.USER.toString();
-        String newAccessToken = jwtTokenProvider.createAccessToken(Long.parseLong(userId), role);
+        String newAccessToken = jwtTokenProvider.createAccessToken(Long.parseLong(userId), "USER");
 
         return Map.of("accessToken", newAccessToken);
     }
