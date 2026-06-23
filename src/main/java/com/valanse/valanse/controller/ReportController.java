@@ -36,7 +36,7 @@ public class ReportController {
         Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         var member = memberService.findById(loginId);
 
-        reportService.report(member, targetId, request.getReportType());
+        reportService.report(member, targetId, request.getReportType(), request.getReason(), request.getContent());
         return ResponseEntity.ok().build();
     }
 

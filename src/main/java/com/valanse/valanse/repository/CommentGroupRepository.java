@@ -1,7 +1,11 @@
 package com.valanse.valanse.repository;
 
 import com.valanse.valanse.domain.CommentGroup;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
@@ -10,4 +14,8 @@ import java.util.Optional;
  */
 public interface CommentGroupRepository extends JpaRepository<CommentGroup, Long> {
     Optional<CommentGroup> findByVoteId(Long voteId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select cg from CommentGroup cg where cg.vote.id = :voteId")
+    Optional<CommentGroup> findByVoteIdForUpdate(@Param("voteId") Long voteId);
 }

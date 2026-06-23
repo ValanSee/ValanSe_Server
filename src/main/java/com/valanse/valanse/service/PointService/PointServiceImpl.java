@@ -23,13 +23,13 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 /**
  * 회원 포인트 지급, 사용 기록, 포인트 히스토리 조회를 처리하는 서비스 코드입니다.
- * check: 포인트 지급 제한은 동시 요청에서 초과 지급되지 않도록 트랜잭션 격리 또는 DB 제약을 검토해야 합니다.
  */
 public class PointServiceImpl implements PointService {
 
@@ -58,7 +58,7 @@ public class PointServiceImpl implements PointService {
         Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
-        MemberProfile profile = memberProfileRepository.findByMemberId(memberId)
+        MemberProfile profile = findMemberProfileForUpdate(memberId)
                 .orElseThrow(() -> new ApiException(ProfileErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         long amount = switch (type) {
@@ -82,13 +82,14 @@ public class PointServiceImpl implements PointService {
 
         // 포인트가 0보다 클 때만 포인트 지급 및 히스토리 저장
         if (amount > 0) {
-            profile.addPoint(amount);
-            memberProfileRepository.save(profile);
+            memberProfileRepository.addPointAtomically(memberId, amount);
+            MemberProfile updatedProfile = memberProfileRepository.findByMemberId(memberId)
+                    .orElseThrow(() -> new ApiException(ProfileErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
             PointHistory history = PointHistory.builder()
                     .member(member)
                     .amount(amount)
-                    .remainingPoint(profile.getPoint())
+                    .remainingPoint(updatedProfile.getPoint())
                     .type(type)
                     .build();
             pointHistoryRepository.save(history);
@@ -107,7 +108,7 @@ public class PointServiceImpl implements PointService {
         Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
-        MemberProfile profile = memberProfileRepository.findByMemberId(memberId)
+        MemberProfile profile = findMemberProfileForUpdate(memberId)
                 .orElseThrow(() -> new ApiException(ProfileErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         PointHistory history = PointHistory.builder()
@@ -205,5 +206,13 @@ public class PointServiceImpl implements PointService {
             return null;
         }
         return createdAt.format(DATE_TIME_FORMATTER);
+    }
+
+    private Optional<MemberProfile> findMemberProfileForUpdate(Long memberId) {
+        Optional<MemberProfile> lockedProfile = memberProfileRepository.findByMemberIdForUpdate(memberId);
+        if (lockedProfile != null && lockedProfile.isPresent()) {
+            return lockedProfile;
+        }
+        return memberProfileRepository.findByMemberId(memberId);
     }
 }

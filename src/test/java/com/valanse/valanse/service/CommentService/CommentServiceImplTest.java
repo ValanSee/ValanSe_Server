@@ -168,6 +168,42 @@ class CommentServiceImplTest {
     }
 
     @Test
+    @DisplayName("다른 투표의 부모 댓글로 대댓글을 작성하면 예외가 발생한다")
+    void 다른투표_parentId_대댓글작성실패() {
+        Vote otherVote = Vote.builder().id(2L).member(member).build();
+        CommentGroup otherCommentGroup = CommentGroup.builder()
+                .id(2L)
+                .vote(otherVote)
+                .totalCommentCount(0)
+                .build();
+        Comment parentComment = Comment.builder()
+                .id(10L)
+                .content("다른 투표 부모 댓글")
+                .member(member)
+                .commentGroup(otherCommentGroup)
+                .parent(null)
+                .likeCount(0)
+                .replyCount(0)
+                .build();
+        CommentPostRequest request = CommentPostRequest.builder()
+                .content("대댓글")
+                .parentId(10L)
+                .build();
+
+        when(voteRepository.findById(1L)).thenReturn(Optional.of(vote));
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+        when(commentGroupRepository.findByVoteId(1L)).thenReturn(Optional.of(commentGroup));
+        when(commentRepository.findById(10L)).thenReturn(Optional.of(parentComment));
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> commentService.createComment(1L, 1L, request));
+
+        assertThat(ex.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(parentComment.getReplyCount()).isEqualTo(0);
+        verify(commentRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("CommentGroup이 없을 때 자동 생성 후 댓글 작성")
     void CommentGroup없을때_자동생성_test() {
         // given
@@ -444,5 +480,33 @@ class CommentServiceImplTest {
         // then
         assertThat(response.totalCommentCount()).isEqualTo(7);
         assertThat(response.content()).isEqualTo("인기 댓글");
+    }
+
+    @Test
+    @DisplayName("다른 투표의 부모 댓글로 replies를 조회하면 예외가 발생한다")
+    void 다른투표_parentCommentId_replies조회실패() {
+        Vote otherVote = Vote.builder().id(2L).member(member).build();
+        CommentGroup otherCommentGroup = CommentGroup.builder()
+                .id(2L)
+                .vote(otherVote)
+                .totalCommentCount(0)
+                .build();
+        Comment parentComment = Comment.builder()
+                .id(10L)
+                .content("다른 투표 부모 댓글")
+                .member(member)
+                .commentGroup(otherCommentGroup)
+                .parent(null)
+                .replyCount(0)
+                .build();
+
+        when(voteRepository.findById(1L)).thenReturn(Optional.of(vote));
+        when(commentRepository.findById(10L)).thenReturn(Optional.of(parentComment));
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> commentService.getReplies(member, 1L, 10L));
+
+        assertThat(ex.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verify(commentRepository, never()).findAllByParentId(any());
     }
 }

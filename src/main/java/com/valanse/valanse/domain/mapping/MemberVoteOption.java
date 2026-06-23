@@ -11,6 +11,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
+@Table(uniqueConstraints = {
+        @UniqueConstraint(name = "uk_member_vote_option_member_vote", columnNames = {"member_id", "vote_id"})
+})
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -36,4 +39,3 @@ public class MemberVoteOption extends BaseEntity {
     @JoinColumn(name = "vote_option_id")
     private VoteOption voteOption;
 }
-

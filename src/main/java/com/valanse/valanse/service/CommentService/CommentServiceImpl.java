@@ -25,6 +25,7 @@ import java.time.LocalDateTime;
 
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,8 +33,6 @@ import java.util.stream.Collectors;
 @Transactional
 /**
  * 댓글 생성, 대댓글 조회, 댓글 삭제 권한과 댓글 카운트 정책을 처리하는 서비스 코드입니다.
- * check: parentId가 현재 voteId의 댓글인지 검증하는 로직이 필요합니다.
- * check: 댓글/대댓글 카운트 감소가 중복 삭제나 동시 요청에서 음수가 되지 않도록 보호해야 합니다.
  */
 public class CommentServiceImpl implements CommentService {
 
@@ -50,7 +49,7 @@ public class CommentServiceImpl implements CommentService {
      */
     @Override
     public void deleteMyComment(Member member, Long commentId) {
-        Comment comment = commentRepository.findById(commentId)
+        Comment comment = findCommentForUpdate(commentId)
                 .orElseThrow(() -> new ApiException(CommentErrorMessage.COMMENT_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         Long writerId = comment.getMember().getId();
@@ -60,6 +59,10 @@ public class CommentServiceImpl implements CommentService {
             throw new ApiException(AuthErrorMessage.DELETE_PERMISSION_DENIED.message(), HttpStatus.FORBIDDEN);
         }
 
+        if (comment.getDeletedAt() != null) {
+            return;
+        }
+
         // Soft delete 처리
         comment.setDeletedAt(LocalDateTime.now());
         commentRepository.save(comment);
@@ -67,13 +70,15 @@ public class CommentServiceImpl implements CommentService {
         // ✅ 추가: 카운트 감소 로직
         if (comment.getParent() == null) {
             // 부모 댓글인 경우: totalCommentCount 감소
-            CommentGroup commentGroup = comment.getCommentGroup();
-            commentGroup.setTotalCommentCount(commentGroup.getTotalCommentCount() - 1);
+            CommentGroup commentGroup = findCommentGroupForUpdate(comment.getCommentGroup().getVote().getId())
+                    .orElse(comment.getCommentGroup());
+            commentGroup.setTotalCommentCount(decrementCount(commentGroup.getTotalCommentCount()));
             commentGroupRepository.save(commentGroup);
         } else {
             // 대댓글인 경우: 부모 댓글의 replyCount 감소
-            Comment parent = comment.getParent();
-            parent.updateReplyCount(parent.getReplyCount() - 1);
+            Comment parent = findCommentForUpdate(comment.getParent().getId())
+                    .orElse(comment.getParent());
+            parent.updateReplyCount(decrementCount(parent.getReplyCount()));
             commentRepository.save(parent);
         }
     }
@@ -102,17 +107,16 @@ public class CommentServiceImpl implements CommentService {
 
     /**
      * 투표에 부모 댓글 또는 대댓글을 작성하고 댓글 카운트와 포인트를 갱신하는 메서드입니다.
-     * check: 대댓글 parent가 현재 투표의 댓글인지 확인해야 합니다.
      */
     @Override
     public Long createComment(Long voteId, Long userId, CommentPostRequest request) {
-        Vote vote = voteRepository.findById(voteId)
+        Vote vote = findVoteForUpdate(voteId)
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
         Member member = memberRepository.findById(userId)
                 .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         // 1. CommentGroup 찾기 (없으면 생성)
-        CommentGroup commentGroup = commentGroupRepository.findByVoteId(voteId)
+        CommentGroup commentGroup = findCommentGroupForUpdate(voteId)
                 .orElseGet(() -> {
                     CommentGroup newGroup = CommentGroup.builder()
                             .vote(vote)
@@ -124,9 +128,10 @@ public class CommentServiceImpl implements CommentService {
         // 2. 부모 댓글이 있을 경우 replyCount 증가
         Comment parent = null;
         if (request.getParentId() != null) {
-            parent = commentRepository.findById(request.getParentId())
+            parent = findCommentForUpdate(request.getParentId())
                     .orElseThrow(() -> new ApiException(CommentErrorMessage.PARENT_COMMENT_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
-            parent.updateReplyCount(parent.getReplyCount() + 1); // replyCount 증가
+            validateParentCommentBelongsToVote(parent, voteId);
+            parent.updateReplyCount(incrementCount(parent.getReplyCount())); // replyCount 증가
             commentRepository.save(parent);
         }
 
@@ -143,7 +148,7 @@ public class CommentServiceImpl implements CommentService {
 
         // ✅ 수정: 부모 댓글일 때만 totalCommentCount 증가
         if (request.getParentId() == null) {
-            commentGroup.setTotalCommentCount(commentGroup.getTotalCommentCount() + 1);
+            commentGroup.setTotalCommentCount(incrementCount(commentGroup.getTotalCommentCount()));
             commentGroupRepository.save(commentGroup);
         }
 
@@ -213,6 +218,10 @@ public class CommentServiceImpl implements CommentService {
         Vote vote = voteRepository.findById(voteId)
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
+        Comment parentComment = commentRepository.findById(parentCommentId)
+                .orElseThrow(() -> new ApiException(CommentErrorMessage.PARENT_COMMENT_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+        validateParentCommentBelongsToVote(parentComment, voteId);
+
         // 대댓글 조회
         List<Comment> replies = commentRepository.findAllByParentId(parentCommentId);
 
@@ -263,5 +272,45 @@ public class CommentServiceImpl implements CommentService {
                 .map(MemberProfileTitle::getTitle)
                 .map(Title::getName)
                 .orElse(null);
+    }
+
+    private void validateParentCommentBelongsToVote(Comment parent, Long voteId) {
+        if (parent.getCommentGroup() == null
+                || parent.getCommentGroup().getVote() == null
+                || !voteId.equals(parent.getCommentGroup().getVote().getId())) {
+            throw new ApiException(CommentErrorMessage.PARENT_COMMENT_NOT_BELONG_TO_VOTE.message(), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private Optional<Vote> findVoteForUpdate(Long voteId) {
+        Optional<Vote> lockedVote = voteRepository.findByIdForUpdate(voteId);
+        if (lockedVote != null && lockedVote.isPresent()) {
+            return lockedVote;
+        }
+        return voteRepository.findById(voteId);
+    }
+
+    private Optional<CommentGroup> findCommentGroupForUpdate(Long voteId) {
+        Optional<CommentGroup> lockedGroup = commentGroupRepository.findByVoteIdForUpdate(voteId);
+        if (lockedGroup != null && lockedGroup.isPresent()) {
+            return lockedGroup;
+        }
+        return commentGroupRepository.findByVoteId(voteId);
+    }
+
+    private Optional<Comment> findCommentForUpdate(Long commentId) {
+        Optional<Comment> lockedComment = commentRepository.findByIdForUpdate(commentId);
+        if (lockedComment != null && lockedComment.isPresent()) {
+            return lockedComment;
+        }
+        return commentRepository.findById(commentId);
+    }
+
+    private int incrementCount(Integer count) {
+        return (count == null ? 0 : count) + 1;
+    }
+
+    private int decrementCount(Integer count) {
+        return Math.max(0, (count == null ? 0 : count) - 1);
     }
 }

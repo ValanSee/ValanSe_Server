@@ -364,6 +364,29 @@ class VoteServiceImplTest {
         verify(memberVoteOptionRepository, times(1)).save(any(MemberVoteOption.class));
     }
 
+    @Test
+    @DisplayName("다른 투표의 선택지로 투표하면 예외가 발생하고 카운트를 변경하지 않는다")
+    void 다른투표_선택지로_투표실패() {
+        Member member = Member.builder().id(1L).build();
+        Vote vote = Vote.builder().id(10L).totalVoteCount(7).build();
+        Vote otherVote = Vote.builder().id(20L).totalVoteCount(0).build();
+        VoteOption otherVoteOption = VoteOption.builder().id(200L).voteCount(3).vote(otherVote).build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(any())).thenReturn(Optional.of(member));
+        when(voteRepository.findById(10L)).thenReturn(Optional.of(vote));
+        when(voteOptionRepository.findById(200L)).thenReturn(Optional.of(otherVoteOption));
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> voteService.processVote(1L, 10L, 200L));
+
+        assertThat(ex.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(vote.getTotalVoteCount()).isEqualTo(7);
+        assertThat(otherVoteOption.getVoteCount()).isEqualTo(3);
+        verify(memberVoteOptionRepository, never()).save(any());
+        verify(memberVoteOptionRepository, never()).delete(any());
+        verify(pointService, never()).givePoint(any(), any());
+    }
+
     // ──────────────────────────────────────────────
     // getVoteDetailById
     // ──────────────────────────────────────────────
