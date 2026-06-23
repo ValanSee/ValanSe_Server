@@ -17,7 +17,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Encoding;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -210,7 +209,7 @@ public class VoteController {
                     "Category에는 FOOD, LOVE, BUY, SPORT, WORRY, ETC 이 6가지만 올 수 있습니다. 내부에서 ENUM으로 처리됩니다.\n" +
                     "request 파트에 JSON을 넣고, options[].imageKey와 같은 이름의 파일 파트를 첨부하세요. " +
                     "예: imageKey가 option-a-image이면 option-a-image 파일 칸에 이미지를 첨부합니다. 이미지가 없는 옵션은 imageKey를 생략하세요.",
-            requestBody = @RequestBody(
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     required = true,
                     content = @Content(
                             mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
