@@ -50,3 +50,11 @@ cd Server
 
 # 3. 서버 실행
 java -jar build/libs/valansee-server-0.0.1-SNAPSHOT.jar
+```
+
+## 🔐 민감 설정 관리
+
+- `src/main/resources/application.yml`은 git에 커밋하지 않고 팀 내부 저장소에서만 관리합니다.
+- 설정값 공유는 팀원 접근 권한이 제한된 공간에서만 진행하고, 외부 공유와 스크린샷 공유를 금지합니다.
+- 팀원 변경이나 권한 회수가 필요할 때는 저장소 접근 권한을 함께 정리합니다.
+- 운영 설정 변경 이력은 팀 문서에 남기고, 장기적으로는 환경변수 또는 secret manager 기반 주입으로 전환합니다.

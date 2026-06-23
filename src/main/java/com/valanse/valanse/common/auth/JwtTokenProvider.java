@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.spec.SecretKeySpec;
 import java.security.Key;
+import java.util.Base64;
 import java.util.Date;
 import java.util.Map;
 
@@ -17,14 +18,12 @@ import java.util.Map;
  * check: JWT secret은 코드/설정 파일에 고정하지 말고 외부 secret으로 주입해야 합니다.
  */
 public class JwtTokenProvider {
-    // application.yml에서 주입받은 시크릿 키 (Base64 인코딩된 문자열)
-    private final String secretKey;
     // 액세스 토큰 만료 시간 (분 단위)
     private final int accessTokenExpiration;   // 분 단위
     // 리프레시 토큰 만료 시간 (분 단위)
     private final int refreshTokenExpiration;
     // JWT 서명용 키 (HMAC-SHA256 알고리즘 사용)
-    private Key SECRET_KEY;
+    private final Key secretKey;
 
     // 생성자에서 application.yml 설정값을 주입받고 서명 키 생성
     /**
@@ -33,10 +32,9 @@ public class JwtTokenProvider {
     public JwtTokenProvider(@Value("${jwt.secret}") String secretKey,
                             @Value("${jwt.access-token-expiration}") int accessTokenExpiration,
                             @Value("${jwt.refresh-token-expiration}") int refreshTokenExpiration) {
-        this.secretKey = secretKey;
         this.accessTokenExpiration = accessTokenExpiration;
         this.refreshTokenExpiration = refreshTokenExpiration;
-        this.SECRET_KEY = new SecretKeySpec(java.util.Base64.getDecoder().decode(secretKey), SignatureAlgorithm.HS256.getJcaName());
+        this.secretKey = new SecretKeySpec(Base64.getDecoder().decode(secretKey), SignatureAlgorithm.HS256.getJcaName());
     }
 
     // Access Token 생성
@@ -44,7 +42,6 @@ public class JwtTokenProvider {
      * 사용자 식별자와 role claim을 담은 access token을 생성하는 메서드입니다.
      */
     public String createAccessToken(Long userId, String role) {
-//        Claims claims = Jwts.claims().setSubject(email);
         Claims claims = Jwts.claims().setSubject(String.valueOf(userId)); // subject에 userId 저장
         claims.put("role", role); // role 클레임 추가 (권한 확인용)
         Date now = new Date();
@@ -52,7 +49,7 @@ public class JwtTokenProvider {
                 .setClaims(claims) // 사용자 정보 넣기
                 .setIssuedAt(now) // 발급 시간
                 .setExpiration(new Date(now.getTime() + accessTokenExpiration * 60 * 1000L))
-                .signWith(SECRET_KEY) // 시그니처
+                .signWith(secretKey) // 시그니처
                 .compact();  // 최종 JWT 문자열로 직렬화
     }
 
@@ -66,7 +63,7 @@ public class JwtTokenProvider {
                 .setSubject(String.valueOf(userId)) // 유저 식별
                 .setIssuedAt(now)
                 .setExpiration(new Date(now.getTime() + refreshTokenExpiration * 60 * 1000L))
-                .signWith(SECRET_KEY)
+                .signWith(secretKey)
                 .compact();
     }
 
@@ -88,12 +85,7 @@ public class JwtTokenProvider {
      * JWT에서 subject로 저장된 사용자 식별자를 추출하는 메서드입니다.
      */
     public String getSubject(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(SECRET_KEY)
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        return claims.getSubject();
+        return parseClaims(token).getSubject();
     }
 
     // JWT가 유효한지 확인하는 메서드
@@ -102,14 +94,22 @@ public class JwtTokenProvider {
      */
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder()
-                    .setSigningKey(SECRET_KEY)
-                    .build()
-                    .parseClaimsJws(token);
+            parseClaims(token);
             return true;
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * JWT 서명과 만료 여부를 검증하고 claims를 반환하는 메서드입니다.
+     */
+    public Claims parseClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(secretKey)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
     }
 
 }
