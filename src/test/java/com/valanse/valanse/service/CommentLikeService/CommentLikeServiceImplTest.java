@@ -17,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -130,5 +131,28 @@ class CommentLikeServiceImplTest {
         verify(commentLikeRepository, never()).findByUserIdAndCommentId(any(), any());
         verify(commentLikeRepository, never()).save(any());
         verify(commentLikeRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("좋아요 저장 중 unique 제약 충돌이 발생하면 ApiException으로 변환한다")
+    void 좋아요_unique제약충돌_ApiException() {
+        Member member = new Member();
+        Vote vote = Vote.builder().id(1L).build();
+        CommentGroup commentGroup = CommentGroup.builder().vote(vote).build();
+        Comment comment = Comment.builder()
+                .content("댓글")
+                .commentGroup(commentGroup)
+                .likeCount(0)
+                .build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(any())).thenReturn(Optional.of(member));
+        when(commentRepository.findById(10L)).thenReturn(Optional.of(comment));
+        when(commentLikeRepository.findByUserIdAndCommentId(1L, 10L)).thenReturn(Optional.empty());
+        when(commentLikeRepository.save(any())).thenThrow(new DataIntegrityViolationException("duplicate"));
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> commentLikeService.likeComment(1L, 10L));
+
+        assertThat(ex.getMessage()).isEqualTo("이미 좋아요한 댓글입니다.");
     }
 }

@@ -16,6 +16,7 @@ import com.valanse.valanse.repository.*;
 import com.valanse.valanse.service.PointService.PointService;
 import com.valanse.valanse.service.StorageService.StorageService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -37,7 +38,6 @@ import java.util.stream.Collectors; // 기존 코드에 있었으므로 유지
 @Transactional(readOnly = true) // 클래스 레벨에서 기본적으로 읽기 전용 트랜잭션으로 설정
 /**
  * 투표 생성, 참여/취소, 목록 조회, 핫이슈/트렌딩 선정, 삭제/고정 정책을 처리하는 서비스 코드입니다.
- * check: 투표 카운트 갱신은 동시성 제어 또는 원자적 update 쿼리로 보호하는 것이 좋습니다.
  */
 public class VoteServiceImpl implements VoteService {
 
@@ -185,7 +185,6 @@ public class VoteServiceImpl implements VoteService {
 
     /**
      * 사용자의 투표 선택, 취소, 재선택을 처리하고 선택지별 카운트와 전체 카운트를 갱신하는 메서드입니다.
-     * check: 투표 카운트 갱신은 동시성 제어 또는 원자적 update 쿼리로 보호하는 것이 좋습니다.
      */
     @Override
     @Transactional // 이 메서드는 데이터를 변경하므로 읽기/쓰기 트랜잭션이 필요합니다. (클래스 레벨의 readOnly = true를 오버라이드)
@@ -194,10 +193,10 @@ public class VoteServiceImpl implements VoteService {
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
-        Vote vote = voteRepository.findById(voteId)
+        Vote vote = findVoteForUpdate(voteId)
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
-        VoteOption newVoteOption = voteOptionRepository.findById(voteOptionId)
+        VoteOption newVoteOption = findVoteOptionForUpdate(voteOptionId)
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_OPTION_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         if (newVoteOption.getVote() == null || !voteId.equals(newVoteOption.getVote().getId())) {
@@ -221,9 +220,9 @@ public class VoteServiceImpl implements VoteService {
                 // member_vote_option에서 해당 기록을 삭제
                 memberVoteOptionRepository.delete(oldMemberVoteOption);
                 // 기존 선택지의 투표 수 감소
-                oldVoteOption.setVoteCount(oldVoteOption.getVoteCount() - 1);
-                // 전체 투표 수 감소a
-                vote.setTotalVoteCount(vote.getTotalVoteCount() - 1);
+                oldVoteOption.setVoteCount(decrementCount(oldVoteOption.getVoteCount()));
+                // 전체 투표 수 감소
+                vote.setTotalVoteCount(decrementCount(vote.getTotalVoteCount()));
 
                 isVoted = false; // 투표가 취소되었으므로 false
                 updatedTotalVoteCount = vote.getTotalVoteCount();
@@ -234,7 +233,7 @@ public class VoteServiceImpl implements VoteService {
                 // 기존 member_vote_option 기록 삭제
                 memberVoteOptionRepository.delete(oldMemberVoteOption);
                 // 기존 선택지의 투표 수 감소
-                oldVoteOption.setVoteCount(oldVoteOption.getVoteCount() - 1);
+                oldVoteOption.setVoteCount(decrementCount(oldVoteOption.getVoteCount()));
 
                 // 새로운 member_vote_option 기록 생성 및 저장
                 MemberVoteOption newMemberVoteOption = MemberVoteOption.builder()
@@ -242,9 +241,9 @@ public class VoteServiceImpl implements VoteService {
                         .vote(vote)
                         .voteOption(newVoteOption)
                         .build();
-                memberVoteOptionRepository.save(newMemberVoteOption);
+                saveMemberVoteOption(newMemberVoteOption);
                 // 새로운 선택지의 투표 수 증가
-                newVoteOption.setVoteCount(newVoteOption.getVoteCount() + 1);
+                newVoteOption.setVoteCount(incrementCount(newVoteOption.getVoteCount()));
 
                 // 전체 투표수는 변동 없음 (기존 1 감소, 새로운 1 증가)
                 isVoted = true; // 새로운 옵션에 투표했으므로 true
@@ -258,9 +257,9 @@ public class VoteServiceImpl implements VoteService {
                     .vote(vote)
                     .voteOption(newVoteOption)
                     .build();
-            memberVoteOptionRepository.save(newMemberVoteOption);
-            newVoteOption.setVoteCount(newVoteOption.getVoteCount() + 1);
-            vote.setTotalVoteCount(vote.getTotalVoteCount() + 1);
+            saveMemberVoteOption(newMemberVoteOption);
+            newVoteOption.setVoteCount(incrementCount(newVoteOption.getVoteCount()));
+            vote.setTotalVoteCount(incrementCount(vote.getTotalVoteCount()));
 
             // 게시물 작성자에게 투표 참여 포인트 지급
             if (vote.getMember() != null && !vote.getMember().getId().equals(userId)) {
@@ -289,6 +288,39 @@ public class VoteServiceImpl implements VoteService {
                 voteOptionId, // 현재 작업의 대상이 된 voteOptionId
                 updatedVoteOptionCount
         );
+    }
+
+    private Optional<Vote> findVoteForUpdate(Long voteId) {
+        Optional<Vote> lockedVote = voteRepository.findByIdForUpdate(voteId);
+        if (lockedVote != null && lockedVote.isPresent()) {
+            return lockedVote;
+        }
+        return voteRepository.findById(voteId);
+    }
+
+    private Optional<VoteOption> findVoteOptionForUpdate(Long voteOptionId) {
+        Optional<VoteOption> lockedVoteOption = voteOptionRepository.findByIdForUpdate(voteOptionId);
+        if (lockedVoteOption != null && lockedVoteOption.isPresent()) {
+            return lockedVoteOption;
+        }
+        return voteOptionRepository.findById(voteOptionId);
+    }
+
+    private void saveMemberVoteOption(MemberVoteOption memberVoteOption) {
+        try {
+            memberVoteOptionRepository.save(memberVoteOption);
+            memberVoteOptionRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw new ApiException(VoteErrorMessage.VOTE_ALREADY_PROCESSED.message(), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private int incrementCount(Integer count) {
+        return (count == null ? 0 : count) + 1;
+    }
+
+    private int decrementCount(Integer count) {
+        return Math.max(0, (count == null ? 0 : count) - 1);
     }
     /**
      * 투표 상세 정보와 현재 사용자의 투표 여부를 함께 조회하는 메서드입니다.

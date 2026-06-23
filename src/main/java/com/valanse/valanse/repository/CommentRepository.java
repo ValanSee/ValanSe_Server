@@ -3,8 +3,10 @@ package com.valanse.valanse.repository;
 import com.valanse.valanse.domain.Comment;
 
 import com.valanse.valanse.repository.CommentRepositoryCustom.CommentRepositoryCustom;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -33,6 +35,10 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, Comment
     List<Comment> findAllByParentId(Long parentId);
 
     Optional<Comment> findByIdAndDeletedAtIsNull(Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from Comment c where c.id = :id")
+    Optional<Comment> findByIdForUpdate(@Param("id") Long id);
 
     @Query("SELECT COUNT(c) FROM Comment c " +
             "WHERE c.commentGroup.vote.id = :voteId " +

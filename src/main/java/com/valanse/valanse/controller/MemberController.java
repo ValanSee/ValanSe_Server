@@ -234,7 +234,6 @@ public class MemberController {
     )
     /**
      * 포인트 구매형 칭호를 구매하고 포인트를 차감하는 메서드입니다.
-     * check: 포인트 차감과 소유권 생성은 동시 요청에서 원자적으로 보장해야 합니다.
      */
     @PostMapping("/titles/{titleId}/purchase")
     public ResponseEntity<TitlePurchaseResponse> purchaseTitle(@PathVariable Long titleId) {
