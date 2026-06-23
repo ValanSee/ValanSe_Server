@@ -26,6 +26,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -57,6 +61,11 @@ class TitleServiceImplTest {
 
     @Mock
     private PointService pointService;
+
+    @org.junit.jupiter.api.AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
 
     private Member member;
     private MemberProfile profile;
@@ -332,6 +341,26 @@ class TitleServiceImplTest {
         assertThat(response.get(1).titleId()).isEqualTo(2L);
         assertThat(response.get(1).price()).isEqualTo(300L);
         assertThat(response.get(1).requirementText()).isEqualTo("300P 필요");
+    }
+
+    @Test
+    @DisplayName("getTitleListForAdmin()은 관리자 토큰 subject가 0이어도 목록을 반환한다")
+    void getTitleListForAdmin_관리자토큰Subject0_칭호목록조회() {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(
+                        "0",
+                        "",
+                        List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                )
+        );
+        Title title = title(1L, "밸런스 새싹", TitleAcquisitionType.DEFAULT, 0L, null);
+        when(titleRepository.findAllByOrderByDisplayOrderAscIdAsc()).thenReturn(List.of(title));
+
+        var response = titleService.getTitleListForAdmin(0L);
+
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0).titleId()).isEqualTo(1L);
+        verifyNoInteractions(memberRepository);
     }
 
     @Test

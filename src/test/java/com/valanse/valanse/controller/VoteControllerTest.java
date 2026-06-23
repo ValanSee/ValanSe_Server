@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -248,5 +250,24 @@ public class VoteControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("cursor 형식이 올바르지 않습니다."))
                 .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    @WithMockUser(username = "0", roles = "ADMIN")
+    @DisplayName("관리자 토큰 subject가 0이어도 투표 핀 설정에 성공한다.")
+    void updatePinStatus_AdminSubjectZero_Success() throws Exception {
+        Vote vote = voteRepository.findAll().get(0);
+
+        mockMvc.perform(patch("/votes/{voteId}/pin", vote.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "pinType": "HOT"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        Vote pinnedVote = voteRepository.findById(vote.getId()).orElseThrow();
+        assertThat(pinnedVote.getPinType()).isEqualTo(PinType.HOT);
     }
 }

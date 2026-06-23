@@ -1,5 +1,6 @@
 package com.valanse.valanse.controller;
 
+import com.valanse.valanse.common.auth.SecurityUtils;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.dto.Comment.*;
@@ -70,8 +71,12 @@ public class CommentController {
         boolean isAdmin = false;
         if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
             loginId = Long.parseLong(auth.getName());
-            Member member = memberService.findById(loginId);
-            isAdmin = member.getRole() == Role.ADMIN;
+            if (SecurityUtils.isCurrentUserAdmin()) {
+                isAdmin = true;
+            } else {
+                Member member = memberService.findById(loginId);
+                isAdmin = member.getRole() == Role.ADMIN;
+            }
         }
 
         Pageable pageable = PageRequest.of(page, size);
@@ -122,13 +127,19 @@ public class CommentController {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         Member member = null;
         if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
-            Long loginId = Long.parseLong(auth.getName());
-            member = memberService.findById(loginId);
+            if (SecurityUtils.isCurrentUserAdmin()) {
+                member = Member.builder()
+                        .id(0L)
+                        .role(Role.ADMIN)
+                        .build();
+            } else {
+                Long loginId = Long.parseLong(auth.getName());
+                member = memberService.findById(loginId);
+            }
         }
 
         List<CommentReplyResponseDto> replies = commentService.getReplies(member, voteId, commentId);
         return ResponseEntity.ok(replies);
     }
 }
-
 
