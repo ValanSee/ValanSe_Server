@@ -37,7 +37,6 @@ import java.util.stream.Collectors; // 기존 코드에 있었으므로 유지
 @Transactional(readOnly = true) // 클래스 레벨에서 기본적으로 읽기 전용 트랜잭션으로 설정
 /**
  * 투표 생성, 참여/취소, 목록 조회, 핫이슈/트렌딩 선정, 삭제/고정 정책을 처리하는 서비스 코드입니다.
- * check: voteId와 voteOptionId의 소속 검증을 강화해야 합니다.
  * check: 투표 카운트 갱신은 동시성 제어 또는 원자적 update 쿼리로 보호하는 것이 좋습니다.
  */
 public class VoteServiceImpl implements VoteService {
@@ -186,7 +185,7 @@ public class VoteServiceImpl implements VoteService {
 
     /**
      * 사용자의 투표 선택, 취소, 재선택을 처리하고 선택지별 카운트와 전체 카운트를 갱신하는 메서드입니다.
-     * check: 선택지 소속 검증과 동시성 제어가 함께 필요합니다.
+     * check: 투표 카운트 갱신은 동시성 제어 또는 원자적 update 쿼리로 보호하는 것이 좋습니다.
      */
     @Override
     @Transactional // 이 메서드는 데이터를 변경하므로 읽기/쓰기 트랜잭션이 필요합니다. (클래스 레벨의 readOnly = true를 오버라이드)
@@ -200,6 +199,10 @@ public class VoteServiceImpl implements VoteService {
 
         VoteOption newVoteOption = voteOptionRepository.findById(voteOptionId)
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_OPTION_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+
+        if (newVoteOption.getVote() == null || !voteId.equals(newVoteOption.getVote().getId())) {
+            throw new ApiException(VoteErrorMessage.VOTE_OPTION_NOT_BELONG_TO_VOTE.message(), HttpStatus.BAD_REQUEST);
+        }
 
         // 2. 사용자가 이 투표에 대해 이전에 투표한 선택지가 있는지 확인합니다.
         Optional<MemberVoteOption> existingVote = memberVoteOptionRepository.findByMemberIdAndVoteId(userId, voteId);

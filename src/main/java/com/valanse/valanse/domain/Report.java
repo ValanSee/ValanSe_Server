@@ -1,6 +1,7 @@
 package com.valanse.valanse.domain;
 
 import com.valanse.valanse.domain.common.BaseEntity;
+import com.valanse.valanse.domain.enums.ReportReason;
 import com.valanse.valanse.domain.enums.ReportType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -30,5 +31,9 @@ public class Report extends BaseEntity {
 
     private Long targetId;
 
-    // check: 신고 사유나 내용??
+    @Enumerated(EnumType.STRING)
+    private ReportReason reason;
+
+    @Column(columnDefinition = "TEXT")
+    private String content;
 }

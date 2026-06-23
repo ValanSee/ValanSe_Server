@@ -153,7 +153,7 @@ public class VoteController {
     )
     /**
      * 사용자의 투표 선택, 취소, 재선택을 처리하고 선택지별 카운트와 전체 카운트를 갱신하는 메서드입니다.
-     * check: 선택지 소속 검증과 동시성 제어가 함께 필요합니다.
+     * check: 투표 카운트 갱신은 동시성 제어 또는 원자적 update 쿼리로 보호하는 것이 좋습니다.
      */
     @PostMapping("/{voteId}/vote-options/{voteOptionId}") // Path Variable 사용
     public ResponseEntity<VoteCancleResponseDto> processVote(

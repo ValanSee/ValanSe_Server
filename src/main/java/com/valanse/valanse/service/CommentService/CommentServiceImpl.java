@@ -32,7 +32,6 @@ import java.util.stream.Collectors;
 @Transactional
 /**
  * 댓글 생성, 대댓글 조회, 댓글 삭제 권한과 댓글 카운트 정책을 처리하는 서비스 코드입니다.
- * check: parentId가 현재 voteId의 댓글인지 검증하는 로직이 필요합니다.
  * check: 댓글/대댓글 카운트 감소가 중복 삭제나 동시 요청에서 음수가 되지 않도록 보호해야 합니다.
  */
 public class CommentServiceImpl implements CommentService {
@@ -102,7 +101,6 @@ public class CommentServiceImpl implements CommentService {
 
     /**
      * 투표에 부모 댓글 또는 대댓글을 작성하고 댓글 카운트와 포인트를 갱신하는 메서드입니다.
-     * check: 대댓글 parent가 현재 투표의 댓글인지 확인해야 합니다.
      */
     @Override
     public Long createComment(Long voteId, Long userId, CommentPostRequest request) {
@@ -126,6 +124,7 @@ public class CommentServiceImpl implements CommentService {
         if (request.getParentId() != null) {
             parent = commentRepository.findById(request.getParentId())
                     .orElseThrow(() -> new ApiException(CommentErrorMessage.PARENT_COMMENT_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+            validateParentCommentBelongsToVote(parent, voteId);
             parent.updateReplyCount(parent.getReplyCount() + 1); // replyCount 증가
             commentRepository.save(parent);
         }
@@ -213,6 +212,10 @@ public class CommentServiceImpl implements CommentService {
         Vote vote = voteRepository.findById(voteId)
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
+        Comment parentComment = commentRepository.findById(parentCommentId)
+                .orElseThrow(() -> new ApiException(CommentErrorMessage.PARENT_COMMENT_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+        validateParentCommentBelongsToVote(parentComment, voteId);
+
         // 대댓글 조회
         List<Comment> replies = commentRepository.findAllByParentId(parentCommentId);
 
@@ -263,5 +266,13 @@ public class CommentServiceImpl implements CommentService {
                 .map(MemberProfileTitle::getTitle)
                 .map(Title::getName)
                 .orElse(null);
+    }
+
+    private void validateParentCommentBelongsToVote(Comment parent, Long voteId) {
+        if (parent.getCommentGroup() == null
+                || parent.getCommentGroup().getVote() == null
+                || !voteId.equals(parent.getCommentGroup().getVote().getId())) {
+            throw new ApiException(CommentErrorMessage.PARENT_COMMENT_NOT_BELONG_TO_VOTE.message(), HttpStatus.BAD_REQUEST);
+        }
     }
 }

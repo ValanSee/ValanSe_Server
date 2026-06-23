@@ -25,13 +25,14 @@ class SecurityConfigCorsTest {
     }
 
     @Test
-    @DisplayName("local profile에서는 preview와 localhost origin을 허용한다")
+    @DisplayName("local profile에서는 localhost와 개발 도메인 origin을 허용한다")
     void corsConfiguration_LocalProfile_AllowsDevelopmentOrigins() {
         CorsConfiguration configuration = corsConfiguration("local");
 
         assertThat(configuration.checkOrigin("http://localhost:3000")).isEqualTo("http://localhost:3000");
-        assertThat(configuration.checkOrigin("https://feature-preview.vercel.app")).isEqualTo("https://feature-preview.vercel.app");
-        assertThat(configuration.checkOrigin("https://test-front-security.netlify.app")).isEqualTo("https://test-front-security.netlify.app");
+        assertThat(configuration.checkOrigin("https://develop.valanse.kr")).isEqualTo("https://develop.valanse.kr");
+        assertThat(configuration.checkOrigin("https://feature-preview.vercel.app")).isNull();
+        assertThat(configuration.checkOrigin("https://test-front-security.netlify.app")).isNull();
     }
 
     private CorsConfiguration corsConfiguration(String activeProfile) {

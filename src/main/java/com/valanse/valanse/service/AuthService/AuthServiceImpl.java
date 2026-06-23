@@ -3,7 +3,10 @@ package com.valanse.valanse.service.AuthService;
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.common.auth.JwtTokenProvider;
 import com.valanse.valanse.common.message.AuthErrorMessage;
+import com.valanse.valanse.common.message.MemberErrorMessage;
+import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.Role;
+import com.valanse.valanse.repository.MemberRepository;
 import com.valanse.valanse.service.RefreshTokenService.RefreshTokenServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,12 +22,12 @@ import java.util.Map;
 @Transactional
 /**
  * JWT 로그아웃과 refresh token 기반 access token 재발급을 처리하는 서비스 코드입니다.
- * check: 재발급 시 role을 고정 USER로 넣지 말고 DB의 현재 권한을 조회하는 것이 안전합니다.
  */
 public class AuthServiceImpl implements AuthService {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenServiceImpl refreshTokenService;
+    private final MemberRepository memberRepository;
 
     /**
      * 현재 access token의 subject 기준으로 Redis refresh token을 삭제하는 로그아웃 메서드입니다.
@@ -45,7 +48,6 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * 요청 refresh token을 검증하고 새 access token을 발급하는 메서드입니다.
-     * check: 새 access token의 role을 고정값이 아니라 현재 회원 권한에서 가져와야 합니다.
      */
     public Map<String, String> reissueAccessToken(String requestRefreshToken) {
         // 1. refresh token 유효성 검증
@@ -67,9 +69,18 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // 4. 새 access token 발급
-        String role = "0".equals(userId) ? Role.ADMIN.toString() : Role.USER.toString();
-        String newAccessToken = jwtTokenProvider.createAccessToken(Long.parseLong(userId), role);
+        Long parsedUserId = Long.parseLong(userId);
+        String role = "0".equals(userId)
+                ? Role.ADMIN.toString()
+                : getCurrentMemberRole(parsedUserId);
+        String newAccessToken = jwtTokenProvider.createAccessToken(parsedUserId, role);
 
         return Map.of("accessToken", newAccessToken);
+    }
+
+    private String getCurrentMemberRole(Long userId) {
+        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+        return member.getRole().toString();
     }
 }

@@ -10,6 +10,7 @@ public enum VoteErrorMessage {
     VOTE_NOT_FOUND("투표가 존재하지 않습니다."),
     VOTE_DETAIL_NOT_FOUND("투표를 찾을 수 없습니다."),
     VOTE_OPTION_NOT_FOUND("투표 선택지가 존재하지 않습니다."),
+    VOTE_OPTION_NOT_BELONG_TO_VOTE("해당 투표의 선택지가 아닙니다."),
     VOTE_TITLE_INVALID("투표 제목은 1자 이상 25자 이하여야 합니다 (공백 제외)."),
     VOTE_OPTION_COUNT_INVALID("투표 옵션은 1개 이상 4개 이하여야 합니다."),
     VOTE_OPTION_IMAGE_NOT_FOUND("투표 옵션 이미지 파일을 찾을 수 없습니다."),

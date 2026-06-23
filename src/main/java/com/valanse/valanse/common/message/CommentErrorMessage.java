@@ -6,6 +6,8 @@ package com.valanse.valanse.common.message;
 public enum CommentErrorMessage {
     COMMENT_NOT_FOUND("댓글이 존재하지 않습니다."),
     PARENT_COMMENT_NOT_FOUND("부모 댓글이 존재하지 않습니다."),
+    COMMENT_NOT_BELONG_TO_VOTE("해당 투표의 댓글이 아닙니다."),
+    PARENT_COMMENT_NOT_BELONG_TO_VOTE("해당 투표의 부모 댓글이 아닙니다."),
     WRONG_SORT_PARAMETER("sort 파라미터는 'latest' 또는 'oldest'만 허용됩니다.");
 
     private final String message;
