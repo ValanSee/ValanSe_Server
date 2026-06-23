@@ -1,6 +1,7 @@
 package com.valanse.valanse.service.VoteService;
 
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.auth.SecurityUtils;
 import com.valanse.valanse.common.message.MemberErrorMessage;
 import com.valanse.valanse.common.message.VoteErrorMessage;
 import com.valanse.valanse.domain.*;
@@ -608,7 +609,10 @@ public class VoteServiceImpl implements VoteService {
         Vote vote = voteRepository.findById(voteId)
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_DETAIL_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
-        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
+        boolean isAdminToken = userId != null && userId == 0L && SecurityUtils.isCurrentUserAdmin();
+        Member member = isAdminToken
+                ? Member.builder().id(userId).role(Role.ADMIN).build()
+                : memberRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         // 권한 확인 - 자기 자신 혹은 관리자

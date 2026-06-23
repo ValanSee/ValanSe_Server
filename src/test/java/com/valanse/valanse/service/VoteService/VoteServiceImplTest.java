@@ -26,7 +26,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.multipart.MultipartFile;
@@ -55,6 +57,11 @@ class VoteServiceImplTest {
     @Mock private MemberProfileTitleRepository memberProfileTitleRepository;
     @Mock private PointService pointService;
     @Mock private StorageService storageService;
+
+    @org.junit.jupiter.api.AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
 
     // ──────────────────────────────────────────────
     // createVote
@@ -457,6 +464,29 @@ class VoteServiceImplTest {
         ArgumentCaptor<Vote> captor = ArgumentCaptor.forClass(Vote.class);
         verify(voteRepository).save(captor.capture());
         assertThat(captor.getValue().getDeletedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("관리자 토큰 subject가 0이어도 다른 사용자의 투표를 삭제할 수 있다")
+    void 관리자토큰Subject0_타인투표_삭제성공() {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(
+                        "0",
+                        "",
+                        List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                )
+        );
+        Member writer = Member.builder().id(2L).role(Role.USER).build();
+        Vote vote = Vote.builder().id(10L).member(writer).build();
+
+        when(voteRepository.findById(any())).thenReturn(Optional.of(vote));
+
+        voteService.deleteVote(0L, 10L);
+
+        ArgumentCaptor<Vote> captor = ArgumentCaptor.forClass(Vote.class);
+        verify(voteRepository).save(captor.capture());
+        assertThat(captor.getValue().getDeletedAt()).isNotNull();
+        verify(memberRepository, never()).findByIdAndDeletedAtIsNull(any());
     }
 
     @Test

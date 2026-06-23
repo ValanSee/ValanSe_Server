@@ -1,6 +1,7 @@
 package com.valanse.valanse.service.TitleService;
 
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.auth.SecurityUtils;
 import com.valanse.valanse.common.message.AuthErrorMessage;
 import com.valanse.valanse.common.message.MemberErrorMessage;
 import com.valanse.valanse.common.message.ProfileErrorMessage;
@@ -302,6 +303,10 @@ public class TitleServiceImpl implements TitleService {
     }
 
     private void validateAdmin(Long adminUserId) {
+        if (adminUserId != null && adminUserId == 0L && SecurityUtils.isCurrentUserAdmin()) {
+            return;
+        }
+
         Member admin = memberRepository.findByIdAndDeletedAtIsNull(adminUserId)
                 .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
         if (admin.getRole() != Role.ADMIN) {

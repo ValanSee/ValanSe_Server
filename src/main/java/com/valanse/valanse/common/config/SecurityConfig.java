@@ -65,6 +65,11 @@ public class SecurityConfig {
 
                         .requestMatchers(HttpMethod.POST, "/analytics/events/page-view").permitAll()
                         .requestMatchers(HttpMethod.GET, "/admin/analytics/mau").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/report").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/member/titles/admin").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/member/titles").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/member/titles/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/member/titles/*").hasRole("ADMIN")
 
                         // ============================================
                         // HTTP 메서드별 설정 (중요! 순서 지키기!)
@@ -90,7 +95,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/comments/*").authenticated()
 
                         // PATCH
-                        .requestMatchers(HttpMethod.PATCH, "/votes/*/pin").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/votes/*/pin").hasRole("ADMIN")
 
                         // 특별한 경로 (내가 만든/투표한 게임)
                         .requestMatchers("/votes/mine/**").authenticated()

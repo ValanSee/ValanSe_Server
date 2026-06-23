@@ -1,9 +1,11 @@
 // src/main/java/com/valanse/valanse/controller/VoteController.java
 package com.valanse.valanse.controller;
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.auth.SecurityUtils;
 import com.valanse.valanse.common.message.VoteErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.PinType;
+import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.service.MemberService.MemberService;
 import com.valanse.valanse.service.VoteService.VoteService;
 import com.valanse.valanse.dto.Vote.*;
@@ -230,8 +232,15 @@ public ResponseEntity<VoteListResponse> getVotes(
     Authentication auth = SecurityContextHolder.getContext().getAuthentication();
     Member member = null;
     if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
-        Long loginId = Long.parseLong(auth.getName());
-        member = memberService.findById(loginId);
+        if (SecurityUtils.isCurrentUserAdmin()) {
+            member = Member.builder()
+                    .id(0L)
+                    .role(Role.ADMIN)
+                    .build();
+        } else {
+            Long loginId = Long.parseLong(auth.getName());
+            member = memberService.findById(loginId);
+        }
     }
 
     VoteListResponse response = voteService.getVotesByCategoryAndSort(member, category, sort, cursor, size);
@@ -266,8 +275,9 @@ public ResponseEntity<VoteListResponse> getVotes(
             @PathVariable Long voteId,
             @RequestBody PinRequest request)
     {
-        Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
-        var member = memberService.findById(loginId);
+        Member member = Member.builder()
+                .role(SecurityUtils.isCurrentUserAdmin() ? Role.ADMIN : Role.USER)
+                .build();
         voteService.updatePinStatus(member, voteId, request.getPinType());
         return ResponseEntity.ok().build();
     }
