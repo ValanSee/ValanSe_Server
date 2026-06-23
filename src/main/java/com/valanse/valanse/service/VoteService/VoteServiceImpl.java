@@ -670,6 +670,9 @@ public class VoteServiceImpl implements VoteService {
         if (member.getRole() != Role.ADMIN) {
             throw new ApiException(VoteErrorMessage.PERMISSION_DENIED.message(), HttpStatus.FORBIDDEN);
         }
+        if (pinType == null) {
+            throw new ApiException(VoteErrorMessage.PIN_TYPE_REQUIRED.message(), HttpStatus.BAD_REQUEST);
+        }
         Vote vote = voteRepository.findById(voteId)
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.POST_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
         if (pinType != PinType.NONE) {
