@@ -53,5 +53,6 @@ public class VoteListResponse {
     public static class VoteOptionListDto {
         private Long id;
         private String content;
+        private String imageUrl;
     }
 }
