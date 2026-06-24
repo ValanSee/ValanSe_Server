@@ -352,6 +352,7 @@ public class TitleServiceImpl implements TitleService {
                 title.getTier(),
                 title.getAcquisitionType(),
                 title.getRequirementText(),
+                title.isActive(),
                 title.getDisplayOrder()
         );
     }

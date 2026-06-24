@@ -329,6 +329,7 @@ class TitleServiceImplTest {
         Member admin = Member.builder().id(1L).role(Role.ADMIN).build();
         Title firstTitle = title(1L, "밸런스 새싹", TitleAcquisitionType.DEFAULT, 0L, null);
         Title secondTitle = title(2L, "선택의 달인", TitleAcquisitionType.POINT_PURCHASE, 300L, "300P 필요");
+        secondTitle.deactivate();
 
         when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(admin));
         when(titleRepository.findAllByOrderByDisplayOrderAscIdAsc()).thenReturn(List.of(firstTitle, secondTitle));
@@ -338,9 +339,11 @@ class TitleServiceImplTest {
         assertThat(response).hasSize(2);
         assertThat(response.get(0).titleId()).isEqualTo(1L);
         assertThat(response.get(0).titleName()).isEqualTo("밸런스 새싹");
+        assertThat(response.get(0).active()).isTrue();
         assertThat(response.get(1).titleId()).isEqualTo(2L);
         assertThat(response.get(1).price()).isEqualTo(300L);
         assertThat(response.get(1).requirementText()).isEqualTo("300P 필요");
+        assertThat(response.get(1).active()).isFalse();
     }
 
     @Test
