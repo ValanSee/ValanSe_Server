@@ -164,13 +164,18 @@ public class SecurityConfig {
 
     private List<String> allowedOriginPatterns() {
         if (isProdProfile()) {
-            return List.of();
+            return List.of(
+                    "https://*.vercel.app",
+                    "https://*.netlify.app"
+            );
         }
 
         return Arrays.asList(
                 "http://localhost:*",
                 "http://127.0.0.1:*",
                 "https://*.valanse.kr",
+                "https://*.vercel.app",
+                "https://*.netlify.app",
                 "http://valanserver.store:[*]",
                 "https://valanserver.store:[*]"
         );
