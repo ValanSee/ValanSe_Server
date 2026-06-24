@@ -14,14 +14,16 @@ import static org.mockito.Mockito.mock;
 class SecurityConfigCorsTest {
 
     @Test
-    @DisplayName("prod profile에서는 운영 도메인만 CORS origin으로 허용한다")
-    void corsConfiguration_ProdProfile_AllowsOnlyProductionOrigins() {
+    @DisplayName("prod profile에서는 운영 및 프리뷰 도메인 CORS origin을 허용한다")
+    void corsConfiguration_ProdProfile_AllowsProductionAndPreviewOrigins() {
         CorsConfiguration configuration = corsConfiguration("prod");
 
         assertThat(configuration.checkOrigin("https://valanse.kr")).isEqualTo("https://valanse.kr");
         assertThat(configuration.checkOrigin("https://www.valanse.kr")).isEqualTo("https://www.valanse.kr");
-        assertThat(configuration.checkOrigin("https://feature-preview.vercel.app")).isNull();
-        assertThat(configuration.checkOrigin("https://test-front-security.netlify.app")).isNull();
+        assertThat(configuration.checkOrigin("https://feature-preview.vercel.app"))
+                .isEqualTo("https://feature-preview.vercel.app");
+        assertThat(configuration.checkOrigin("https://test-front-security.netlify.app"))
+                .isEqualTo("https://test-front-security.netlify.app");
     }
 
     @Test
@@ -31,8 +33,10 @@ class SecurityConfigCorsTest {
 
         assertThat(configuration.checkOrigin("http://localhost:3000")).isEqualTo("http://localhost:3000");
         assertThat(configuration.checkOrigin("https://develop.valanse.kr")).isEqualTo("https://develop.valanse.kr");
-        assertThat(configuration.checkOrigin("https://feature-preview.vercel.app")).isNull();
-        assertThat(configuration.checkOrigin("https://test-front-security.netlify.app")).isNull();
+        assertThat(configuration.checkOrigin("https://feature-preview.vercel.app"))
+                .isEqualTo("https://feature-preview.vercel.app");
+        assertThat(configuration.checkOrigin("https://test-front-security.netlify.app"))
+                .isEqualTo("https://test-front-security.netlify.app");
     }
 
     private CorsConfiguration corsConfiguration(String activeProfile) {
