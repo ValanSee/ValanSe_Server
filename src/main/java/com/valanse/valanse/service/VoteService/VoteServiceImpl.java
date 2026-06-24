@@ -14,23 +14,18 @@ import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.repository.*;
 import com.valanse.valanse.service.PointService.PointService;
-import com.valanse.valanse.service.StorageService.StorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime; // 기존 코드에 있었으므로 유지
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List; // 기존 코드에 있었으므로 유지
 import java.util.Map;
 import java.util.Optional; // Optional 임포트 추가 (processVote 메서드에서 사용)
-import java.util.Set;
 import java.util.stream.Collectors; // 기존 코드에 있었으므로 유지
 
 @Service
@@ -49,7 +44,6 @@ public class VoteServiceImpl implements VoteService {
     private final CommentGroupRepository commentGroupRepository;
     private final MemberProfileTitleRepository memberProfileTitleRepository;
     private final PointService pointService;
-    private final StorageService storageService;
 
    //작은 민지가 구현한 것
    /**
@@ -341,7 +335,6 @@ public class VoteServiceImpl implements VoteService {
                 .map(option -> VoteDetailResponse.VoteOptionDto.builder()
                         .optionId(option.getId())
                         .content(option.getContent())
-                        .imageUrl(option.getImageUrl())
                         .voteCount(option.getVoteCount())
                         .label(option.getLabel().name())
                         .build())
@@ -398,12 +391,6 @@ public class VoteServiceImpl implements VoteService {
     @Override
     @Transactional
     public Long createVote(Long userId, VoteCreateRequest request) {
-        return createVote(userId, request, Map.of());
-    }
-
-    @Override
-    @Transactional
-    public Long createVote(Long userId, VoteCreateRequest request, Map<String, MultipartFile> optionImageFiles) {
         // 1. 회원 검증
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
@@ -425,20 +412,15 @@ public class VoteServiceImpl implements VoteService {
                 .build();
 
         // 3. 투표 옵션 생성 및 추가 (최대 4개 옵션 제한)
-        List<VoteCreateRequest.OptionRequest> options = request.getOptions();
+        List<String> options = request.getOptions();
         if (options == null || options.isEmpty() || options.size() > 4) {
             throw new ApiException(VoteErrorMessage.VOTE_OPTION_COUNT_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
 
-        validateOptionImageKeys(options);
-
         VoteLabel[] labels = VoteLabel.values();
         for (int i = 0; i < options.size(); i++) {
-            VoteCreateRequest.OptionRequest option = options.get(i);
-            String imageUrl = uploadOptionImage(option, optionImageFiles);
             VoteOption voteOption = VoteOption.builder()
-                    .content(option.getContent())
-                    .imageUrl(imageUrl)
+                    .content(options.get(i))
                     .label(labels[i])
                     .build();
             vote.addVoteOption(voteOption); // Vote 엔티티에 옵션 추가
@@ -460,33 +442,6 @@ public class VoteServiceImpl implements VoteService {
         pointService.givePoint(userId, PointType.POST_CREATE);
 
         return savedVote.getId(); // 저장된 투표의 ID를 반환
-    }
-
-    private void validateOptionImageKeys(List<VoteCreateRequest.OptionRequest> options) {
-        Set<String> imageKeys = new HashSet<>();
-        for (VoteCreateRequest.OptionRequest option : options) {
-            String imageKey = option.getImageKey();
-            if (!StringUtils.hasText(imageKey)) {
-                continue;
-            }
-            if (!imageKeys.add(imageKey)) {
-                throw new ApiException(VoteErrorMessage.VOTE_OPTION_IMAGE_KEY_DUPLICATED.message(), HttpStatus.BAD_REQUEST);
-            }
-        }
-    }
-
-    private String uploadOptionImage(VoteCreateRequest.OptionRequest option, Map<String, MultipartFile> optionImageFiles) {
-        String imageKey = option.getImageKey();
-        if (!StringUtils.hasText(imageKey)) {
-            return null;
-        }
-
-        MultipartFile imageFile = optionImageFiles.get(imageKey);
-        if (imageFile == null || imageFile.isEmpty()) {
-            throw new ApiException(VoteErrorMessage.VOTE_OPTION_IMAGE_NOT_FOUND.message(), HttpStatus.BAD_REQUEST);
-        }
-
-        return storageService.uploadImage(imageFile, "vote-options");
     }
 
     /**
@@ -532,7 +487,6 @@ public class VoteServiceImpl implements VoteService {
                             .map(option -> VoteListResponse.VoteOptionListDto.builder()
                                     .id(option.getId())
                                     .content(option.getContent())
-                                    .imageUrl(option.getImageUrl())
                                     .build())
                             .collect(Collectors.toList());
 
@@ -711,7 +665,6 @@ public class VoteServiceImpl implements VoteService {
                 .map(option -> HotIssueVoteOptionDto.builder() // HotIssueVoteOptionDto 빌더 사용
                         .optionId(option.getId())  //option ID넣기
                         .content(option.getContent()) // 옵션 내용 설정
-                        .imageUrl(option.getImageUrl())
                         .vote_count(option.getVoteCount()) // 투표 수 설정
                         .build())
                 .collect(Collectors.toList()); // 리스트로 수집

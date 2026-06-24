@@ -4,26 +4,21 @@ import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.common.config.R2Properties;
 import com.valanse.valanse.common.message.StorageErrorMessage;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.io.IOException;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 /**
  * Cloudflare R2에 이미지 파일을 업로드하고 공개 URL을 생성하는 스토리지 서비스 코드입니다.
  * check: MIME 타입뿐 아니라 실제 이미지 시그니처 검증을 추가하는 것이 안전합니다.
@@ -62,47 +57,10 @@ public class R2StorageService implements StorageService {
         } catch (IOException e) {
             throw new ApiException(StorageErrorMessage.IMAGE_FILE_READ_FAILED.message(), HttpStatus.BAD_REQUEST);
         } catch (S3Exception e) {
-            log.warn(
-                    "R2 image upload failed. bucket={}, key={}, statusCode={}, errorCode={}, requestId={}, message={}",
-                    properties.getBucket(),
-                    objectKey,
-                    e.statusCode(),
-                    e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : null,
-                    e.requestId(),
-                    e.awsErrorDetails() != null ? e.awsErrorDetails().errorMessage() : e.getMessage()
-            );
             throw new ApiException(StorageErrorMessage.IMAGE_UPLOAD_FAILED.message(), HttpStatus.BAD_GATEWAY);
         }
 
         return properties.getPublicUrl().replaceAll("/+$", "") + "/" + objectKey;
-    }
-
-    @Override
-    public void deleteImageByUrl(String imageUrl) {
-        String objectKey = extractObjectKey(imageUrl);
-        if (!StringUtils.hasText(objectKey)) {
-            return;
-        }
-
-        DeleteObjectRequest request = DeleteObjectRequest.builder()
-                .bucket(properties.getBucket())
-                .key(objectKey)
-                .build();
-
-        try {
-            s3Client.deleteObject(request);
-        } catch (S3Exception e) {
-            log.warn(
-                    "R2 image delete failed. bucket={}, key={}, statusCode={}, errorCode={}, requestId={}, message={}",
-                    properties.getBucket(),
-                    objectKey,
-                    e.statusCode(),
-                    e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : null,
-                    e.requestId(),
-                    e.awsErrorDetails() != null ? e.awsErrorDetails().errorMessage() : e.getMessage()
-            );
-            throw new ApiException(StorageErrorMessage.IMAGE_DELETE_FAILED.message(), HttpStatus.BAD_GATEWAY);
-        }
     }
 
     private void validateImage(MultipartFile file) {
@@ -129,24 +87,5 @@ public class R2StorageService implements StorageService {
                 : UUID.randomUUID() + "." + extension.toLowerCase();
 
         return cleanDirectory + "/" + filename;
-    }
-
-    private String extractObjectKey(String imageUrl) {
-        if (!StringUtils.hasText(imageUrl)) {
-            return null;
-        }
-
-        String publicUrl = properties.getPublicUrl().replaceAll("/+$", "");
-        String prefix = publicUrl + "/";
-        if (!imageUrl.startsWith(prefix)) {
-            return null;
-        }
-
-        String objectKey = imageUrl.substring(prefix.length());
-        if (!StringUtils.hasText(objectKey)) {
-            return null;
-        }
-
-        return URLDecoder.decode(objectKey, StandardCharsets.UTF_8);
     }
 }

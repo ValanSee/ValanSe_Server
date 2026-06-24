@@ -57,7 +57,6 @@ public class JwtTokenFilter extends OncePerRequestFilter {
 
         // 인증 관련 엔드포인트 (토큰 검사하면 순환 참조!)
         return uri.equals("/auth/kakao/login") ||
-                uri.equals("/auth/admin/login") ||
                 uri.equals("/auth/reissue") ||
                 uri.equals("/error") ||
                 uri.equals("/health") ||

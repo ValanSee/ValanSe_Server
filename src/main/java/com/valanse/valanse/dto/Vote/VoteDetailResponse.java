@@ -32,7 +32,6 @@ public class VoteDetailResponse {
     public static class VoteOptionDto {
         private Long optionId;
         private String content;
-        private String imageUrl;
         private Integer voteCount;
         private String label;
     }

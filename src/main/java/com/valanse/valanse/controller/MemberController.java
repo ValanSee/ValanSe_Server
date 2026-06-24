@@ -3,7 +3,6 @@ package com.valanse.valanse.controller;
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.common.message.MemberErrorMessage;
 import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
-import com.valanse.valanse.dto.MemberProfile.MemberProfileImageResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileResponse;
 import com.valanse.valanse.dto.PointHistory.PointHistoryResponse;
@@ -26,7 +25,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
 import java.util.List;
@@ -91,21 +89,6 @@ public class MemberController {
     @GetMapping("/profile")
     public ResponseEntity<MemberProfileResponse> getProfile() {
         MemberProfileResponse response = memberProfileService.getProfile();
-        return ResponseEntity.ok(response);
-    }
-
-    @Operation(
-            summary = "회원 프로필 이미지 수정",
-            description = "현재 로그인한 회원의 프로필 이미지를 Cloudflare R2의 member_profile_image 디렉터리에 업로드하고 이미지 URL을 갱신합니다."
-    )
-    /**
-     * 회원 프로필 이미지를 업로드하고 기존 이미지를 교체하는 메서드입니다.
-     */
-    @PutMapping(value = "/profile-image", consumes = "multipart/form-data")
-    public ResponseEntity<MemberProfileImageResponse> updateProfileImage(
-            @RequestPart("file") MultipartFile file
-    ) {
-        MemberProfileImageResponse response = memberProfileService.updateProfileImage(file);
         return ResponseEntity.ok(response);
     }
 
