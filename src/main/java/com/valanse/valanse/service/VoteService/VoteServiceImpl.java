@@ -1,6 +1,7 @@
 package com.valanse.valanse.service.VoteService;
 
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.auth.SecurityUtils;
 import com.valanse.valanse.common.message.MemberErrorMessage;
 import com.valanse.valanse.common.message.VoteErrorMessage;
 import com.valanse.valanse.domain.*;
@@ -13,17 +14,23 @@ import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.repository.*;
 import com.valanse.valanse.service.PointService.PointService;
+import com.valanse.valanse.service.StorageService.StorageService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime; // 기존 코드에 있었으므로 유지
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List; // 기존 코드에 있었으므로 유지
 import java.util.Map;
 import java.util.Optional; // Optional 임포트 추가 (processVote 메서드에서 사용)
+import java.util.Set;
 import java.util.stream.Collectors; // 기존 코드에 있었으므로 유지
 
 @Service
@@ -31,8 +38,6 @@ import java.util.stream.Collectors; // 기존 코드에 있었으므로 유지
 @Transactional(readOnly = true) // 클래스 레벨에서 기본적으로 읽기 전용 트랜잭션으로 설정
 /**
  * 투표 생성, 참여/취소, 목록 조회, 핫이슈/트렌딩 선정, 삭제/고정 정책을 처리하는 서비스 코드입니다.
- * check: voteId와 voteOptionId의 소속 검증을 강화해야 합니다.
- * check: 투표 카운트 갱신은 동시성 제어 또는 원자적 update 쿼리로 보호하는 것이 좋습니다.
  */
 public class VoteServiceImpl implements VoteService {
 
@@ -44,6 +49,7 @@ public class VoteServiceImpl implements VoteService {
     private final CommentGroupRepository commentGroupRepository;
     private final MemberProfileTitleRepository memberProfileTitleRepository;
     private final PointService pointService;
+    private final StorageService storageService;
 
    //작은 민지가 구현한 것
    /**
@@ -179,7 +185,6 @@ public class VoteServiceImpl implements VoteService {
 
     /**
      * 사용자의 투표 선택, 취소, 재선택을 처리하고 선택지별 카운트와 전체 카운트를 갱신하는 메서드입니다.
-     * check: 선택지 소속 검증과 동시성 제어가 함께 필요합니다.
      */
     @Override
     @Transactional // 이 메서드는 데이터를 변경하므로 읽기/쓰기 트랜잭션이 필요합니다. (클래스 레벨의 readOnly = true를 오버라이드)
@@ -188,11 +193,15 @@ public class VoteServiceImpl implements VoteService {
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
-        Vote vote = voteRepository.findById(voteId)
+        Vote vote = findVoteForUpdate(voteId)
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
-        VoteOption newVoteOption = voteOptionRepository.findById(voteOptionId)
+        VoteOption newVoteOption = findVoteOptionForUpdate(voteOptionId)
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_OPTION_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+
+        if (newVoteOption.getVote() == null || !voteId.equals(newVoteOption.getVote().getId())) {
+            throw new ApiException(VoteErrorMessage.VOTE_OPTION_NOT_BELONG_TO_VOTE.message(), HttpStatus.BAD_REQUEST);
+        }
 
         // 2. 사용자가 이 투표에 대해 이전에 투표한 선택지가 있는지 확인합니다.
         Optional<MemberVoteOption> existingVote = memberVoteOptionRepository.findByMemberIdAndVoteId(userId, voteId);
@@ -211,9 +220,9 @@ public class VoteServiceImpl implements VoteService {
                 // member_vote_option에서 해당 기록을 삭제
                 memberVoteOptionRepository.delete(oldMemberVoteOption);
                 // 기존 선택지의 투표 수 감소
-                oldVoteOption.setVoteCount(oldVoteOption.getVoteCount() - 1);
-                // 전체 투표 수 감소a
-                vote.setTotalVoteCount(vote.getTotalVoteCount() - 1);
+                oldVoteOption.setVoteCount(decrementCount(oldVoteOption.getVoteCount()));
+                // 전체 투표 수 감소
+                vote.setTotalVoteCount(decrementCount(vote.getTotalVoteCount()));
 
                 isVoted = false; // 투표가 취소되었으므로 false
                 updatedTotalVoteCount = vote.getTotalVoteCount();
@@ -224,7 +233,7 @@ public class VoteServiceImpl implements VoteService {
                 // 기존 member_vote_option 기록 삭제
                 memberVoteOptionRepository.delete(oldMemberVoteOption);
                 // 기존 선택지의 투표 수 감소
-                oldVoteOption.setVoteCount(oldVoteOption.getVoteCount() - 1);
+                oldVoteOption.setVoteCount(decrementCount(oldVoteOption.getVoteCount()));
 
                 // 새로운 member_vote_option 기록 생성 및 저장
                 MemberVoteOption newMemberVoteOption = MemberVoteOption.builder()
@@ -232,9 +241,9 @@ public class VoteServiceImpl implements VoteService {
                         .vote(vote)
                         .voteOption(newVoteOption)
                         .build();
-                memberVoteOptionRepository.save(newMemberVoteOption);
+                saveMemberVoteOption(newMemberVoteOption);
                 // 새로운 선택지의 투표 수 증가
-                newVoteOption.setVoteCount(newVoteOption.getVoteCount() + 1);
+                newVoteOption.setVoteCount(incrementCount(newVoteOption.getVoteCount()));
 
                 // 전체 투표수는 변동 없음 (기존 1 감소, 새로운 1 증가)
                 isVoted = true; // 새로운 옵션에 투표했으므로 true
@@ -248,9 +257,9 @@ public class VoteServiceImpl implements VoteService {
                     .vote(vote)
                     .voteOption(newVoteOption)
                     .build();
-            memberVoteOptionRepository.save(newMemberVoteOption);
-            newVoteOption.setVoteCount(newVoteOption.getVoteCount() + 1);
-            vote.setTotalVoteCount(vote.getTotalVoteCount() + 1);
+            saveMemberVoteOption(newMemberVoteOption);
+            newVoteOption.setVoteCount(incrementCount(newVoteOption.getVoteCount()));
+            vote.setTotalVoteCount(incrementCount(vote.getTotalVoteCount()));
 
             // 게시물 작성자에게 투표 참여 포인트 지급
             if (vote.getMember() != null && !vote.getMember().getId().equals(userId)) {
@@ -280,6 +289,39 @@ public class VoteServiceImpl implements VoteService {
                 updatedVoteOptionCount
         );
     }
+
+    private Optional<Vote> findVoteForUpdate(Long voteId) {
+        Optional<Vote> lockedVote = voteRepository.findByIdForUpdate(voteId);
+        if (lockedVote != null && lockedVote.isPresent()) {
+            return lockedVote;
+        }
+        return voteRepository.findById(voteId);
+    }
+
+    private Optional<VoteOption> findVoteOptionForUpdate(Long voteOptionId) {
+        Optional<VoteOption> lockedVoteOption = voteOptionRepository.findByIdForUpdate(voteOptionId);
+        if (lockedVoteOption != null && lockedVoteOption.isPresent()) {
+            return lockedVoteOption;
+        }
+        return voteOptionRepository.findById(voteOptionId);
+    }
+
+    private void saveMemberVoteOption(MemberVoteOption memberVoteOption) {
+        try {
+            memberVoteOptionRepository.save(memberVoteOption);
+            memberVoteOptionRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw new ApiException(VoteErrorMessage.VOTE_ALREADY_PROCESSED.message(), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private int incrementCount(Integer count) {
+        return (count == null ? 0 : count) + 1;
+    }
+
+    private int decrementCount(Integer count) {
+        return Math.max(0, (count == null ? 0 : count) - 1);
+    }
     /**
      * 투표 상세 정보와 현재 사용자의 투표 여부를 함께 조회하는 메서드입니다.
      */
@@ -299,6 +341,7 @@ public class VoteServiceImpl implements VoteService {
                 .map(option -> VoteDetailResponse.VoteOptionDto.builder()
                         .optionId(option.getId())
                         .content(option.getContent())
+                        .imageUrl(option.getImageUrl())
                         .voteCount(option.getVoteCount())
                         .label(option.getLabel().name())
                         .build())
@@ -355,6 +398,12 @@ public class VoteServiceImpl implements VoteService {
     @Override
     @Transactional
     public Long createVote(Long userId, VoteCreateRequest request) {
+        return createVote(userId, request, Map.of());
+    }
+
+    @Override
+    @Transactional
+    public Long createVote(Long userId, VoteCreateRequest request, Map<String, MultipartFile> optionImageFiles) {
         // 1. 회원 검증
         Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
@@ -376,15 +425,20 @@ public class VoteServiceImpl implements VoteService {
                 .build();
 
         // 3. 투표 옵션 생성 및 추가 (최대 4개 옵션 제한)
-        List<String> options = request.getOptions();
+        List<VoteCreateRequest.OptionRequest> options = request.getOptions();
         if (options == null || options.isEmpty() || options.size() > 4) {
             throw new ApiException(VoteErrorMessage.VOTE_OPTION_COUNT_INVALID.message(), HttpStatus.BAD_REQUEST);
         }
 
+        validateOptionImageKeys(options);
+
         VoteLabel[] labels = VoteLabel.values();
         for (int i = 0; i < options.size(); i++) {
+            VoteCreateRequest.OptionRequest option = options.get(i);
+            String imageUrl = uploadOptionImage(option, optionImageFiles);
             VoteOption voteOption = VoteOption.builder()
-                    .content(options.get(i))
+                    .content(option.getContent())
+                    .imageUrl(imageUrl)
                     .label(labels[i])
                     .build();
             vote.addVoteOption(voteOption); // Vote 엔티티에 옵션 추가
@@ -406,6 +460,33 @@ public class VoteServiceImpl implements VoteService {
         pointService.givePoint(userId, PointType.POST_CREATE);
 
         return savedVote.getId(); // 저장된 투표의 ID를 반환
+    }
+
+    private void validateOptionImageKeys(List<VoteCreateRequest.OptionRequest> options) {
+        Set<String> imageKeys = new HashSet<>();
+        for (VoteCreateRequest.OptionRequest option : options) {
+            String imageKey = option.getImageKey();
+            if (!StringUtils.hasText(imageKey)) {
+                continue;
+            }
+            if (!imageKeys.add(imageKey)) {
+                throw new ApiException(VoteErrorMessage.VOTE_OPTION_IMAGE_KEY_DUPLICATED.message(), HttpStatus.BAD_REQUEST);
+            }
+        }
+    }
+
+    private String uploadOptionImage(VoteCreateRequest.OptionRequest option, Map<String, MultipartFile> optionImageFiles) {
+        String imageKey = option.getImageKey();
+        if (!StringUtils.hasText(imageKey)) {
+            return null;
+        }
+
+        MultipartFile imageFile = optionImageFiles.get(imageKey);
+        if (imageFile == null || imageFile.isEmpty()) {
+            throw new ApiException(VoteErrorMessage.VOTE_OPTION_IMAGE_NOT_FOUND.message(), HttpStatus.BAD_REQUEST);
+        }
+
+        return storageService.uploadImage(imageFile, "vote-options");
     }
 
     /**
@@ -451,6 +532,7 @@ public class VoteServiceImpl implements VoteService {
                             .map(option -> VoteListResponse.VoteOptionListDto.builder()
                                     .id(option.getId())
                                     .content(option.getContent())
+                                    .imageUrl(option.getImageUrl())
                                     .build())
                             .collect(Collectors.toList());
 
@@ -562,7 +644,10 @@ public class VoteServiceImpl implements VoteService {
         Vote vote = voteRepository.findById(voteId)
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_DETAIL_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
-        Member member = memberRepository.findByIdAndDeletedAtIsNull(userId)
+        boolean isAdminToken = userId != null && userId == 0L && SecurityUtils.isCurrentUserAdmin();
+        Member member = isAdminToken
+                ? Member.builder().id(userId).role(Role.ADMIN).build()
+                : memberRepository.findByIdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         // 권한 확인 - 자기 자신 혹은 관리자
@@ -584,6 +669,9 @@ public class VoteServiceImpl implements VoteService {
     public void updatePinStatus(Member member, Long voteId, PinType pinType) {
         if (member.getRole() != Role.ADMIN) {
             throw new ApiException(VoteErrorMessage.PERMISSION_DENIED.message(), HttpStatus.FORBIDDEN);
+        }
+        if (pinType == null) {
+            throw new ApiException(VoteErrorMessage.PIN_TYPE_REQUIRED.message(), HttpStatus.BAD_REQUEST);
         }
         Vote vote = voteRepository.findById(voteId)
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.POST_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
@@ -623,6 +711,7 @@ public class VoteServiceImpl implements VoteService {
                 .map(option -> HotIssueVoteOptionDto.builder() // HotIssueVoteOptionDto 빌더 사용
                         .optionId(option.getId())  //option ID넣기
                         .content(option.getContent()) // 옵션 내용 설정
+                        .imageUrl(option.getImageUrl())
                         .vote_count(option.getVoteCount()) // 투표 수 설정
                         .build())
                 .collect(Collectors.toList()); // 리스트로 수집

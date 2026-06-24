@@ -3,11 +3,10 @@ package com.valanse.valanse.common.auth;
 import com.valanse.valanse.common.message.AuthErrorMessage;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.Jwts;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -32,14 +31,13 @@ import java.util.List;
  * 4. 만료되거나 유효하지 않으면 401 반환 (프론트엔드 자동 갱신 트리거)
  */
 @Component
+@RequiredArgsConstructor
 /**
  * HTTP 요청의 Bearer token을 검증하고 SecurityContext에 인증 정보를 주입하는 필터 코드입니다.
- * check: JwtTokenProvider와 동일한 서명 키 파싱 방식을 사용하도록 통일해야 합니다.
  */
 public class JwtTokenFilter extends OncePerRequestFilter {
 
-    @Value("${jwt.secret}")
-    private String secretKey;
+    private final JwtTokenProvider jwtTokenProvider;
 
     /**
      * 이 필터를 건너뛸 요청들
@@ -59,6 +57,7 @@ public class JwtTokenFilter extends OncePerRequestFilter {
 
         // 인증 관련 엔드포인트 (토큰 검사하면 순환 참조!)
         return uri.equals("/auth/kakao/login") ||
+                uri.equals("/auth/admin/login") ||
                 uri.equals("/auth/reissue") ||
                 uri.equals("/error") ||
                 uri.equals("/health") ||
@@ -85,11 +84,7 @@ public class JwtTokenFilter extends OncePerRequestFilter {
 
             try {
                 // 토큰 파싱 및 검증
-                Claims claims = Jwts.parserBuilder()
-                        .setSigningKey(secretKey)
-                        .build()
-                        .parseClaimsJws(jwtToken)
-                        .getBody();
+                Claims claims = jwtTokenProvider.parseClaims(jwtToken);
 
                 // 권한 정보 추출
                 List<GrantedAuthority> authorities = new ArrayList<>();

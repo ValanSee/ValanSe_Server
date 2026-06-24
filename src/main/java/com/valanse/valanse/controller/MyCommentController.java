@@ -1,5 +1,8 @@
 package com.valanse.valanse.controller;
 
+import com.valanse.valanse.common.auth.SecurityUtils;
+import com.valanse.valanse.domain.Member;
+import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.dto.Comment.*;
 import com.valanse.valanse.service.CommentService.CommentService;
 import com.valanse.valanse.service.MemberService.MemberService;
@@ -35,7 +38,9 @@ public class MyCommentController {
      */
     public ResponseEntity<?> deleteMyComment(@PathVariable Long commentId) {
         Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
-        var member = memberService.findById(loginId);
+        Member member = SecurityUtils.isCurrentUserAdmin()
+                ? Member.builder().id(loginId).role(Role.ADMIN).build()
+                : memberService.findById(loginId);
         commentService.deleteMyComment(member, commentId);
         return ResponseEntity.ok().body(Collections.singletonMap("message", "댓글이 삭제되었습니다."));
     }

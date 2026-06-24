@@ -1,5 +1,6 @@
 package com.valanse.valanse.controller;
 
+import com.valanse.valanse.common.auth.SecurityUtils;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.dto.Comment.*;
@@ -38,7 +39,6 @@ public class CommentController {
     )
     /**
      * 투표에 부모 댓글 또는 대댓글을 작성하고 댓글 카운트와 포인트를 갱신하는 메서드입니다.
-     * check: 대댓글 parent가 현재 투표의 댓글인지 확인해야 합니다.
      */
     @PostMapping
     public ResponseEntity<CommentPostResponse> createComment(
@@ -70,8 +70,12 @@ public class CommentController {
         boolean isAdmin = false;
         if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
             loginId = Long.parseLong(auth.getName());
-            Member member = memberService.findById(loginId);
-            isAdmin = member.getRole() == Role.ADMIN;
+            if (SecurityUtils.isCurrentUserAdmin()) {
+                isAdmin = true;
+            } else {
+                Member member = memberService.findById(loginId);
+                isAdmin = member.getRole() == Role.ADMIN;
+            }
         }
 
         Pageable pageable = PageRequest.of(page, size);
@@ -96,7 +100,6 @@ public class CommentController {
     )
     /**
      * 댓글 좋아요를 토글하고 좋아요 수를 갱신하는 메서드입니다.
-     * check: 댓글이 현재 투표에 속하는지 검증해야 합니다.
      */
     @PostMapping("/{commentId}/like")
     public ResponseEntity<CommentLikeResponseDto> likeComment(
@@ -122,13 +125,18 @@ public class CommentController {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         Member member = null;
         if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
-            Long loginId = Long.parseLong(auth.getName());
-            member = memberService.findById(loginId);
+            if (SecurityUtils.isCurrentUserAdmin()) {
+                member = Member.builder()
+                        .id(0L)
+                        .role(Role.ADMIN)
+                        .build();
+            } else {
+                Long loginId = Long.parseLong(auth.getName());
+                member = memberService.findById(loginId);
+            }
         }
 
         List<CommentReplyResponseDto> replies = commentService.getReplies(member, voteId, commentId);
         return ResponseEntity.ok(replies);
     }
 }
-
-

@@ -1,6 +1,7 @@
 package com.valanse.valanse.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.valanse.valanse.common.auth.JwtTokenProvider;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.dto.Analytics.PageViewEventRequest;
 import com.valanse.valanse.repository.ActivityEventRepository;
@@ -45,6 +46,9 @@ class AnalyticsControllerTest {
     @Autowired
     private MemberRepository memberRepository;
 
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
+
     @BeforeEach
     void setUp() {
         activityEventRepository.deleteAll();
@@ -88,6 +92,19 @@ class AnalyticsControllerTest {
     @DisplayName("관리자 MAU 조회 API는 ADMIN 권한으로 접근할 수 있다")
     void getMau_AdminRole_IsOk() throws Exception {
         mockMvc.perform(get("/admin/analytics/mau")
+                        .param("yearMonth", "2026-06"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.yearMonth").value("2026-06"))
+                .andExpect(jsonPath("$.totalMau").value(0));
+    }
+
+    @Test
+    @DisplayName("JwtTokenProvider가 발급한 ADMIN 토큰은 필터 인증 흐름에서 사용할 수 있다")
+    void getMau_AdminJwtToken_IsOk() throws Exception {
+        String accessToken = jwtTokenProvider.createAccessToken(0L, Role.ADMIN.name());
+
+        mockMvc.perform(get("/admin/analytics/mau")
+                        .header("Authorization", "Bearer " + accessToken)
                         .param("yearMonth", "2026-06"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.yearMonth").value("2026-06"))

@@ -13,6 +13,7 @@ import com.valanse.valanse.repository.MemberProfileTitleRepository;
 import com.valanse.valanse.repository.MemberRepository;
 import com.valanse.valanse.repository.TitleRepository;
 import com.valanse.valanse.service.PointService.PointService;
+import com.valanse.valanse.service.StorageService.StorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -51,6 +53,9 @@ class MemberProfileServiceImplTest {
 
     @Mock
     private PointService pointService;
+
+    @Mock
+    private StorageService storageService;
 
     private Member member;
 
@@ -222,6 +227,55 @@ class MemberProfileServiceImplTest {
     // ───────────────────────────────────────────────
     // 기존 시나리오
     // ───────────────────────────────────────────────
+
+    @Test
+    @DisplayName("프로필 이미지를 수정하면 새 이미지를 업로드하고 기존 이미지를 삭제한 뒤 회원 이미지 URL을 갱신한다")
+    void 프로필이미지_수정_성공() {
+        member = Member.builder()
+                .email("test@email.com")
+                .nickname("테스터")
+                .name("test")
+                .role(Role.USER)
+                .profile_image_url("https://cdn.example.com/member_profile_image/old.png")
+                .build();
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "new.png",
+                "image/png",
+                "image".getBytes()
+        );
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.of(member));
+        when(storageService.uploadImage(file, "member_profile_image"))
+                .thenReturn("https://cdn.example.com/member_profile_image/new.png");
+
+        var response = memberProfileService.updateProfileImage(file);
+
+        assertThat(response.profile_image_url()).isEqualTo("https://cdn.example.com/member_profile_image/new.png");
+        assertThat(member.getProfile_image_url()).isEqualTo("https://cdn.example.com/member_profile_image/new.png");
+        verify(storageService).uploadImage(file, "member_profile_image");
+        verify(storageService).deleteImageByUrl("https://cdn.example.com/member_profile_image/old.png");
+    }
+
+    @Test
+    @DisplayName("프로필 이미지 수정 시 회원이 없으면 이미지를 업로드하지 않는다")
+    void 프로필이미지_수정_회원없음_실패() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "new.png",
+                "image/png",
+                "image".getBytes()
+        );
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(1L)).thenReturn(Optional.empty());
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> memberProfileService.updateProfileImage(file));
+
+        assertThat(ex.getMessage()).isEqualTo(MemberErrorMessage.MEMBER_NOT_FOUND.message());
+        verify(storageService, never()).uploadImage(any(), any());
+        verify(storageService, never()).deleteImageByUrl(any());
+    }
 
     @Test
     @DisplayName("닉네임 변경 없이 MBTI만 수정 - 중복 체크 없이 정상 저장")

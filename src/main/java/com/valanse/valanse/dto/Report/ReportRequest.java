@@ -1,5 +1,6 @@
 package com.valanse.valanse.dto.Report;
 
+import com.valanse.valanse.domain.enums.ReportReason;
 import com.valanse.valanse.domain.enums.ReportType;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,4 +11,6 @@ import lombok.Setter;
  */
 public class ReportRequest {
     private ReportType reportType;
+    private ReportReason reason;
+    private String content;
 }

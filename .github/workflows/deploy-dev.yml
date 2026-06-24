@@ -19,9 +19,16 @@ jobs:
           java-version: 17
 
       - name: application.yml 파일 만들기
+        env:
+          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: |
           mkdir -p src/main/resources
           echo "${{ secrets.APPLICATION_PROPERTIES }}" > src/main/resources/application.yml
+          test -n "$ADMIN_USERNAME"
+          test -n "$ADMIN_PASSWORD"
+          perl -0pi -e 's/\$\{ADMIN_USERNAME:[^}]*\}/$ENV{ADMIN_USERNAME}/g' src/main/resources/application.yml
+          perl -0pi -e 's/\$\{ADMIN_PASSWORD:[^}]*\}/$ENV{ADMIN_PASSWORD}/g' src/main/resources/application.yml
 
       - name: 테스트 & 빌드
         run: ./gradlew clean build -x test

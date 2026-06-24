@@ -7,6 +7,7 @@ import com.valanse.valanse.domain.Comment;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.Report;
 import com.valanse.valanse.domain.Vote;
+import com.valanse.valanse.domain.enums.ReportReason;
 import com.valanse.valanse.domain.enums.ReportType;
 import com.valanse.valanse.repository.CommentRepository;
 import com.valanse.valanse.repository.ReportRepository;
@@ -71,6 +72,55 @@ class ReportServiceImplTest {
         ArgumentCaptor<Report> captor = ArgumentCaptor.forClass(Report.class);
         verify(reportRepository).save(captor.capture());
         assertThat(captor.getValue().getMember()).isEqualTo(reporter);
+    }
+
+    @Test
+    @DisplayName("신고 사유와 내용을 함께 저장한다")
+    void 신고_사유_내용_저장() {
+        Member reporter = Member.builder().id(1L).build();
+        Member writer = Member.builder().id(2L).build();
+        Vote vote = Vote.builder().member(writer).build();
+
+        when(voteRepository.findById(any())).thenReturn(Optional.of(vote));
+        when(reportRepository.existsByMemberAndReportTypeAndTargetId(any(), any(), any())).thenReturn(false);
+
+        reportService.report(reporter, 1L, ReportType.VOTE, ReportReason.SPAM, "반복 광고성 게시물입니다.");
+
+        ArgumentCaptor<Report> captor = ArgumentCaptor.forClass(Report.class);
+        verify(reportRepository).save(captor.capture());
+        assertThat(captor.getValue().getReason()).isEqualTo(ReportReason.SPAM);
+        assertThat(captor.getValue().getContent()).isEqualTo("반복 광고성 게시물입니다.");
+    }
+
+    @Test
+    @DisplayName("신고 사유가 없으면 예외가 발생한다")
+    void 신고_사유_검증() {
+        Member reporter = Member.builder().id(1L).build();
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> reportService.report(reporter, 1L, ReportType.VOTE, null, "내용"));
+
+        assertThat(ex.getMessage()).isEqualTo(ReportErrorMessage.REPORT_REASON_REQUIRED.message());
+        verify(reportRepository, never()).save(any());
+        verify(voteRepository, never()).findById(any());
+        verify(commentRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("신고 상세 내용은 비어 있어도 저장할 수 있다")
+    void 신고_내용_선택값() {
+        Member reporter = Member.builder().id(1L).build();
+        Member writer = Member.builder().id(2L).build();
+        Vote vote = Vote.builder().member(writer).build();
+
+        when(voteRepository.findById(any())).thenReturn(Optional.of(vote));
+        when(reportRepository.existsByMemberAndReportTypeAndTargetId(any(), any(), any())).thenReturn(false);
+
+        reportService.report(reporter, 1L, ReportType.VOTE, ReportReason.SPAM, "");
+
+        ArgumentCaptor<Report> captor = ArgumentCaptor.forClass(Report.class);
+        verify(reportRepository).save(captor.capture());
+        assertThat(captor.getValue().getContent()).isNull();
     }
 
     // ──────────────────────────────────────────────

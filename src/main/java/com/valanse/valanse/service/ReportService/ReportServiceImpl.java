@@ -8,6 +8,7 @@ import com.valanse.valanse.domain.Comment;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.Report;
 import com.valanse.valanse.domain.Vote;
+import com.valanse.valanse.domain.enums.ReportReason;
 import com.valanse.valanse.domain.enums.ReportType;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.dto.Report.ReportedTargetResponse;
@@ -40,7 +41,12 @@ public class ReportServiceImpl implements ReportService{
      */
     @Override
     public void report(Member member, Long targetId, ReportType reportType){
+        report(member, targetId, reportType, ReportReason.ETC, null);
+    }
 
+    @Override
+    public void report(Member member, Long targetId, ReportType reportType, ReportReason reason, String content){
+        validateReportRequest(reason);
         // ReportType 에 따라서 구분.
         if (reportType == ReportType.VOTE) {
             Vote vote = voteRepository.findById(targetId)
@@ -67,6 +73,8 @@ public class ReportServiceImpl implements ReportService{
                 .member(member)
                 .reportType(reportType)
                 .targetId(targetId)
+                .reason(reason)
+                .content(normalizeContent(content))
                 .build();
 
         reportRepository.save(report);
@@ -84,5 +92,14 @@ public class ReportServiceImpl implements ReportService{
         return reportRepositoryCustom.findReportedTargets(type, sort);
     }
 
+    private void validateReportRequest(ReportReason reason) {
+        if (reason == null) {
+            throw new ApiException(ReportErrorMessage.REPORT_REASON_REQUIRED.message(), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private String normalizeContent(String content) {
+        return content == null || content.isBlank() ? null : content.trim();
+    }
 
 }

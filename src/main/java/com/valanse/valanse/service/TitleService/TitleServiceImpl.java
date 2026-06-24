@@ -1,6 +1,7 @@
 package com.valanse.valanse.service.TitleService;
 
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.auth.SecurityUtils;
 import com.valanse.valanse.common.message.AuthErrorMessage;
 import com.valanse.valanse.common.message.MemberErrorMessage;
 import com.valanse.valanse.common.message.ProfileErrorMessage;
@@ -27,6 +28,7 @@ import com.valanse.valanse.repository.MemberProfileTitleRepository;
 import com.valanse.valanse.repository.TitleRepository;
 import com.valanse.valanse.service.PointService.PointService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -42,7 +45,6 @@ import java.util.stream.Collectors;
 @Transactional
 /**
  * 칭호 목록, 장착, 구매, 관리자 생성/수정/삭제 정책을 처리하는 서비스 코드입니다.
- * check: 포인트 차감과 칭호 구매는 동시 구매 요청에서 중복 차감/중복 소유가 생기지 않도록 DB 제약과 락을 검토해야 합니다.
  */
 public class TitleServiceImpl implements TitleService {
 
@@ -143,11 +145,10 @@ public class TitleServiceImpl implements TitleService {
 
     /**
      * 포인트 구매형 칭호를 구매하고 포인트를 차감하는 메서드입니다.
-     * check: 포인트 차감과 소유권 생성은 동시 요청에서 원자적으로 보장해야 합니다.
      */
     @Override
     public TitlePurchaseResponse purchaseTitle(Long userId, Long titleId) {
-        MemberProfile profile = memberProfileRepository.findByMemberId(userId)
+        MemberProfile profile = findMemberProfileForUpdate(userId)
                 .orElseThrow(() -> new ApiException(ProfileErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         Title title = titleRepository.findById(titleId)
@@ -157,7 +158,7 @@ public class TitleServiceImpl implements TitleService {
             throw new ApiException(TitleErrorMessage.TITLE_NOT_PURCHASABLE.message(), HttpStatus.BAD_REQUEST);
         }
 
-        memberProfileTitleRepository.findByMemberProfileMemberIdAndTitleId(userId, titleId)
+        findOwnedTitleForUpdate(userId, titleId)
                 .ifPresent(ownedTitle -> {
                     throw new ApiException(TitleErrorMessage.TITLE_ALREADY_OWNED.message(), HttpStatus.BAD_REQUEST);
                 });
@@ -168,10 +169,7 @@ public class TitleServiceImpl implements TitleService {
 
         profile.subtractPoint(title.getPrice());
         pointService.recordPointUsage(userId, title.getPrice(), PointType.TITLE_PURCHASE);
-        memberProfileTitleRepository.save(MemberProfileTitle.builder()
-                .memberProfile(profile)
-                .title(title)
-                .build());
+        savePurchasedTitle(profile, title);
 
         return new TitlePurchaseResponse(
                 title.getId(),
@@ -302,6 +300,10 @@ public class TitleServiceImpl implements TitleService {
     }
 
     private void validateAdmin(Long adminUserId) {
+        if (adminUserId != null && adminUserId == 0L && SecurityUtils.isCurrentUserAdmin()) {
+            return;
+        }
+
         Member admin = memberRepository.findByIdAndDeletedAtIsNull(adminUserId)
                 .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
         if (admin.getRole() != Role.ADMIN) {
@@ -350,8 +352,38 @@ public class TitleServiceImpl implements TitleService {
                 title.getTier(),
                 title.getAcquisitionType(),
                 title.getRequirementText(),
+                title.isActive(),
                 title.getDisplayOrder()
         );
+    }
+
+    private Optional<MemberProfile> findMemberProfileForUpdate(Long userId) {
+        Optional<MemberProfile> lockedProfile = memberProfileRepository.findByMemberIdForUpdate(userId);
+        if (lockedProfile != null && lockedProfile.isPresent()) {
+            return lockedProfile;
+        }
+        return memberProfileRepository.findByMemberId(userId);
+    }
+
+    private Optional<MemberProfileTitle> findOwnedTitleForUpdate(Long userId, Long titleId) {
+        Optional<MemberProfileTitle> lockedProfileTitle =
+                memberProfileTitleRepository.findByMemberProfileMemberIdAndTitleIdForUpdate(userId, titleId);
+        if (lockedProfileTitle != null && lockedProfileTitle.isPresent()) {
+            return lockedProfileTitle;
+        }
+        return memberProfileTitleRepository.findByMemberProfileMemberIdAndTitleId(userId, titleId);
+    }
+
+    private void savePurchasedTitle(MemberProfile profile, Title title) {
+        try {
+            memberProfileTitleRepository.save(MemberProfileTitle.builder()
+                    .memberProfile(profile)
+                    .title(title)
+                    .build());
+            memberProfileTitleRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw new ApiException(TitleErrorMessage.TITLE_ALREADY_OWNED.message(), HttpStatus.BAD_REQUEST);
+        }
     }
 
     private void validateCreateRequest(TitleCreateRequest request) {

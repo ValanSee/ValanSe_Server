@@ -15,6 +15,7 @@ public record TitleAdminResponse(
         TitleTier tier,
         TitleAcquisitionType acquisitionType,
         String requirementText,
+        boolean active,
         Integer displayOrder
 ) {
 }

@@ -1,7 +1,9 @@
 package com.valanse.valanse.controller;
 
+import com.valanse.valanse.common.auth.SecurityUtils;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.ReportType;
+import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.dto.Report.ReportRequest;
 import com.valanse.valanse.dto.Report.ReportedTargetResponse;
 import com.valanse.valanse.service.MemberService.MemberService;
@@ -34,7 +36,7 @@ public class ReportController {
         Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         var member = memberService.findById(loginId);
 
-        reportService.report(member, targetId, request.getReportType());
+        reportService.report(member, targetId, request.getReportType(), request.getReason(), request.getContent());
         return ResponseEntity.ok().build();
     }
 
@@ -46,7 +48,9 @@ public class ReportController {
             @RequestParam ReportType type,
             @RequestParam(defaultValue = "latest")  String sort) {
         Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
-        var member = memberService.findById(loginId);
+        Member member = SecurityUtils.isCurrentUserAdmin()
+                ? Member.builder().id(loginId).role(Role.ADMIN).build()
+                : memberService.findById(loginId);
 
         List<ReportedTargetResponse> results = reportService.getReportedTargets(member, type, sort);
         return ResponseEntity.ok().body(results);

@@ -1,7 +1,9 @@
 package com.valanse.valanse.repository;
 
 import com.valanse.valanse.domain.MemberProfileTitle;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -13,6 +15,18 @@ import java.util.Optional;
  */
 public interface MemberProfileTitleRepository extends JpaRepository<MemberProfileTitle, Long> {
     Optional<MemberProfileTitle> findByMemberProfileMemberIdAndTitleId(Long memberId, Long titleId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select memberProfileTitle
+            from MemberProfileTitle memberProfileTitle
+            where memberProfileTitle.memberProfile.member.id = :memberId
+              and memberProfileTitle.title.id = :titleId
+            """)
+    Optional<MemberProfileTitle> findByMemberProfileMemberIdAndTitleIdForUpdate(
+            @Param("memberId") Long memberId,
+            @Param("titleId") Long titleId
+    );
 
     Optional<MemberProfileTitle> findByMemberProfileIdAndTitleId(Long memberProfileId, Long titleId);
 

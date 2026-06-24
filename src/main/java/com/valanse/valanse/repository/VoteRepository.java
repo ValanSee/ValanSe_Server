@@ -7,9 +7,11 @@ import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.enums.PinType;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import com.valanse.valanse.repository.VotesCheckRepositoryCustom.VoteRepositoryCustom;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -74,6 +76,10 @@ public interface VoteRepository extends JpaRepository<Vote, Long>, VoteRepositor
     // 고정된 투표 찾기
     Optional<Vote> findByPinType(PinType pinType);
     Optional<Vote> findByIdAndDeletedAtIsNull(Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select v from Vote v where v.id = :id")
+    Optional<Vote> findByIdForUpdate(@Param("id") Long id);
 
     // 모든 투표를 페이징하여 조회 (JpaRepository의 findAll(Pageable)을 사용)
     // Page<Vote> findAll(Pageable pageable); // JpaRepository에 이미 정의되어 있으므로 명시적으로 추가할 필요 없음

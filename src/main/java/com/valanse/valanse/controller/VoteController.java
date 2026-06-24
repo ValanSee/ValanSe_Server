@@ -1,18 +1,27 @@
 // src/main/java/com/valanse/valanse/controller/VoteController.java
 package com.valanse.valanse.controller;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.auth.SecurityUtils;
 import com.valanse.valanse.common.message.VoteErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.PinType;
+import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.service.MemberService.MemberService;
 import com.valanse.valanse.service.VoteService.VoteService;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.dto.Vote.VoteResponseDto;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Encoding;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,9 +29,12 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import com.valanse.valanse.domain.enums.VoteCategory;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Tag(name = "투표 API", description = "투표 관련 API")
@@ -36,6 +48,7 @@ public class VoteController {
 
     private final VoteService voteService;
     private final MemberService memberService;
+    private final ObjectMapper objectMapper;
 
     @GetMapping("/mine/created")
     @Operation(
@@ -147,7 +160,6 @@ public class VoteController {
     )
     /**
      * 사용자의 투표 선택, 취소, 재선택을 처리하고 선택지별 카운트와 전체 카운트를 갱신하는 메서드입니다.
-     * check: 선택지 소속 검증과 동시성 제어가 함께 필요합니다.
      */
     @PostMapping("/{voteId}/vote-options/{voteOptionId}") // Path Variable 사용
     public ResponseEntity<VoteCancleResponseDto> processVote(
@@ -178,21 +190,55 @@ public class VoteController {
     }
 
 
-    @Operation(
-            summary = "투표 생성",
-            description = "새로운 투표와 해당 투표의 옵션을 생성합니다. 각 투표는 최대 4개의 옵션을 가질 수 있습니다. \n" +
-                    " Category에는 FOOD, LOVE, BUY, SPORT, WORRY, ETC 이 6가지만 올 수 있습니다. 내부에서 ENUM으로 처리됩니다."
-    )
+    @Hidden
     /**
      * 새 투표와 선택지, 댓글 그룹을 생성하고 작성 포인트를 지급하는 메서드입니다.
      */
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<VoteCreateResponse> createVote(
             @RequestBody VoteCreateRequest request
     ) {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         Long voteId = voteService.createVote(userId, request);
         return ResponseEntity.ok(new VoteCreateResponse(voteId));
+    }
+
+    @Operation(
+            summary = "투표 생성",
+            description = "새로운 투표와 해당 투표의 옵션을 생성합니다. 각 투표는 최대 4개의 옵션을 가질 수 있습니다. \n" +
+                    "Category에는 FOOD, LOVE, BUY, SPORT, WORRY, ETC 이 6가지만 올 수 있습니다. 내부에서 ENUM으로 처리됩니다.\n" +
+                    "request 파트에 JSON을 넣고, options[].imageKey와 같은 이름의 파일 파트를 첨부하세요. " +
+                    "예: imageKey가 option-a-image이면 option-a-image 파일 칸에 이미지를 첨부합니다. 이미지가 없는 옵션은 imageKey를 생략하세요.",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    required = true,
+                    content = @Content(
+                            mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
+                            schema = @Schema(implementation = VoteCreateMultipartRequest.class),
+                            encoding = @Encoding(
+                                    name = "request",
+                                    contentType = MediaType.APPLICATION_JSON_VALUE
+                            )
+                    )
+            )
+    )
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<VoteCreateResponse> createVoteWithImages(
+            @RequestParam("request") String requestJson,
+            MultipartHttpServletRequest multipartRequest
+    ) {
+        VoteCreateRequest request = parseVoteCreateRequest(requestJson);
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        Map<String, MultipartFile> optionImageFiles = multipartRequest.getFileMap();
+        Long voteId = voteService.createVote(userId, request, optionImageFiles);
+        return ResponseEntity.ok(new VoteCreateResponse(voteId));
+    }
+
+    private VoteCreateRequest parseVoteCreateRequest(String requestJson) {
+        try {
+            return objectMapper.readValue(requestJson, VoteCreateRequest.class);
+        } catch (JsonProcessingException e) {
+            throw new ApiException("request JSON 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST);
+        }
     }
 
 @Operation(
@@ -215,8 +261,15 @@ public ResponseEntity<VoteListResponse> getVotes(
     Authentication auth = SecurityContextHolder.getContext().getAuthentication();
     Member member = null;
     if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
-        Long loginId = Long.parseLong(auth.getName());
-        member = memberService.findById(loginId);
+        if (SecurityUtils.isCurrentUserAdmin()) {
+            member = Member.builder()
+                    .id(0L)
+                    .role(Role.ADMIN)
+                    .build();
+        } else {
+            Long loginId = Long.parseLong(auth.getName());
+            member = memberService.findById(loginId);
+        }
     }
 
     VoteListResponse response = voteService.getVotesByCategoryAndSort(member, category, sort, cursor, size);
@@ -251,8 +304,9 @@ public ResponseEntity<VoteListResponse> getVotes(
             @PathVariable Long voteId,
             @RequestBody PinRequest request)
     {
-        Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
-        var member = memberService.findById(loginId);
+        Member member = Member.builder()
+                .role(SecurityUtils.isCurrentUserAdmin() ? Role.ADMIN : Role.USER)
+                .build();
         voteService.updatePinStatus(member, voteId, request.getPinType());
         return ResponseEntity.ok().build();
     }

@@ -44,6 +44,7 @@ public class Vote extends BaseEntity {
 
     private LocalDateTime reactivityUpdatedAt;// 반응성 마지막 계산 시점
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PinType pinType = PinType.NONE;
@@ -109,4 +110,3 @@ public class Vote extends BaseEntity {
     }
 
 }
-
