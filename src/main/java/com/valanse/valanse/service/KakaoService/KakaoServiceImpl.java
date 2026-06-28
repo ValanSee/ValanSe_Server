@@ -15,7 +15,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -33,10 +38,14 @@ public class KakaoServiceImpl implements KakaoService {
     @Value("${oauth.kakao.redirect-uri}")
     private String kakaoRedirectUri;
 
+    @Value("${oauth.kakao.allowed-redirect-uris:http://localhost:3000/oauth/kakao/redirect,https://develop.valanse.kr/oauth/kakao/redirect,https://valanse.kr/oauth/kakao/redirect}")
+    private String kakaoAllowedRedirectUris;
+
     /**
      * 카카오 인가 코드로 카카오 access token을 발급받는 메서드입니다.
      */
-    public AccessTokenDto getAccessToken(String code) {
+    public AccessTokenDto getAccessToken(String code, String requestedRedirectUri) {
+        String redirectUri = resolveRedirectUri(requestedRedirectUri);
         RestClient restClient = RestClient.create();
 
 //        System.out.println("[OAuth] 인가 코드 (authorization code): " + code);
@@ -46,7 +55,7 @@ public class KakaoServiceImpl implements KakaoService {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("code", code);
         params.add("client_id", kakaoClientId);
-        params.add("redirect_uri", kakaoRedirectUri);
+        params.add("redirect_uri", redirectUri);
         params.add("grant_type", "authorization_code");
 
         ResponseEntity<AccessTokenDto> response = restClient.post()
@@ -59,6 +68,23 @@ public class KakaoServiceImpl implements KakaoService {
 //        System.out.println("[OAuth] Access Token 응답: " + response);
 
         return response.getBody();
+    }
+
+    String resolveRedirectUri(String requestedRedirectUri) {
+        String redirectUri = StringUtils.hasText(requestedRedirectUri)
+                ? requestedRedirectUri.trim()
+                : kakaoRedirectUri;
+
+        Set<String> allowedRedirectUris = Arrays.stream(kakaoAllowedRedirectUris.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toUnmodifiableSet());
+
+        if (!allowedRedirectUris.contains(redirectUri)) {
+            throw new ApiException(AuthErrorMessage.KAKAO_REDIRECT_URI_NOT_ALLOWED.message(), HttpStatus.BAD_REQUEST);
+        }
+
+        return redirectUri;
     }
 
     /**
