@@ -88,7 +88,10 @@ public class AuthController {
      */
     @PostMapping("/kakao/login")
     public ResponseEntity<?> kakaoLogin(@RequestBody RedirectDto redirectDto) {
-        AccessTokenDto accessTokenDto = kakaoService.getAccessToken(redirectDto.getCode());
+        AccessTokenDto accessTokenDto = kakaoService.getAccessToken(
+                redirectDto.getCode(),
+                redirectDto.getRedirectUri()
+        );
 
         if (accessTokenDto == null || accessTokenDto.getAccess_token() == null) {
             throw new ApiException(AuthErrorMessage.KAKAO_ACCESS_TOKEN_ISSUE_FAILED.message(), HttpStatus.UNAUTHORIZED);

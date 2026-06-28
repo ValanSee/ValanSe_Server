@@ -8,7 +8,7 @@ import com.valanse.valanse.dto.Login.KakaoProfileDto;
  */
 public interface KakaoService {
 
-    AccessTokenDto getAccessToken(String code);
+    AccessTokenDto getAccessToken(String code, String redirectUri);
     KakaoProfileDto getKakaoProfile(String token);
     void unLink();
 }
