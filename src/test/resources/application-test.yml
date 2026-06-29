@@ -39,6 +39,7 @@ oauth:
   kakao:
     client-id: test-client-id
     redirect-uri: http://localhost
+    allowed-redirect-uris: http://localhost,http://localhost:3000/oauth/kakao/redirect
 
 cloudflare:
   r2:

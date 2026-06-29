@@ -1,5 +1,6 @@
 package com.valanse.valanse.dto.Login;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,4 +13,7 @@ import lombok.NoArgsConstructor;
  */
 public class RedirectDto {
     private String code;
+
+    @JsonAlias("redirect_uri")
+    private String redirectUri;
 }

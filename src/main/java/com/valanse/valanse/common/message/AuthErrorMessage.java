@@ -7,6 +7,7 @@ public enum AuthErrorMessage {
     DELETE_PERMISSION_DENIED("삭제 권한 없음"),
     ADMIN_ONLY("관리자만 접근 가능합니다."),
     KAKAO_ACCESS_TOKEN_ISSUE_FAILED("AccessToken 발급 실패"),
+    KAKAO_REDIRECT_URI_NOT_ALLOWED("허용되지 않은 카카오 redirect URI입니다."),
     KAKAO_PROFILE_FETCH_FAILED("카카오 사용자 정보 조회 실패"),
     KAKAO_REFRESH_TOKEN_NOT_FOUND("카카오 RefreshToken이 존재하지 않습니다."),
     KAKAO_ACCESS_TOKEN_REISSUE_FAILED("카카오 access token 재발급 실패"),
