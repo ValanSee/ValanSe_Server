@@ -1,6 +1,8 @@
 package com.valanse.valanse.dto.Vote;// src/main/java/com/valanse/valanse/dto/vote/VoteCreateRequest.java
 
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -30,5 +32,29 @@ public class VoteCreateRequest {
         private String key;
         private String content;
         private String imageKey;
+
+        /**
+         * 구형 문자열 옵션과 이미지 업로드용 객체 옵션을 모두 지원합니다.
+         */
+        @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
+        public OptionRequest(JsonNode value) {
+            if (value.isTextual()) {
+                this.content = value.textValue();
+                return;
+            }
+
+            if (!value.isObject()) {
+                throw new IllegalArgumentException("투표 옵션은 문자열 또는 객체여야 합니다.");
+            }
+
+            this.key = nullableText(value, "key");
+            this.content = nullableText(value, "content");
+            this.imageKey = nullableText(value, "imageKey");
+        }
+
+        private static String nullableText(JsonNode object, String fieldName) {
+            JsonNode field = object.get(fieldName);
+            return field == null || field.isNull() ? null : field.asText();
+        }
     }
 }
