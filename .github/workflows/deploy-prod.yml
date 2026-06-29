@@ -81,8 +81,13 @@ jobs:
             docker pull ${{ steps.login-ecr.outputs.registry }}/cicdprac:$IMAGE_TAG
 
             # Compose가 고정 이미지 태그를 사용하도록 배포 상태 저장
-            PREVIOUS_IMAGE_TAG=$(sed -n 's/^VALANSE_PROD_IMAGE_TAG=//p' .env | tail -n 1)
-            if [ -n "$PREVIOUS_IMAGE_TAG" ]; then
+            CURRENT_IMAGE_TAG=$(sed -n 's/^VALANSE_PROD_IMAGE_TAG=//p' .env | tail -n 1)
+            PREVIOUS_IMAGE_TAG=$(sed -n 's/^VALANSE_PROD_PREVIOUS_IMAGE_TAG=//p' .env | tail -n 1)
+            if [ -z "$PREVIOUS_IMAGE_TAG" ]; then
+              PREVIOUS_IMAGE_TAG=$CURRENT_IMAGE_TAG
+            fi
+            if [ -n "$CURRENT_IMAGE_TAG" ] && [ "$CURRENT_IMAGE_TAG" != "$IMAGE_TAG" ]; then
+              PREVIOUS_IMAGE_TAG=$CURRENT_IMAGE_TAG
               if grep -q '^VALANSE_PROD_PREVIOUS_IMAGE_TAG=' .env; then
                 sed -i "s/^VALANSE_PROD_PREVIOUS_IMAGE_TAG=.*/VALANSE_PROD_PREVIOUS_IMAGE_TAG=$PREVIOUS_IMAGE_TAG/" .env
               else
@@ -96,8 +101,29 @@ jobs:
             fi
             chmod 600 .env
             
-            # production 컨테이너만 재시작
-            docker compose up -d --wait --wait-timeout 120 valanse-server
+            # production 컨테이너 재시작 및 실패 시 직전 이미지로 롤백
+            if docker compose up -d --wait --wait-timeout 120 valanse-server; then
+              echo "Production deployment succeeded: $IMAGE_TAG"
+            else
+              echo "Production deployment failed. Rolling back to: $PREVIOUS_IMAGE_TAG"
+              docker compose logs --tail=100 valanse-server || true
+
+              if [ -z "$PREVIOUS_IMAGE_TAG" ]; then
+                echo "Rollback image tag is not available."
+                exit 1
+              fi
+
+              sed -i "s/^VALANSE_PROD_IMAGE_TAG=.*/VALANSE_PROD_IMAGE_TAG=$PREVIOUS_IMAGE_TAG/" .env
+              docker pull ${{ steps.login-ecr.outputs.registry }}/cicdprac:$PREVIOUS_IMAGE_TAG
+
+              if docker compose up -d --force-recreate --wait --wait-timeout 120 valanse-server; then
+                echo "Production rollback succeeded: $PREVIOUS_IMAGE_TAG"
+              else
+                echo "Production rollback failed."
+                docker compose logs --tail=100 valanse-server || true
+              fi
+              exit 1
+            fi
             
             # 사용하지 않는 이미지 정리
             docker image prune -f
