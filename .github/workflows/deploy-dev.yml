@@ -12,11 +12,12 @@ jobs:
       - name: Github Repository 파일 불러오기
         uses: actions/checkout@v4
 
-      - name: JDK 17 설치
+      - name: JDK 17 설치 및 Gradle 캐시 적용
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
+          cache: gradle
 
       - name: application.yml 파일 만들기
         env:
@@ -31,7 +32,7 @@ jobs:
           perl -0pi -e 's/\$\{ADMIN_PASSWORD:[^}]*\}/$ENV{ADMIN_PASSWORD}/g' src/main/resources/application.yml
 
       - name: 테스트 & 빌드
-        run: ./gradlew clean build -x test
+        run: ./gradlew clean build
 
       - name: AWS Resource에 접근할 수 있도록 AWS credentials 설정하기
         uses: aws-actions/configure-aws-credentials@v4
@@ -75,7 +76,7 @@ jobs:
             docker pull ${{ steps.login-ecr.outputs.registry }}/cicdprac:dev
             
             # development 컨테이너들 재시작 (8081 + 8082)
-            docker compose up -d valanse-dev valanse-dev-server
+            docker compose up -d --wait --wait-timeout 120 valanse-dev valanse-dev-server
             
             # 사용하지 않는 이미지 정리
             docker image prune -f
