@@ -49,10 +49,14 @@ jobs:
         run: docker build -t valanse-docker-images .
 
       - name: Docker 이미지에 Tag 붙이기 (prod)
-        run: docker tag valanse-docker-images ${{ steps.login-ecr.outputs.registry }}/cicdprac:prod
+        run: |
+          docker tag valanse-docker-images ${{ steps.login-ecr.outputs.registry }}/cicdprac:prod
+          docker tag valanse-docker-images ${{ steps.login-ecr.outputs.registry }}/cicdprac:prod-${{ github.sha }}
 
       - name: ECR에 Docker 이미지 Push하기
-        run: docker push ${{ steps.login-ecr.outputs.registry }}/cicdprac:prod
+        run: |
+          docker push ${{ steps.login-ecr.outputs.registry }}/cicdprac:prod
+          docker push ${{ steps.login-ecr.outputs.registry }}/cicdprac:prod-${{ github.sha }}
 
       - name: SSH로 EC2에 접속하여 Production 서버 재배포
         uses: appleboy/ssh-action@v1.0.3
@@ -72,8 +76,25 @@ jobs:
             # ECR 로그인
             aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
             
-            # prod 이미지 pull
-            docker pull ${{ steps.login-ecr.outputs.registry }}/cicdprac:prod
+            # 배포할 커밋의 고정 이미지 pull
+            IMAGE_TAG=prod-${{ github.sha }}
+            docker pull ${{ steps.login-ecr.outputs.registry }}/cicdprac:$IMAGE_TAG
+
+            # Compose가 고정 이미지 태그를 사용하도록 배포 상태 저장
+            PREVIOUS_IMAGE_TAG=$(sed -n 's/^VALANSE_PROD_IMAGE_TAG=//p' .env | tail -n 1)
+            if [ -n "$PREVIOUS_IMAGE_TAG" ]; then
+              if grep -q '^VALANSE_PROD_PREVIOUS_IMAGE_TAG=' .env; then
+                sed -i "s/^VALANSE_PROD_PREVIOUS_IMAGE_TAG=.*/VALANSE_PROD_PREVIOUS_IMAGE_TAG=$PREVIOUS_IMAGE_TAG/" .env
+              else
+                printf '\nVALANSE_PROD_PREVIOUS_IMAGE_TAG=%s\n' "$PREVIOUS_IMAGE_TAG" >> .env
+              fi
+            fi
+            if grep -q '^VALANSE_PROD_IMAGE_TAG=' .env; then
+              sed -i "s/^VALANSE_PROD_IMAGE_TAG=.*/VALANSE_PROD_IMAGE_TAG=$IMAGE_TAG/" .env
+            else
+              printf '\nVALANSE_PROD_IMAGE_TAG=%s\n' "$IMAGE_TAG" >> .env
+            fi
+            chmod 600 .env
             
             # production 컨테이너만 재시작
             docker compose up -d --wait --wait-timeout 120 valanse-server
