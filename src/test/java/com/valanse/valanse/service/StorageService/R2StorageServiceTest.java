@@ -64,6 +64,21 @@ class R2StorageServiceTest {
     }
 
     @Test
+    void 이미지가_5MB를_초과하면_업로드하지_않는다() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "large.png",
+                "image/png",
+                new byte[5 * 1024 * 1024 + 1]
+        );
+
+        ApiException exception = assertThrows(ApiException.class, () -> storageService.uploadImage(file, "images"));
+
+        assertThat(exception.getMessage()).isEqualTo(StorageErrorMessage.IMAGE_SIZE_EXCEEDED.message());
+        verify(s3Client, never()).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+    }
+
+    @Test
     void R2_공개_URL이면_object_key를_추출해_이미지를_삭제한다() {
         storageService.deleteImageByUrl("https://cdn.example.com/member_profile_image/old.png");
 
