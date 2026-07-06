@@ -202,7 +202,18 @@ public class VoteControllerTest {
                         .param("size", "0")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("size는 1 이상이어야 합니다."))
+                .andExpect(jsonPath("$.error").value("size는 1 이상 50 이하여야 합니다."))
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    @DisplayName("투표 목록 조회 시 size가 50보다 크면 400 Bad Request를 반환한다.")
+    void getVotes_SizeOverMaximum_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/votes")
+                        .param("size", "51")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("size는 1 이상 50 이하여야 합니다."))
                 .andExpect(jsonPath("$.status").value(400));
     }
 

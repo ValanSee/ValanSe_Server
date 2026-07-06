@@ -5,7 +5,9 @@ services:
     image: valanse-docker-images
     container_name: spring-app
     ports:
-      - "8080:8080"
+      # Nginx가 같은 호스트에서만 애플리케이션에 접근하도록 제한합니다.
+      # 외부 트래픽은 반드시 Nginx의 80/443 포트를 통과해야 합니다.
+      - "127.0.0.1:8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: default
       SPRING_REDIS_HOST: redis
@@ -18,8 +20,7 @@ services:
   redis:
     image: redis:7.2
     container_name: redis
-    ports:
-      - "6379:6379"
+    # Redis는 backend-network 내부에서만 사용하며 호스트에 포트를 공개하지 않습니다.
     networks:
       - backend-network
 

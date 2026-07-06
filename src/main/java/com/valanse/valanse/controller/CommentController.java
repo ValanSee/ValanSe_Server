@@ -1,5 +1,6 @@
 package com.valanse.valanse.controller;
 
+import com.valanse.valanse.common.api.PaginationValidator;
 import com.valanse.valanse.common.auth.SecurityUtils;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.Role;
@@ -64,6 +65,7 @@ public class CommentController {
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "10") int size
     ) {
+        PaginationValidator.validatePageAndSize(page, size);
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         Long loginId = null;
