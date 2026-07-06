@@ -46,7 +46,7 @@ public class ReportServiceImpl implements ReportService{
 
     @Override
     public void report(Member member, Long targetId, ReportType reportType, ReportReason reason, String content){
-        validateReportRequest(reason);
+        validateReportRequest(reportType, reason);
         // ReportType 에 따라서 구분.
         if (reportType == ReportType.VOTE) {
             Vote vote = voteRepository.findById(targetId)
@@ -92,7 +92,10 @@ public class ReportServiceImpl implements ReportService{
         return reportRepositoryCustom.findReportedTargets(type, sort);
     }
 
-    private void validateReportRequest(ReportReason reason) {
+    private void validateReportRequest(ReportType reportType, ReportReason reason) {
+        if (reportType == null) {
+            throw new ApiException(ReportErrorMessage.REPORT_TYPE_REQUIRED.message(), HttpStatus.BAD_REQUEST);
+        }
         if (reason == null) {
             throw new ApiException(ReportErrorMessage.REPORT_REASON_REQUIRED.message(), HttpStatus.BAD_REQUEST);
         }

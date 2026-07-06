@@ -107,6 +107,20 @@ class ReportServiceImplTest {
     }
 
     @Test
+    @DisplayName("신고 대상 유형이 없으면 예외가 발생한다")
+    void 신고_대상_유형_검증() {
+        Member reporter = Member.builder().id(1L).build();
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> reportService.report(reporter, 1L, null, ReportReason.SPAM, "내용"));
+
+        assertThat(ex.getMessage()).isEqualTo(ReportErrorMessage.REPORT_TYPE_REQUIRED.message());
+        verify(reportRepository, never()).save(any());
+        verify(voteRepository, never()).findById(any());
+        verify(commentRepository, never()).findById(any());
+    }
+
+    @Test
     @DisplayName("신고 상세 내용은 비어 있어도 저장할 수 있다")
     void 신고_내용_선택값() {
         Member reporter = Member.builder().id(1L).build();
