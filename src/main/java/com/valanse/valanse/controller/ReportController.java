@@ -5,10 +5,12 @@ import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.ReportType;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.dto.Report.ReportRequest;
+import com.valanse.valanse.dto.Report.ReportDetailResponse;
 import com.valanse.valanse.dto.Report.ReportedTargetResponse;
 import com.valanse.valanse.service.MemberService.MemberService;
 import com.valanse.valanse.service.ReportService.ReportService;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -32,7 +34,7 @@ public class ReportController {
      * ReportController의 Report 기능을 수행하는 메서드입니다.
      */
     @PostMapping("/{targetId}")
-    public ResponseEntity<Void> Report(@PathVariable Long targetId, @RequestBody ReportRequest request) {
+    public ResponseEntity<Void> Report(@PathVariable Long targetId, @Valid @RequestBody ReportRequest request) {
         Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         var member = memberService.findById(loginId);
 
@@ -54,6 +56,18 @@ public class ReportController {
 
         List<ReportedTargetResponse> results = reportService.getReportedTargets(member, type, sort);
         return ResponseEntity.ok().body(results);
+    }
+
+    @GetMapping("/{type}/{targetId}")
+    public ResponseEntity<ReportDetailResponse> getReportDetail(
+            @PathVariable ReportType type,
+            @PathVariable Long targetId) {
+        Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        Member member = SecurityUtils.isCurrentUserAdmin()
+                ? Member.builder().id(loginId).role(Role.ADMIN).build()
+                : memberService.findById(loginId);
+
+        return ResponseEntity.ok(reportService.getReportDetail(member, type, targetId));
     }
 
 }

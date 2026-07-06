@@ -12,11 +12,16 @@ import com.valanse.valanse.domain.enums.ReportReason;
 import com.valanse.valanse.domain.enums.ReportType;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.dto.Report.ReportedTargetResponse;
+import com.valanse.valanse.dto.Report.ReportDetailItemResponse;
+import com.valanse.valanse.dto.Report.ReportDetailResponse;
+import com.valanse.valanse.dto.Report.ReportedCommentResponse;
+import com.valanse.valanse.dto.Report.ReportedVoteResponse;
 import com.valanse.valanse.repository.CommentRepository;
 import com.valanse.valanse.repository.ReportRepository;
 import com.valanse.valanse.repository.ReportRepositoryCustom.ReportRepositoryCustom;
 import com.valanse.valanse.repository.VoteRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,7 +51,7 @@ public class ReportServiceImpl implements ReportService{
 
     @Override
     public void report(Member member, Long targetId, ReportType reportType, ReportReason reason, String content){
-        validateReportRequest(reason);
+        validateReportRequest(reportType, reason, content);
         // ReportType 에 따라서 구분.
         if (reportType == ReportType.VOTE) {
             Vote vote = voteRepository.findById(targetId)
@@ -77,7 +82,7 @@ public class ReportServiceImpl implements ReportService{
                 .content(normalizeContent(content))
                 .build();
 
-        reportRepository.save(report);
+        saveReport(report);
     }
 
     /**
@@ -86,20 +91,75 @@ public class ReportServiceImpl implements ReportService{
     @Override
     @Transactional(readOnly = true)
     public List<ReportedTargetResponse> getReportedTargets(Member member, ReportType type, String sort) {
-        if (member.getRole() != Role.ADMIN) {
-            throw new ApiException(AuthErrorMessage.ADMIN_ONLY.message(), HttpStatus.FORBIDDEN);
-        }
+        validateAdmin(member);
         return reportRepositoryCustom.findReportedTargets(type, sort);
     }
 
-    private void validateReportRequest(ReportReason reason) {
+    @Override
+    @Transactional(readOnly = true)
+    public ReportDetailResponse getReportDetail(Member member, ReportType type, Long targetId) {
+        validateAdmin(member);
+
+        ReportedVoteResponse voteResponse = null;
+        ReportedCommentResponse commentResponse = null;
+
+        if (type == ReportType.VOTE) {
+            Vote vote = voteRepository.findByIdAndDeletedAtIsNull(targetId)
+                    .orElseThrow(() -> new ApiException(
+                            ReportErrorMessage.REPORTED_VOTE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+            voteResponse = new ReportedVoteResponse(vote);
+        } else if (type == ReportType.COMMENT) {
+            Comment comment = commentRepository.findByIdAndDeletedAtIsNull(targetId)
+                    .orElseThrow(() -> new ApiException(
+                            ReportErrorMessage.REPORTED_COMMENT_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+            commentResponse = new ReportedCommentResponse(comment);
+        } else {
+            throw new ApiException(ReportErrorMessage.REPORT_TYPE_REQUIRED.message(), HttpStatus.BAD_REQUEST);
+        }
+
+        List<ReportDetailItemResponse> reports = reportRepository.findDetailsByTarget(type, targetId).stream()
+                .map(ReportDetailItemResponse::new)
+                .toList();
+
+        return ReportDetailResponse.builder()
+                .targetId(targetId)
+                .targetType(type)
+                .reportCount(reports.size())
+                .vote(voteResponse)
+                .comment(commentResponse)
+                .reports(reports)
+                .build();
+    }
+
+    private void validateAdmin(Member member) {
+        if (member.getRole() != Role.ADMIN) {
+            throw new ApiException(AuthErrorMessage.ADMIN_ONLY.message(), HttpStatus.FORBIDDEN);
+        }
+    }
+
+    private void validateReportRequest(ReportType reportType, ReportReason reason, String content) {
+        if (reportType == null) {
+            throw new ApiException(ReportErrorMessage.REPORT_TYPE_REQUIRED.message(), HttpStatus.BAD_REQUEST);
+        }
         if (reason == null) {
             throw new ApiException(ReportErrorMessage.REPORT_REASON_REQUIRED.message(), HttpStatus.BAD_REQUEST);
+        }
+        if (content != null && content.length() > 1000) {
+            throw new ApiException(ReportErrorMessage.REPORT_CONTENT_TOO_LONG.message(), HttpStatus.BAD_REQUEST);
         }
     }
 
     private String normalizeContent(String content) {
         return content == null || content.isBlank() ? null : content.trim();
+    }
+
+    private void saveReport(Report report) {
+        try {
+            reportRepository.save(report);
+            reportRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw new ApiException(ReportErrorMessage.ALREADY_REPORTED.message(), HttpStatus.BAD_REQUEST);
+        }
     }
 
 }

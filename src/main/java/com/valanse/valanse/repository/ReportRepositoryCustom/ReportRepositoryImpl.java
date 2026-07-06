@@ -2,10 +2,8 @@ package com.valanse.valanse.repository.ReportRepositoryCustom;
 
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import com.valanse.valanse.common.api.ApiException;
-import com.valanse.valanse.common.message.ReportErrorMessage;
-import com.valanse.valanse.domain.Comment;
 import com.valanse.valanse.domain.QReport;
+import com.valanse.valanse.domain.Comment;
 import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.enums.ReportType;
 import com.valanse.valanse.dto.Report.ReportedCommentResponse;
@@ -14,11 +12,13 @@ import com.valanse.valanse.dto.Report.ReportedVoteResponse;
 import com.valanse.valanse.repository.CommentRepository;
 import com.valanse.valanse.repository.VoteRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -49,6 +49,25 @@ public class ReportRepositoryImpl implements ReportRepositoryCustom {
                                 : report.createdAt.max().desc()
                 )
                 .fetch();
+
+        List<Long> targetIds = tuples.stream()
+                .map(tuple -> tuple.get(report.targetId))
+                .filter(Objects::nonNull)
+                .toList();
+
+        if (targetIds.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Vote> votesById = type == ReportType.VOTE
+                ? voteRepository.findAllByIdInAndDeletedAtIsNull(targetIds).stream()
+                        .collect(Collectors.toMap(Vote::getId, Function.identity()))
+                : Map.of();
+        Map<Long, Comment> commentsById = type == ReportType.COMMENT
+                ? commentRepository.findAllActiveByIdInWithReportDetails(targetIds).stream()
+                        .collect(Collectors.toMap(Comment::getId, Function.identity()))
+                : Map.of();
+
         // type에 따라서 분기 처리
         return tuples.stream()
                 .map(t -> {
@@ -56,22 +75,20 @@ public class ReportRepositoryImpl implements ReportRepositoryCustom {
                     Long count = t.get(report.count());
 
                     if (type == ReportType.VOTE) {
-                        Vote vote = voteRepository.findByIdAndDeletedAtIsNull(targetId)
-                                .orElseThrow(() -> new ApiException(ReportErrorMessage.REPORTED_VOTE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
-                        return ReportedTargetResponse.builder()
+                        Vote vote = votesById.get(targetId);
+                        return vote == null ? null : ReportedTargetResponse.builder()
                                 .targetId(targetId)
                                 .reportCount(count)
                                 .targetType("VOTE")
-                                .vote(vote != null ? new ReportedVoteResponse(vote) : null)
+                                .vote(new ReportedVoteResponse(vote))
                                 .build();
                     } else if (type == ReportType.COMMENT) {
-                        Comment comment = commentRepository.findByIdAndDeletedAtIsNull(targetId).
-                                orElseThrow(() -> new ApiException(ReportErrorMessage.REPORTED_COMMENT_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
-                        return ReportedTargetResponse.builder()
+                        Comment comment = commentsById.get(targetId);
+                        return comment == null ? null : ReportedTargetResponse.builder()
                                 .targetId(targetId)
                                 .reportCount(count)
                                 .targetType("COMMENT")
-                                .comment(comment != null ? new ReportedCommentResponse(comment) : null)
+                                .comment(new ReportedCommentResponse(comment))
                                 .build();
                     }
                     return null;

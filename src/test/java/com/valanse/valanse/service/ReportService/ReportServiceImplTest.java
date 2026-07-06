@@ -9,6 +9,9 @@ import com.valanse.valanse.domain.Report;
 import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.enums.ReportReason;
 import com.valanse.valanse.domain.enums.ReportType;
+import com.valanse.valanse.domain.enums.Role;
+import com.valanse.valanse.domain.enums.VoteCategory;
+import com.valanse.valanse.dto.Report.ReportDetailResponse;
 import com.valanse.valanse.repository.CommentRepository;
 import com.valanse.valanse.repository.ReportRepository;
 import com.valanse.valanse.repository.VoteRepository;
@@ -19,7 +22,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -84,11 +90,11 @@ class ReportServiceImplTest {
         when(voteRepository.findById(any())).thenReturn(Optional.of(vote));
         when(reportRepository.existsByMemberAndReportTypeAndTargetId(any(), any(), any())).thenReturn(false);
 
-        reportService.report(reporter, 1L, ReportType.VOTE, ReportReason.SPAM, "반복 광고성 게시물입니다.");
+        reportService.report(reporter, 1L, ReportType.VOTE, ReportReason.COMMERCIAL_OR_PROMOTIONAL, "반복 광고성 게시물입니다.");
 
         ArgumentCaptor<Report> captor = ArgumentCaptor.forClass(Report.class);
         verify(reportRepository).save(captor.capture());
-        assertThat(captor.getValue().getReason()).isEqualTo(ReportReason.SPAM);
+        assertThat(captor.getValue().getReason()).isEqualTo(ReportReason.COMMERCIAL_OR_PROMOTIONAL);
         assertThat(captor.getValue().getContent()).isEqualTo("반복 광고성 게시물입니다.");
     }
 
@@ -107,6 +113,20 @@ class ReportServiceImplTest {
     }
 
     @Test
+    @DisplayName("신고 대상 유형이 없으면 예외가 발생한다")
+    void 신고_대상_유형_검증() {
+        Member reporter = Member.builder().id(1L).build();
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> reportService.report(reporter, 1L, null, ReportReason.SPAM, "내용"));
+
+        assertThat(ex.getMessage()).isEqualTo(ReportErrorMessage.REPORT_TYPE_REQUIRED.message());
+        verify(reportRepository, never()).save(any());
+        verify(voteRepository, never()).findById(any());
+        verify(commentRepository, never()).findById(any());
+    }
+
+    @Test
     @DisplayName("신고 상세 내용은 비어 있어도 저장할 수 있다")
     void 신고_내용_선택값() {
         Member reporter = Member.builder().id(1L).build();
@@ -116,7 +136,7 @@ class ReportServiceImplTest {
         when(voteRepository.findById(any())).thenReturn(Optional.of(vote));
         when(reportRepository.existsByMemberAndReportTypeAndTargetId(any(), any(), any())).thenReturn(false);
 
-        reportService.report(reporter, 1L, ReportType.VOTE, ReportReason.SPAM, "");
+        reportService.report(reporter, 1L, ReportType.VOTE, ReportReason.FLOODING_POLITICS_OR_OTHER, "");
 
         ArgumentCaptor<Report> captor = ArgumentCaptor.forClass(Report.class);
         verify(reportRepository).save(captor.capture());
@@ -124,6 +144,25 @@ class ReportServiceImplTest {
     }
 
     // ──────────────────────────────────────────────
+    @Test
+    @DisplayName("신고 상세 내용이 1,000자를 초과하면 예외가 발생한다")
+    void 신고_내용_길이_검증() {
+        Member reporter = Member.builder().id(1L).build();
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> reportService.report(
+                        reporter,
+                        1L,
+                        ReportType.VOTE,
+                        ReportReason.SPAM,
+                        "a".repeat(1001)));
+
+        assertThat(ex.getMessage()).isEqualTo(ReportErrorMessage.REPORT_CONTENT_TOO_LONG.message());
+        verify(reportRepository, never()).save(any());
+        verify(voteRepository, never()).findById(any());
+        verify(commentRepository, never()).findById(any());
+    }
+
     // 자기 자신 신고 불가
     // ──────────────────────────────────────────────
 
@@ -188,6 +227,55 @@ class ReportServiceImplTest {
     }
 
     // ──────────────────────────────────────────────
+    @Test
+    @DisplayName("신고 저장 중 unique 제약 충돌이 발생하면 중복 신고 예외로 변환한다")
+    void 신고_unique제약충돌_중복신고예외() {
+        Member reporter = Member.builder().id(1L).build();
+        Member writer = Member.builder().id(2L).build();
+        Vote vote = Vote.builder().member(writer).build();
+
+        when(voteRepository.findById(1L)).thenReturn(Optional.of(vote));
+        when(reportRepository.existsByMemberAndReportTypeAndTargetId(reporter, ReportType.VOTE, 1L))
+                .thenReturn(false);
+        when(reportRepository.save(any(Report.class)))
+                .thenThrow(new DataIntegrityViolationException("duplicate"));
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> reportService.report(reporter, 1L, ReportType.VOTE));
+
+        assertThat(ex.getMessage()).isEqualTo(ReportErrorMessage.ALREADY_REPORTED.message());
+    }
+
+    @Test
+    @DisplayName("관리자는 대상의 개별 신고 상세를 조회한다")
+    void 관리자_신고_상세_조회() {
+        Member admin = Member.builder().id(1L).role(Role.ADMIN).build();
+        Member reporter = Member.builder().id(2L).nickname("신고자").build();
+        Vote vote = mock(Vote.class);
+        Report report = Report.builder()
+                .member(reporter)
+                .reportType(ReportType.VOTE)
+                .targetId(10L)
+                .reason(ReportReason.SPAM)
+                .content("신고 내용")
+                .build();
+
+        when(vote.getId()).thenReturn(10L);
+        when(vote.getCategory()).thenReturn(VoteCategory.ETC);
+        when(vote.getCreatedAt()).thenReturn(LocalDateTime.of(2026, 7, 6, 12, 0));
+        when(vote.getTotalVoteCount()).thenReturn(0);
+        when(voteRepository.findByIdAndDeletedAtIsNull(10L)).thenReturn(Optional.of(vote));
+        when(reportRepository.findDetailsByTarget(ReportType.VOTE, 10L)).thenReturn(List.of(report));
+
+        ReportDetailResponse response = reportService.getReportDetail(admin, ReportType.VOTE, 10L);
+
+        assertThat(response.getTargetId()).isEqualTo(10L);
+        assertThat(response.getReportCount()).isEqualTo(1);
+        assertThat(response.getReports().get(0).getReporterNickname()).isEqualTo("신고자");
+        assertThat(response.getReports().get(0).getReason()).isEqualTo(ReportReason.SPAM);
+        assertThat(response.getReports().get(0).getContent()).isEqualTo("신고 내용");
+    }
+
     // 존재하지 않는 대상 신고
     // ──────────────────────────────────────────────
 
