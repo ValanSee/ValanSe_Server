@@ -76,6 +76,7 @@ public interface VoteRepository extends JpaRepository<Vote, Long>, VoteRepositor
     // 고정된 투표 찾기
     Optional<Vote> findByPinType(PinType pinType);
     Optional<Vote> findByIdAndDeletedAtIsNull(Long id);
+    List<Vote> findAllByIdInAndDeletedAtIsNull(List<Long> ids);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select v from Vote v where v.id = :id")
