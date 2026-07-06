@@ -4,6 +4,7 @@ import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.ReportReason;
 import com.valanse.valanse.domain.enums.ReportType;
 import com.valanse.valanse.dto.Report.ReportedTargetResponse;
+import com.valanse.valanse.dto.Report.ReportDetailResponse;
 
 import java.util.List;
 
@@ -17,4 +18,5 @@ public interface ReportService {
     void report(Member member, Long targetId, ReportType reportType, ReportReason reason, String content);
     // 신고 대상 조회
     List<ReportedTargetResponse> getReportedTargets(Member member,ReportType type, String sort);
+    ReportDetailResponse getReportDetail(Member member, ReportType type, Long targetId);
 }

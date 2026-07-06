@@ -9,6 +9,9 @@ import com.valanse.valanse.domain.Report;
 import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.enums.ReportReason;
 import com.valanse.valanse.domain.enums.ReportType;
+import com.valanse.valanse.domain.enums.Role;
+import com.valanse.valanse.domain.enums.VoteCategory;
+import com.valanse.valanse.dto.Report.ReportDetailResponse;
 import com.valanse.valanse.repository.CommentRepository;
 import com.valanse.valanse.repository.ReportRepository;
 import com.valanse.valanse.repository.VoteRepository;
@@ -21,6 +24,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -239,6 +244,36 @@ class ReportServiceImplTest {
                 () -> reportService.report(reporter, 1L, ReportType.VOTE));
 
         assertThat(ex.getMessage()).isEqualTo(ReportErrorMessage.ALREADY_REPORTED.message());
+    }
+
+    @Test
+    @DisplayName("관리자는 대상의 개별 신고 상세를 조회한다")
+    void 관리자_신고_상세_조회() {
+        Member admin = Member.builder().id(1L).role(Role.ADMIN).build();
+        Member reporter = Member.builder().id(2L).nickname("신고자").build();
+        Vote vote = mock(Vote.class);
+        Report report = Report.builder()
+                .member(reporter)
+                .reportType(ReportType.VOTE)
+                .targetId(10L)
+                .reason(ReportReason.SPAM)
+                .content("신고 내용")
+                .build();
+
+        when(vote.getId()).thenReturn(10L);
+        when(vote.getCategory()).thenReturn(VoteCategory.ETC);
+        when(vote.getCreatedAt()).thenReturn(LocalDateTime.of(2026, 7, 6, 12, 0));
+        when(vote.getTotalVoteCount()).thenReturn(0);
+        when(voteRepository.findByIdAndDeletedAtIsNull(10L)).thenReturn(Optional.of(vote));
+        when(reportRepository.findDetailsByTarget(ReportType.VOTE, 10L)).thenReturn(List.of(report));
+
+        ReportDetailResponse response = reportService.getReportDetail(admin, ReportType.VOTE, 10L);
+
+        assertThat(response.getTargetId()).isEqualTo(10L);
+        assertThat(response.getReportCount()).isEqualTo(1);
+        assertThat(response.getReports().get(0).getReporterNickname()).isEqualTo("신고자");
+        assertThat(response.getReports().get(0).getReason()).isEqualTo(ReportReason.SPAM);
+        assertThat(response.getReports().get(0).getContent()).isEqualTo("신고 내용");
     }
 
     // 존재하지 않는 대상 신고

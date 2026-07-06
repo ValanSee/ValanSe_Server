@@ -5,6 +5,7 @@ import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.ReportType;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.dto.Report.ReportRequest;
+import com.valanse.valanse.dto.Report.ReportDetailResponse;
 import com.valanse.valanse.dto.Report.ReportedTargetResponse;
 import com.valanse.valanse.service.MemberService.MemberService;
 import com.valanse.valanse.service.ReportService.ReportService;
@@ -55,6 +56,18 @@ public class ReportController {
 
         List<ReportedTargetResponse> results = reportService.getReportedTargets(member, type, sort);
         return ResponseEntity.ok().body(results);
+    }
+
+    @GetMapping("/{type}/{targetId}")
+    public ResponseEntity<ReportDetailResponse> getReportDetail(
+            @PathVariable ReportType type,
+            @PathVariable Long targetId) {
+        Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        Member member = SecurityUtils.isCurrentUserAdmin()
+                ? Member.builder().id(loginId).role(Role.ADMIN).build()
+                : memberService.findById(loginId);
+
+        return ResponseEntity.ok(reportService.getReportDetail(member, type, targetId));
     }
 
 }
