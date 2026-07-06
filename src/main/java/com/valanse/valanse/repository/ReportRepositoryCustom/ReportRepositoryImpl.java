@@ -3,6 +3,8 @@ package com.valanse.valanse.repository.ReportRepositoryCustom;
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.valanse.valanse.domain.QReport;
+import com.valanse.valanse.domain.Comment;
+import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.enums.ReportType;
 import com.valanse.valanse.dto.Report.ReportedCommentResponse;
 import com.valanse.valanse.dto.Report.ReportedTargetResponse;
@@ -13,7 +15,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -44,6 +49,25 @@ public class ReportRepositoryImpl implements ReportRepositoryCustom {
                                 : report.createdAt.max().desc()
                 )
                 .fetch();
+
+        List<Long> targetIds = tuples.stream()
+                .map(tuple -> tuple.get(report.targetId))
+                .filter(Objects::nonNull)
+                .toList();
+
+        if (targetIds.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Vote> votesById = type == ReportType.VOTE
+                ? voteRepository.findAllByIdInAndDeletedAtIsNull(targetIds).stream()
+                        .collect(Collectors.toMap(Vote::getId, Function.identity()))
+                : Map.of();
+        Map<Long, Comment> commentsById = type == ReportType.COMMENT
+                ? commentRepository.findAllActiveByIdInWithReportDetails(targetIds).stream()
+                        .collect(Collectors.toMap(Comment::getId, Function.identity()))
+                : Map.of();
+
         // type에 따라서 분기 처리
         return tuples.stream()
                 .map(t -> {
@@ -51,23 +75,21 @@ public class ReportRepositoryImpl implements ReportRepositoryCustom {
                     Long count = t.get(report.count());
 
                     if (type == ReportType.VOTE) {
-                        return voteRepository.findByIdAndDeletedAtIsNull(targetId)
-                                .map(vote -> ReportedTargetResponse.builder()
-                                        .targetId(targetId)
-                                        .reportCount(count)
-                                        .targetType("VOTE")
-                                        .vote(new ReportedVoteResponse(vote))
-                                        .build())
-                                .orElse(null);
+                        Vote vote = votesById.get(targetId);
+                        return vote == null ? null : ReportedTargetResponse.builder()
+                                .targetId(targetId)
+                                .reportCount(count)
+                                .targetType("VOTE")
+                                .vote(new ReportedVoteResponse(vote))
+                                .build();
                     } else if (type == ReportType.COMMENT) {
-                        return commentRepository.findByIdAndDeletedAtIsNull(targetId)
-                                .map(comment -> ReportedTargetResponse.builder()
-                                        .targetId(targetId)
-                                        .reportCount(count)
-                                        .targetType("COMMENT")
-                                        .comment(new ReportedCommentResponse(comment))
-                                        .build())
-                                .orElse(null);
+                        Comment comment = commentsById.get(targetId);
+                        return comment == null ? null : ReportedTargetResponse.builder()
+                                .targetId(targetId)
+                                .reportCount(count)
+                                .targetType("COMMENT")
+                                .comment(new ReportedCommentResponse(comment))
+                                .build();
                     }
                     return null;
                 })
