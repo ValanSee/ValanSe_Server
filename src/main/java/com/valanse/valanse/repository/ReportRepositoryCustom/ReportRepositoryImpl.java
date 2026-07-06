@@ -2,11 +2,7 @@ package com.valanse.valanse.repository.ReportRepositoryCustom;
 
 import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import com.valanse.valanse.common.api.ApiException;
-import com.valanse.valanse.common.message.ReportErrorMessage;
-import com.valanse.valanse.domain.Comment;
 import com.valanse.valanse.domain.QReport;
-import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.enums.ReportType;
 import com.valanse.valanse.dto.Report.ReportedCommentResponse;
 import com.valanse.valanse.dto.Report.ReportedTargetResponse;
@@ -14,7 +10,6 @@ import com.valanse.valanse.dto.Report.ReportedVoteResponse;
 import com.valanse.valanse.repository.CommentRepository;
 import com.valanse.valanse.repository.VoteRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -56,23 +51,23 @@ public class ReportRepositoryImpl implements ReportRepositoryCustom {
                     Long count = t.get(report.count());
 
                     if (type == ReportType.VOTE) {
-                        Vote vote = voteRepository.findByIdAndDeletedAtIsNull(targetId)
-                                .orElseThrow(() -> new ApiException(ReportErrorMessage.REPORTED_VOTE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
-                        return ReportedTargetResponse.builder()
-                                .targetId(targetId)
-                                .reportCount(count)
-                                .targetType("VOTE")
-                                .vote(vote != null ? new ReportedVoteResponse(vote) : null)
-                                .build();
+                        return voteRepository.findByIdAndDeletedAtIsNull(targetId)
+                                .map(vote -> ReportedTargetResponse.builder()
+                                        .targetId(targetId)
+                                        .reportCount(count)
+                                        .targetType("VOTE")
+                                        .vote(new ReportedVoteResponse(vote))
+                                        .build())
+                                .orElse(null);
                     } else if (type == ReportType.COMMENT) {
-                        Comment comment = commentRepository.findByIdAndDeletedAtIsNull(targetId).
-                                orElseThrow(() -> new ApiException(ReportErrorMessage.REPORTED_COMMENT_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
-                        return ReportedTargetResponse.builder()
-                                .targetId(targetId)
-                                .reportCount(count)
-                                .targetType("COMMENT")
-                                .comment(comment != null ? new ReportedCommentResponse(comment) : null)
-                                .build();
+                        return commentRepository.findByIdAndDeletedAtIsNull(targetId)
+                                .map(comment -> ReportedTargetResponse.builder()
+                                        .targetId(targetId)
+                                        .reportCount(count)
+                                        .targetType("COMMENT")
+                                        .comment(new ReportedCommentResponse(comment))
+                                        .build())
+                                .orElse(null);
                     }
                     return null;
                 })

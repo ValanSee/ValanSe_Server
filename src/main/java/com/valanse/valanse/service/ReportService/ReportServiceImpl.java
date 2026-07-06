@@ -17,6 +17,7 @@ import com.valanse.valanse.repository.ReportRepository;
 import com.valanse.valanse.repository.ReportRepositoryCustom.ReportRepositoryCustom;
 import com.valanse.valanse.repository.VoteRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,7 +78,7 @@ public class ReportServiceImpl implements ReportService{
                 .content(normalizeContent(content))
                 .build();
 
-        reportRepository.save(report);
+        saveReport(report);
     }
 
     /**
@@ -103,6 +104,15 @@ public class ReportServiceImpl implements ReportService{
 
     private String normalizeContent(String content) {
         return content == null || content.isBlank() ? null : content.trim();
+    }
+
+    private void saveReport(Report report) {
+        try {
+            reportRepository.save(report);
+            reportRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw new ApiException(ReportErrorMessage.ALREADY_REPORTED.message(), HttpStatus.BAD_REQUEST);
+        }
     }
 
 }

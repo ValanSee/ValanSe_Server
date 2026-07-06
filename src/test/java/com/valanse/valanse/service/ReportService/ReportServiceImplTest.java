@@ -19,6 +19,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.Optional;
 
@@ -202,6 +203,25 @@ class ReportServiceImplTest {
     }
 
     // ──────────────────────────────────────────────
+    @Test
+    @DisplayName("신고 저장 중 unique 제약 충돌이 발생하면 중복 신고 예외로 변환한다")
+    void 신고_unique제약충돌_중복신고예외() {
+        Member reporter = Member.builder().id(1L).build();
+        Member writer = Member.builder().id(2L).build();
+        Vote vote = Vote.builder().member(writer).build();
+
+        when(voteRepository.findById(1L)).thenReturn(Optional.of(vote));
+        when(reportRepository.existsByMemberAndReportTypeAndTargetId(reporter, ReportType.VOTE, 1L))
+                .thenReturn(false);
+        when(reportRepository.save(any(Report.class)))
+                .thenThrow(new DataIntegrityViolationException("duplicate"));
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> reportService.report(reporter, 1L, ReportType.VOTE));
+
+        assertThat(ex.getMessage()).isEqualTo(ReportErrorMessage.ALREADY_REPORTED.message());
+    }
+
     // 존재하지 않는 대상 신고
     // ──────────────────────────────────────────────
 
