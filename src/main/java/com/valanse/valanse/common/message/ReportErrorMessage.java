@@ -10,6 +10,7 @@ public enum ReportErrorMessage {
     ALREADY_REPORTED("이미 신고한 대상입니다."),
     REPORT_TYPE_REQUIRED("신고 대상 유형을 입력해주세요."),
     REPORT_REASON_REQUIRED("신고 사유를 입력해주세요."),
+    REPORT_CONTENT_TOO_LONG("신고 상세 내용은 1,000자 이하로 입력해주세요."),
     REPORTED_VOTE_NOT_FOUND("해당 밸런스게임을 찾을 수 없습니다."),
     REPORTED_COMMENT_NOT_FOUND("해당 댓글을 찾을 수 없습니다.");
 

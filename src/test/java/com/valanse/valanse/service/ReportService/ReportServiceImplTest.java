@@ -139,6 +139,25 @@ class ReportServiceImplTest {
     }
 
     // ──────────────────────────────────────────────
+    @Test
+    @DisplayName("신고 상세 내용이 1,000자를 초과하면 예외가 발생한다")
+    void 신고_내용_길이_검증() {
+        Member reporter = Member.builder().id(1L).build();
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> reportService.report(
+                        reporter,
+                        1L,
+                        ReportType.VOTE,
+                        ReportReason.SPAM,
+                        "a".repeat(1001)));
+
+        assertThat(ex.getMessage()).isEqualTo(ReportErrorMessage.REPORT_CONTENT_TOO_LONG.message());
+        verify(reportRepository, never()).save(any());
+        verify(voteRepository, never()).findById(any());
+        verify(commentRepository, never()).findById(any());
+    }
+
     // 자기 자신 신고 불가
     // ──────────────────────────────────────────────
 

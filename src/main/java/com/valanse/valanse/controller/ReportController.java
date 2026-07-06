@@ -9,6 +9,7 @@ import com.valanse.valanse.dto.Report.ReportedTargetResponse;
 import com.valanse.valanse.service.MemberService.MemberService;
 import com.valanse.valanse.service.ReportService.ReportService;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -32,7 +33,7 @@ public class ReportController {
      * ReportController의 Report 기능을 수행하는 메서드입니다.
      */
     @PostMapping("/{targetId}")
-    public ResponseEntity<Void> Report(@PathVariable Long targetId, @RequestBody ReportRequest request) {
+    public ResponseEntity<Void> Report(@PathVariable Long targetId, @Valid @RequestBody ReportRequest request) {
         Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         var member = memberService.findById(loginId);
 
