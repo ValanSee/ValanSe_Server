@@ -84,11 +84,11 @@ class ReportServiceImplTest {
         when(voteRepository.findById(any())).thenReturn(Optional.of(vote));
         when(reportRepository.existsByMemberAndReportTypeAndTargetId(any(), any(), any())).thenReturn(false);
 
-        reportService.report(reporter, 1L, ReportType.VOTE, ReportReason.SPAM, "반복 광고성 게시물입니다.");
+        reportService.report(reporter, 1L, ReportType.VOTE, ReportReason.COMMERCIAL_OR_PROMOTIONAL, "반복 광고성 게시물입니다.");
 
         ArgumentCaptor<Report> captor = ArgumentCaptor.forClass(Report.class);
         verify(reportRepository).save(captor.capture());
-        assertThat(captor.getValue().getReason()).isEqualTo(ReportReason.SPAM);
+        assertThat(captor.getValue().getReason()).isEqualTo(ReportReason.COMMERCIAL_OR_PROMOTIONAL);
         assertThat(captor.getValue().getContent()).isEqualTo("반복 광고성 게시물입니다.");
     }
 
@@ -116,7 +116,7 @@ class ReportServiceImplTest {
         when(voteRepository.findById(any())).thenReturn(Optional.of(vote));
         when(reportRepository.existsByMemberAndReportTypeAndTargetId(any(), any(), any())).thenReturn(false);
 
-        reportService.report(reporter, 1L, ReportType.VOTE, ReportReason.SPAM, "");
+        reportService.report(reporter, 1L, ReportType.VOTE, ReportReason.FLOODING_POLITICS_OR_OTHER, "");
 
         ArgumentCaptor<Report> captor = ArgumentCaptor.forClass(Report.class);
         verify(reportRepository).save(captor.capture());

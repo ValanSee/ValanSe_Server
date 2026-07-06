@@ -5,6 +5,8 @@ package com.valanse.valanse.domain.enums;
  */
 public enum ReportReason {
     SPAM("스팸"),
+    COMMERCIAL_OR_PROMOTIONAL("영리목적/홍보성"),
+    FLOODING_POLITICS_OR_OTHER("도배/정치"),
     SEXUAL_CONTENT("성적 콘텐츠"),
     HATE_OR_HARASSMENT("혐오 또는 괴롭힘"),
     VIOLENCE_OR_THREAT("폭력 또는 위협"),
