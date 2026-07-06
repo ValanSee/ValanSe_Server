@@ -14,29 +14,32 @@ import static org.mockito.Mockito.mock;
 class SecurityConfigCorsTest {
 
     @Test
-    @DisplayName("prod profile에서는 운영 및 프리뷰 도메인 CORS origin을 허용한다")
-    void corsConfiguration_ProdProfile_AllowsProductionAndPreviewOrigins() {
+    @DisplayName("prod profile에서는 운영 도메인만 CORS origin으로 허용한다")
+    void corsConfiguration_ProdProfile_AllowsOnlyProductionOrigins() {
         CorsConfiguration configuration = corsConfiguration("prod");
 
         assertThat(configuration.checkOrigin("https://valanse.kr")).isEqualTo("https://valanse.kr");
         assertThat(configuration.checkOrigin("https://www.valanse.kr")).isEqualTo("https://www.valanse.kr");
-        assertThat(configuration.checkOrigin("https://feature-preview.vercel.app"))
-                .isEqualTo("https://feature-preview.vercel.app");
-        assertThat(configuration.checkOrigin("https://test-front-security.netlify.app"))
-                .isEqualTo("https://test-front-security.netlify.app");
+        assertThat(configuration.checkOrigin(
+                "https://valanse-origin-repo-git-feature-125onb-97e2be-emithens-projects.vercel.app"
+        )).isNull();
+        assertThat(configuration.checkOrigin("https://develop.valanse.kr")).isNull();
     }
 
     @Test
-    @DisplayName("local profile에서는 localhost와 개발 도메인 origin을 허용한다")
-    void corsConfiguration_LocalProfile_AllowsDevelopmentOrigins() {
-        CorsConfiguration configuration = corsConfiguration("local");
+    @DisplayName("dev profile에서는 localhost, 개발 도메인, ValanSe 프리뷰만 허용한다")
+    void corsConfiguration_DevProfile_AllowsOnlyValanseDevelopmentOrigins() {
+        CorsConfiguration configuration = corsConfiguration("dev");
 
         assertThat(configuration.checkOrigin("http://localhost:3000")).isEqualTo("http://localhost:3000");
         assertThat(configuration.checkOrigin("https://develop.valanse.kr")).isEqualTo("https://develop.valanse.kr");
-        assertThat(configuration.checkOrigin("https://feature-preview.vercel.app"))
-                .isEqualTo("https://feature-preview.vercel.app");
-        assertThat(configuration.checkOrigin("https://test-front-security.netlify.app"))
-                .isEqualTo("https://test-front-security.netlify.app");
+        assertThat(configuration.checkOrigin(
+                "https://valanse-origin-repo-git-feature-125onb-97e2be-emithens-projects.vercel.app"
+        )).isEqualTo(
+                "https://valanse-origin-repo-git-feature-125onb-97e2be-emithens-projects.vercel.app"
+        );
+        assertThat(configuration.checkOrigin("https://attacker-project.vercel.app")).isNull();
+        assertThat(configuration.checkOrigin("https://test-front-security.netlify.app")).isNull();
     }
 
     private CorsConfiguration corsConfiguration(String activeProfile) {

@@ -24,6 +24,17 @@ import java.util.List;
  * Spring Security 인가 규칙, CORS, JWT 필터 체인을 구성하는 보안 설정 코드입니다.
  */
 public class SecurityConfig {
+    private static final String DEFAULT_PREVIEW_ORIGIN_PATTERN =
+            "https://valanse-origin-repo-*-emithens-projects.vercel.app";
+
+    private static final String[] SWAGGER_ENDPOINTS = {
+            "/v3/api-docs/**",
+            "/swagger-ui/**",
+            "/swagger-ui.html",
+            "/swagger-resources/**",
+            "/webjars/**"
+    };
+
     private final JwtTokenFilter jwtTokenFilter;
     private final Environment environment;
     // 테스트용 주석
@@ -49,7 +60,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-                .authorizeHttpRequests(auth -> auth
+                .authorizeHttpRequests(auth -> {
+                    if (isProdProfile()) {
+                        auth.requestMatchers(SWAGGER_ENDPOINTS).denyAll();
+                    } else {
+                        auth.requestMatchers(SWAGGER_ENDPOINTS).permitAll();
+                    }
+
+                    auth
                         // Preflight (CORS)
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
@@ -58,12 +76,7 @@ public class SecurityConfig {
                                 "/auth/kakao/login",
                                 "/auth/admin/login",
                                 "/auth/reissue",
-                                "/health",
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/swagger-resources/**",
-                                "/webjars/**"
+                                "/health"
                         ).permitAll()
 
                         .requestMatchers(HttpMethod.POST, "/analytics/events/page-view").permitAll()
@@ -107,8 +120,8 @@ public class SecurityConfig {
                         .requestMatchers("/member/**").authenticated()
 
                         // 나머지 모든 요청
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated();
+                })
                 .cors(c -> c.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -149,35 +162,19 @@ public class SecurityConfig {
 
         return Arrays.asList(
                 "http://localhost:3000",
-                "https://valanse.kr",
-                "https://www.valanse.kr",
-                "https://develop.valanse.kr",
-                "http://valanserver.store",
-                "http://valanserver.store:8080",
-                "http://valanserver.store:8081",
-                "http://valanserver.store:8082",
-                "https://valanserver.store:8080",
-                "https://valanserver.store:8081",
-                "https://valanserver.store:8082"
+                "https://develop.valanse.kr"
         );
     }
 
     private List<String> allowedOriginPatterns() {
         if (isProdProfile()) {
-            return List.of(
-                    "https://*.vercel.app",
-                    "https://*.netlify.app"
-            );
+            return List.of();
         }
 
         return Arrays.asList(
                 "http://localhost:*",
                 "http://127.0.0.1:*",
-                "https://*.valanse.kr",
-                "https://*.vercel.app",
-                "https://*.netlify.app",
-                "http://valanserver.store:[*]",
-                "https://valanserver.store:[*]"
+                environment.getProperty("cors.preview-origin-pattern", DEFAULT_PREVIEW_ORIGIN_PATTERN)
         );
     }
 

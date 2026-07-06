@@ -1,5 +1,6 @@
 package com.valanse.valanse.service.VoteService;
 
+import com.valanse.valanse.common.api.PaginationValidator;
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.common.auth.SecurityUtils;
 import com.valanse.valanse.common.message.MemberErrorMessage;
@@ -573,9 +574,7 @@ public class VoteServiceImpl implements VoteService {
     }
 
     private void validateVoteListRequest(String category, String sort, String cursor, int size) {
-        if (size < 1) {
-            throw new ApiException(VoteErrorMessage.SIZE_INVALID.message(), HttpStatus.BAD_REQUEST);
-        }
+        PaginationValidator.validateSize(size);
 
         validateCategory(category);
         validateSort(sort);

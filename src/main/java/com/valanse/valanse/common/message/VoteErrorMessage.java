@@ -16,7 +16,6 @@ public enum VoteErrorMessage {
     VOTE_OPTION_IMAGE_NOT_FOUND("투표 옵션 이미지 파일을 찾을 수 없습니다."),
     VOTE_OPTION_IMAGE_KEY_DUPLICATED("투표 옵션 이미지 키는 중복될 수 없습니다."),
     VOTE_ALREADY_PROCESSED("이미 처리된 투표 요청입니다."),
-    SIZE_INVALID("size는 1 이상이어야 합니다."),
     CATEGORY_INVALID("category는 ALL, FOOD, LOVE, BUY, SPORT, WORRY, ETC 중 하나여야 합니다."),
     SORT_INVALID("sort는 latest 또는 popular 중 하나여야 합니다."),
     CURSOR_INVALID("cursor 형식이 올바르지 않습니다."),
