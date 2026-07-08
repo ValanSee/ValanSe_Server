@@ -56,7 +56,7 @@ public class ReportServiceImpl implements ReportService{
         if (reportType == ReportType.VOTE) {
             Vote vote = voteRepository.findById(targetId)
                     .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_DETAIL_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
-            if (vote.getMember().getId().equals(member.getId())) {
+            if (vote.getMember() != null && vote.getMember().getId().equals(member.getId())) {
                 throw new ApiException(ReportErrorMessage.OWN_VOTE_REPORT_NOT_ALLOWED.message(), HttpStatus.BAD_REQUEST);
             }
         }
@@ -64,7 +64,7 @@ public class ReportServiceImpl implements ReportService{
         if (reportType == ReportType.COMMENT) {
             Comment comment = commentRepository.findById(targetId)
                     .orElseThrow(() -> new ApiException(ReportErrorMessage.COMMENT_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
-            if (comment.getMember().getId().equals(member.getId())) {
+            if (comment.getMember() != null && comment.getMember().getId().equals(member.getId())) {
                 throw new ApiException(ReportErrorMessage.OWN_COMMENT_REPORT_NOT_ALLOWED.message(), HttpStatus.BAD_REQUEST);
             }
         }

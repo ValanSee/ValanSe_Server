@@ -64,7 +64,7 @@ public class CommentServiceImpl implements CommentService {
         }
 
         // Soft delete 처리
-        comment.setDeletedAt(LocalDateTime.now());
+        comment.markDeleted();
         commentRepository.save(comment);
 
         // ✅ 추가: 카운트 감소 로직
@@ -143,7 +143,6 @@ public class CommentServiceImpl implements CommentService {
                 .parent(parent)
                 .likeCount(0)
                 .replyCount(0)
-                .deletedAt(null)
                 .build();
 
         // ✅ 수정: 부모 댓글일 때만 totalCommentCount 증가
@@ -227,10 +226,11 @@ public class CommentServiceImpl implements CommentService {
 
         return replies.stream()
                 .map(reply -> {
-                    MemberProfile profile = memberProfileRepository.findByMemberId(reply.getMember().getId())
-                            .orElseThrow(() -> new ApiException(ProfileErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+                    Member replyMember = reply.getMember();
+                    MemberProfile profile = replyMember == null ? null
+                            : memberProfileRepository.findByMemberId(replyMember.getId()).orElse(null);
 
-                    VoteLabel label = reply.getMember().getMemberVoteOptions().stream()
+                    VoteLabel label = replyMember == null ? null : replyMember.getMemberVoteOptions().stream()
                             .filter(opt -> opt.getVoteOption().getVote().getId().equals(voteId))
                             .map(opt -> opt.getVoteOption().getLabel())
                             .findFirst()
@@ -245,18 +245,19 @@ public class CommentServiceImpl implements CommentService {
 
                     boolean isAdmin = loginUser != null && loginUser.getRole() == Role.ADMIN;
                     boolean canDelete = false;
-                    if (loginUser != null && vote.getMember() != null) {
-                        canDelete = isAdmin || vote.getMember().getId().equals(loginUser.getId());
+                    if (loginUser != null) {
+                        canDelete = isAdmin || (replyMember != null && replyMember.getId().equals(loginUser.getId()));
                     }
 
                     return CommentReplyResponseDto.builder()
                             .id(reply.getId())
-                            .nickname(profile.getNickname())
-                            .title(getEquippedTitleName(reply.getMember().getId()))
+                            .nickname(profile != null ? profile.getNickname() : "탈퇴한 사용자")
+                            .title(replyMember != null ? getEquippedTitleName(replyMember.getId()) : null)
                             .createdAt(reply.getCreatedAt())
                             .content(reply.getContent())
                             .likeCount(reply.getLikeCount())
                             .replyCount(reply.getReplyCount())
+                            .isDeleted(reply.getDeletedAt() != null)
                             .deletedAt(reply.getDeletedAt())
                             .label(label)
                             .daysAgo(daysAgo)

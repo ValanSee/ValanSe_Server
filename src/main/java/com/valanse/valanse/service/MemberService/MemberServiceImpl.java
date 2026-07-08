@@ -7,6 +7,7 @@ import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.repository.MemberRepository;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.service.PointService.PointService;
+import com.valanse.valanse.service.RefreshTokenService.RefreshTokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,6 +24,7 @@ public class MemberServiceImpl implements MemberService {
     private final MemberRepository memberRepository;
     private final MemberProfileRepository memberProfileRepository;
     private final PointService pointService;
+    private final RefreshTokenService refreshTokenService;
 
     /**
      * MemberBySocialId 정보를 조회하는 메서드입니다.
@@ -65,6 +67,8 @@ public class MemberServiceImpl implements MemberService {
                 .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         member.softDelete(); // Soft delete 처리
+        member.revokeCredentials();
+        refreshTokenService.deleteRefreshToken(String.valueOf(userId));
 
         // MemberProfile도 함께 soft delete (닉네임 중복 방지)
         memberProfileRepository.findByMemberId(userId)
