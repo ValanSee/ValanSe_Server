@@ -7,6 +7,7 @@ import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberRepository;
+import com.valanse.valanse.service.RefreshTokenService.RefreshTokenService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,9 @@ class MemberServiceImplTest {
 
     @Mock
     private MemberProfileRepository memberProfileRepository;
+
+    @Mock
+    private RefreshTokenService refreshTokenService;
 
     @BeforeEach
     void setupSecurityContext() {
@@ -67,6 +71,7 @@ class MemberServiceImplTest {
         assertNotNull(profile.getDeletedAt(), "MemberProfile의 deletedAt도 함께 설정되어야 한다");
         verify(memberRepository, times(1)).save(member);
         verify(memberProfileRepository, times(1)).findByMemberId(1L);
+        verify(refreshTokenService).deleteRefreshToken("1");
     }
 
     @Test

@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Table(indexes = @Index(name = "idx_vote_deleted_at", columnList = "deleted_at"))
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -58,7 +59,7 @@ public class Vote extends BaseEntity {
     private CommentGroup commentGroup;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id", nullable = false)
+    @JoinColumn(name = "member_id")
     private Member member;
 
     // 추가
