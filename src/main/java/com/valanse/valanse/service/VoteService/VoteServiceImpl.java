@@ -332,7 +332,7 @@ public class VoteServiceImpl implements VoteService {
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_DETAIL_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         // MemberProfile의 nickname을 가져오도록 수정
-        String creatorNickname = "탈퇴한 사용자";
+        String creatorNickname = null;
         String creatorTitle = getEquippedTitleName(vote.getMember());
         if (vote.getMember() != null && vote.getMember().getProfile() != null) {
             creatorNickname = vote.getMember().getProfile().getNickname();
@@ -522,7 +522,7 @@ public class VoteServiceImpl implements VoteService {
 
         List<VoteListResponse.VoteDto> voteDtos = votes.stream()
                 .map(vote -> {
-                    String creatorNickname = "탈퇴한 사용자";
+                    String creatorNickname = "익명";
                     if (vote.getMember() != null && vote.getMember().getProfile() != null) {
                         creatorNickname = vote.getMember().getProfile().getNickname();
                     } else if (vote.getMember() != null && vote.getMember().getName() != null) {
@@ -650,7 +650,7 @@ public class VoteServiceImpl implements VoteService {
                 .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         // 권한 확인 - 자기 자신 혹은 관리자
-        if ((vote.getMember() == null || !vote.getMember().getId().equals(userId)) && member.getRole() != Role.ADMIN) {
+        if (!vote.getMember().getId().equals(userId) && member.getRole() != Role.ADMIN) {
             throw new ApiException(VoteErrorMessage.DELETE_PERMISSION_DENIED.message(), HttpStatus.FORBIDDEN);
         }
 

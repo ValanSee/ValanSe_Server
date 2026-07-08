@@ -3,10 +3,8 @@ package com.valanse.valanse;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing; //  추가
-import org.springframework.scheduling.annotation.EnableScheduling;
 
 @EnableJpaAuditing
-@EnableScheduling
 @SpringBootApplication
 /**
  * 애플리케이션 기능을 구성하는 Java 코드입니다.

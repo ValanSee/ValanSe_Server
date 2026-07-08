@@ -37,7 +37,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long>, Comment
     Optional<Comment> findByIdAndDeletedAtIsNull(Long id);
 
     @Query("select c from Comment c " +
-            "left join fetch c.member " +
+            "join fetch c.member " +
             "join fetch c.commentGroup cg " +
             "join fetch cg.vote " +
             "where c.id in :ids and c.deletedAt is null")
