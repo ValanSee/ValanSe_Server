@@ -39,7 +39,7 @@ public class CommentResponseDto {
                               Boolean canDelete) {
         this.commentId = commentId;
         this.voteId = voteId;
-        this.nickname = nickname;
+        this.nickname = nickname != null ? nickname : "탈퇴한 사용자";
         this.title = title;
         this.commentCreatedAt = commentCreatedAt;
         this.voteCreatedAt = voteCreatedAt;

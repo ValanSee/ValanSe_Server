@@ -7,6 +7,7 @@ import com.valanse.valanse.domain.*;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.dto.Comment.BestCommentResponseDto;
 import com.valanse.valanse.dto.Comment.CommentPostRequest;
+import com.valanse.valanse.dto.Comment.CommentReplyResponseDto;
 import com.valanse.valanse.repository.*;
 import com.valanse.valanse.service.PointService.PointService;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,7 +19,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -90,7 +94,6 @@ class CommentServiceImplTest {
                 .parent(null)
                 .likeCount(0)
                 .replyCount(0)
-                .deletedAt(null)
                 .build();
 
         // stub
@@ -141,7 +144,6 @@ class CommentServiceImplTest {
                 .parent(parentComment)
                 .likeCount(0)
                 .replyCount(0)
-                .deletedAt(null)
                 .build();
 
         // stub
@@ -254,7 +256,6 @@ class CommentServiceImplTest {
                 .parent(null) // 부모 댓글
                 .likeCount(0)
                 .replyCount(0)
-                .deletedAt(null)
                 .build();
 
         // stub
@@ -295,7 +296,6 @@ class CommentServiceImplTest {
                 .parent(parentComment) // 대댓글
                 .likeCount(0)
                 .replyCount(0)
-                .deletedAt(null)
                 .build();
 
         // stub
@@ -329,7 +329,6 @@ class CommentServiceImplTest {
                 .member(member) // 작성자는 일반 사용자
                 .commentGroup(commentGroup)
                 .parent(null)
-                .deletedAt(null)
                 .build();
 
         // stub
@@ -357,7 +356,6 @@ class CommentServiceImplTest {
                 .id(10L)
                 .content("다른 사용자 댓글")
                 .member(member) // 작성자는 member (id=1)
-                .deletedAt(null)
                 .build();
 
         // stub
@@ -508,5 +506,40 @@ class CommentServiceImplTest {
 
         assertThat(ex.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
         verify(commentRepository, never()).findAllByParentId(any());
+    }
+
+    @Test
+    @DisplayName("삭제된 대댓글 응답의 isDeleted는 true")
+    void 삭제된대댓글_isDeleted_true() {
+        Comment parent = Comment.builder()
+                .id(10L)
+                .member(member)
+                .commentGroup(commentGroup)
+                .build();
+        Comment reply = Comment.builder()
+                .id(11L)
+                .member(member)
+                .commentGroup(commentGroup)
+                .parent(parent)
+                .likeCount(0)
+                .replyCount(0)
+                .build();
+        reply.markDeleted();
+        ReflectionTestUtils.setField(reply, "createdAt", LocalDateTime.now().minusHours(1));
+        MemberProfile profile = MemberProfile.builder().member(member).nickname("테스터").build();
+
+        when(voteRepository.findById(1L)).thenReturn(Optional.of(vote));
+        when(commentRepository.findById(10L)).thenReturn(Optional.of(parent));
+        when(commentRepository.findAllByParentId(10L)).thenReturn(List.of(reply));
+        when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.of(profile));
+        when(memberProfileTitleRepository.findByMemberProfileMemberIdAndEquippedTrue(1L))
+                .thenReturn(Optional.empty());
+
+        List<CommentReplyResponseDto> responses = commentService.getReplies(member, 1L, 10L);
+
+        assertThat(responses).singleElement().satisfies(response -> {
+            assertThat(response.isDeleted()).isTrue();
+            assertThat(response.getDeletedAt()).isNotNull();
+        });
     }
 }

@@ -18,6 +18,7 @@ import java.util.List;
 @NoArgsConstructor
 @Getter
 @Entity
+@Table(indexes = @Index(name = "idx_member_deleted_at", columnList = "deleted_at"))
 /**
  * Member 정보를 저장하고 연관관계를 표현하는 JPA 도메인 엔티티 코드입니다.
  */
@@ -71,5 +72,10 @@ public class Member extends BaseEntity {
 
     public void updateProfileImageUrl(String profileImageUrl) {
         this.profile_image_url = profileImageUrl;
+    }
+
+    public void revokeCredentials() {
+        this.kakaoAccessToken = null;
+        this.kakaoRefreshToken = null;
     }
 }

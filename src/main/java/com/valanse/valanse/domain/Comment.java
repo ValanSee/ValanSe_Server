@@ -8,11 +8,11 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
-
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Table(indexes = @Index(name = "idx_comment_purge", columnList = "deleted_at,purged_at"))
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -36,7 +36,7 @@ public class Comment extends BaseEntity {
 
     private Integer replyCount; // 대댓글 개수
 
-    private LocalDateTime deletedAt;
+    private LocalDateTime purgedAt;
 
     @ManyToOne
     @JoinColumn(name = "member_id")
@@ -77,11 +77,9 @@ public class Comment extends BaseEntity {
         this.likeCount = count;
     }
 
-    /**
-     * Comment의 setDeletedAt 기능을 수행하는 메서드입니다.
-     */
-    public void setDeletedAt(LocalDateTime deletedAt) {  // 메서드 변경
-        this.deletedAt = deletedAt;
+    public void markDeleted() {
+        softDelete();
+        this.title = null;
+        this.content = "삭제된 댓글입니다";
     }
 }
-
