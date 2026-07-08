@@ -19,6 +19,22 @@ public class SoftDeletePurgeService {
     private final StorageService storageService;
     private final PurgeProperties properties;
 
+    @Transactional(readOnly = true)
+    public PurgePreview preview(LocalDateTime now) {
+        LocalDateTime cutoff = now.minusDays(properties.retentionDays());
+        Timestamp cutoffTimestamp = Timestamp.valueOf(cutoff);
+        Long comments = jdbcTemplate.queryForObject(
+                "select count(*) from comment where deleted_at < ? and purged_at is null",
+                Long.class, cutoffTimestamp);
+        Long votes = jdbcTemplate.queryForObject(
+                "select count(*) from vote where deleted_at < ?",
+                Long.class, cutoffTimestamp);
+        Long members = jdbcTemplate.queryForObject(
+                "select count(*) from member where deleted_at < ?",
+                Long.class, cutoffTimestamp);
+        return new PurgePreview(cutoff, valueOrZero(comments), valueOrZero(votes), valueOrZero(members));
+    }
+
     @Transactional
     public PurgeResult purgeExpired(LocalDateTime now) {
         LocalDateTime cutoff = now.minusDays(properties.retentionDays());
@@ -87,5 +103,9 @@ public class SoftDeletePurgeService {
 
     private void deleteImages(List<String> urls) {
         urls.forEach(storageService::deleteImageByUrl);
+    }
+
+    private long valueOrZero(Long value) {
+        return value == null ? 0L : value;
     }
 }
