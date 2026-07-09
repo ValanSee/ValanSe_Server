@@ -25,20 +25,36 @@ public class SoftDeletePurgeScheduler {
             log.info("Soft-delete purge skipped because a previous execution is still running");
             return;
         }
+        long startedAt = System.nanoTime();
+        LocalDateTime startedNow = LocalDateTime.now();
+        LocalDateTime cutoff = startedNow.minusDays(properties.retentionDays());
         int comments = 0;
         int votes = 0;
         int members = 0;
+        int batches = 0;
+        log.info("PURGE_STARTED cutoff={} retentionDays={} batchSize={}",
+                cutoff, properties.retentionDays(), properties.batchSize());
         try {
             while (true) {
                 PurgeResult result = purgeService.purgeExpired(LocalDateTime.now());
+                batches++;
                 comments += result.commentsAnonymized();
                 votes += result.votesDeleted();
                 members += result.membersDeleted();
                 if (result.commentsAnonymized() == 0 && result.votesDeleted() == 0 && result.membersDeleted() == 0) break;
             }
-            log.info("Soft-delete purge completed: comments={}, votes={}, members={}", comments, votes, members);
+            log.info("PURGE_COMPLETED batches={} comments={} votes={} members={} durationMs={}",
+                    batches, comments, votes, members, elapsedMillis(startedAt));
+        } catch (RuntimeException e) {
+            log.error("PURGE_FAILED batches={} comments={} votes={} members={} durationMs={}",
+                    batches, comments, votes, members, elapsedMillis(startedAt), e);
+            throw e;
         } finally {
             running.set(false);
         }
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
     }
 }
