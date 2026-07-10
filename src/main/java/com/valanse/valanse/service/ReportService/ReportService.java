@@ -3,10 +3,9 @@ package com.valanse.valanse.service.ReportService;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.ReportReason;
 import com.valanse.valanse.domain.enums.ReportType;
-import com.valanse.valanse.dto.Report.ReportedTargetResponse;
+import com.valanse.valanse.dto.Report.PagedReportedTargetResponse;
 import com.valanse.valanse.dto.Report.ReportDetailResponse;
-
-import java.util.List;
+import org.springframework.data.domain.Pageable;
 
 /**
  * ReportService 기능의 비즈니스 계약을 정의하는 서비스 인터페이스 코드입니다.
@@ -17,6 +16,6 @@ public interface ReportService {
     void report(Member member, Long targetId, ReportType reportType);
     void report(Member member, Long targetId, ReportType reportType, ReportReason reason, String content);
     // 신고 대상 조회
-    List<ReportedTargetResponse> getReportedTargets(Member member,ReportType type, String sort);
+    PagedReportedTargetResponse getReportedTargets(Member member, ReportType type, String sort, Pageable pageable);
     ReportDetailResponse getReportDetail(Member member, ReportType type, Long targetId);
 }
