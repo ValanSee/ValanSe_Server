@@ -11,8 +11,10 @@ import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.mapping.QMemberVoteOption;
 import com.valanse.valanse.dto.Comment.CommentReplyResponseDto;
 import com.valanse.valanse.dto.Comment.CommentResponseDto;
+import com.valanse.valanse.dto.Comment.MyCommentResponseDto;
 import com.valanse.valanse.dto.Comment.QCommentReplyResponseDto;
 import com.valanse.valanse.dto.Comment.QCommentResponseDto;
+import com.valanse.valanse.dto.Comment.QMyCommentResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -98,6 +100,56 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                 .leftJoin(mvo.voteOption, voteOption)
                 .where(vote.id.eq(voteId), comment.parent.isNull())
                 .orderBy(sort.equals("latest") ? comment.createdAt.desc() : comment.likeCount.desc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize() + 1)
+                .fetch();
+
+        boolean hasNext = result.size() > pageable.getPageSize();
+        if (hasNext) {
+            result.remove(result.size() - 1);
+        }
+
+        return new SliceImpl<>(result, pageable, hasNext);
+    }
+
+    /**
+     * MyCommentsSlice 조건에 맞는 데이터를 찾는 메서드입니다.
+     */
+    @Override
+    public Slice<MyCommentResponseDto> findMyCommentsSlice(Long memberId, String sort, Pageable pageable) {
+        QComment comment = QComment.comment;
+        QMember member = QMember.member;
+        QVote vote = QVote.vote;
+        QMember voteOwner = new QMember("voteOwner");
+        QMemberProfile voteOwnerProfile = new QMemberProfile("voteOwnerProfile");
+        QVoteOption voteOption = QVoteOption.voteOption;
+
+        List<MyCommentResponseDto> result = queryFactory
+                .select(new QMyCommentResponseDto(
+                        comment.id,
+                        comment.title,
+                        comment.content,
+                        member.id,
+                        member.name,
+                        comment.parent.isNotNull(),
+                        comment.createdAt,
+                        vote.createdAt,
+                        voteOwner.id,
+                        voteOwnerProfile.nickname,
+                        vote.title,
+                        voteOption.label.stringValue()
+                ))
+                .from(comment)
+                .join(comment.member, member)
+                .join(comment.commentGroup.vote, vote)
+                .join(vote.member, voteOwner)
+                .leftJoin(voteOwner.profile, voteOwnerProfile)
+                .leftJoin(comment.voteOption, voteOption)
+                .where(
+                        member.id.eq(memberId),
+                        comment.deletedAt.isNull()
+                )
+                .orderBy("oldest".equalsIgnoreCase(sort) ? comment.createdAt.asc() : comment.createdAt.desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize() + 1)
                 .fetch();

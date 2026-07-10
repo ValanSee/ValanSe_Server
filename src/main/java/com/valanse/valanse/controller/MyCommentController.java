@@ -1,5 +1,6 @@
 package com.valanse.valanse.controller;
 
+import com.valanse.valanse.common.api.PaginationValidator;
 import com.valanse.valanse.common.auth.SecurityUtils;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.Role;
@@ -9,12 +10,12 @@ import com.valanse.valanse.service.MemberService.MemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import java.util.Collections;
-
-import java.util.List;
 
 @Tag(name = "내 댓글 API", description = "내가 작성한 댓글 조회 및 삭제 기능")
 @RestController
@@ -53,13 +54,17 @@ public class MyCommentController {
     /**
      * 사용자가 작성한 댓글 목록을 최신순 또는 오래된순으로 조회하는 메서드입니다.
      */
-    public ResponseEntity<List<MyCommentResponseDto>> getMyComments(
-            @RequestParam(defaultValue = "latest") String sort) {
+    public ResponseEntity<PagedMyCommentResponse> getMyComments(
+            @RequestParam(defaultValue = "latest") String sort,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size) {
+        PaginationValidator.validatePageAndSize(page, size);
 
         Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         var member = memberService.findById(loginId);
+        Pageable pageable = PageRequest.of(page, size);
 
-        List<MyCommentResponseDto> myComments = commentService.getMyComments(member, sort);
+        PagedMyCommentResponse myComments = commentService.getMyComments(member, sort, pageable);
 
         return ResponseEntity.ok(myComments);
     }

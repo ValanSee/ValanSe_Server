@@ -12,7 +12,7 @@ import java.util.List;
 public interface CommentService {
     void deleteMyComment(Member member, Long commentId);
 
-    List<MyCommentResponseDto> getMyComments(Member member, String sort);
+    PagedMyCommentResponse getMyComments(Member member, String sort, Pageable pageable);
 
     Long createComment(Long voteId, Long userId, CommentPostRequest request);
 

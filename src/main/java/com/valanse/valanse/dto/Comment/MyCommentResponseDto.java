@@ -29,6 +29,28 @@ public class MyCommentResponseDto {
     private String voteOptionLabel;   // 추가
 
     /**
+     * MyCommentResponseDto 의존성을 주입하거나 객체를 초기화하는 생성자입니다.
+     */
+    @QueryProjection
+    public MyCommentResponseDto(Long id, String title, String content, Long memberId, String memberName,
+                                Boolean isReply, LocalDateTime createdAt, LocalDateTime voteCreatedAt,
+                                Long voteOwnerId, String voteOwnerNickname, String voteTitle,
+                                String voteOptionLabel) {
+        this.id = id;
+        this.title = title;
+        this.content = content;
+        this.memberId = memberId;
+        this.memberName = memberName;
+        this.isReply = Boolean.TRUE.equals(isReply);
+        this.createdAt = createdAt;
+        this.voteCreatedAt = voteCreatedAt;
+        this.voteOwnerId = voteOwnerId;
+        this.voteOwnerNickname = voteOwnerNickname;
+        this.voteTitle = voteTitle;
+        this.voteOptionLabel = voteOptionLabel;
+    }
+
+    /**
      * MyCommentResponseDto의 fromEntity 기능을 수행하는 메서드입니다.
      */
     public static MyCommentResponseDto fromEntity(Comment comment) {
@@ -56,7 +78,6 @@ public class MyCommentResponseDto {
                 .build();
     }
 }
-
 
 
 

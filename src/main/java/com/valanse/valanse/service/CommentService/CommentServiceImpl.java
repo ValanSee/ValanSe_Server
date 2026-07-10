@@ -82,21 +82,20 @@ public class CommentServiceImpl implements CommentService {
      */
     @Override
     @Transactional(readOnly = true)
-    public List<MyCommentResponseDto> getMyComments(Member member, String sort) {
+    public PagedMyCommentResponse getMyComments(Member member, String sort, Pageable pageable) {
         Long memberId = member.getId();
-        List<Comment> comments;
 
-        if ("oldest".equalsIgnoreCase(sort)) {
-            comments = commentRepository.findByMemberIdAndDeletedAtIsNullOrderByCreatedAtAsc(memberId);
-        } else if ("latest".equalsIgnoreCase(sort)) {
-            comments = commentRepository.findByMemberIdAndDeletedAtIsNullOrderByCreatedAtDesc(memberId);
-        } else {
+        if (!"oldest".equalsIgnoreCase(sort) && !"latest".equalsIgnoreCase(sort)) {
             throw new ApiException(CommentErrorMessage.WRONG_SORT_PARAMETER.message(), HttpStatus.BAD_REQUEST);
         }
 
-        return comments.stream()
-                .map(MyCommentResponseDto::fromEntity)
-                .collect(Collectors.toList());
+        Slice<MyCommentResponseDto> comments = commentRepository.findMyCommentsSlice(memberId, sort, pageable);
+        return PagedMyCommentResponse.builder()
+                .comments(comments.getContent())
+                .page(pageable.getPageNumber())
+                .size(pageable.getPageSize())
+                .hasNext(comments.hasNext())
+                .build();
     }
 
     /**
