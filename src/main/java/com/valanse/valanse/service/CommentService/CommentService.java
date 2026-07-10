@@ -18,5 +18,5 @@ public interface CommentService {
 
     PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable,Long userId, Boolean isAdmin);
     BestCommentResponseDto getBestCommentByVoteId(Long voteId);
-    List<CommentReplyResponseDto> getReplies(Member loginUser, Long voteId, Long commentId);
+    PagedCommentReplyResponse getReplies(Member loginUser, Long voteId, Long commentId, Pageable pageable);
 }

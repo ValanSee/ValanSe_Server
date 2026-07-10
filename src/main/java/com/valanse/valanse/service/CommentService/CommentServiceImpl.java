@@ -20,10 +20,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-
-
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -40,8 +36,6 @@ public class CommentServiceImpl implements CommentService {
     private final VoteRepository voteRepository;
     private final CommentGroupRepository commentGroupRepository;
     private final CommentRepository commentRepository;
-    private final MemberProfileRepository memberProfileRepository;
-    private final MemberProfileTitleRepository memberProfileTitleRepository;
     private final PointService pointService;
 
     /**
@@ -212,9 +206,9 @@ public class CommentServiceImpl implements CommentService {
      */
     @Override
     @Transactional(readOnly = true)
-    public List<CommentReplyResponseDto> getReplies(Member loginUser, Long voteId, Long parentCommentId) {
+    public PagedCommentReplyResponse getReplies(Member loginUser, Long voteId, Long parentCommentId, Pageable pageable) {
         // 유효한 투표인지 확인
-        Vote vote = voteRepository.findById(voteId)
+        voteRepository.findById(voteId)
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
         Comment parentComment = commentRepository.findById(parentCommentId)
@@ -222,57 +216,17 @@ public class CommentServiceImpl implements CommentService {
         validateParentCommentBelongsToVote(parentComment, voteId);
 
         // 대댓글 조회
-        List<Comment> replies = commentRepository.findAllByParentId(parentCommentId);
+        Long loginId = loginUser != null ? loginUser.getId() : null;
+        boolean isAdmin = loginUser != null && loginUser.getRole() == Role.ADMIN;
+        Slice<CommentReplyResponseDto> replies =
+                commentRepository.findRepliesByParentIdSlice(voteId, parentCommentId, pageable, loginId, isAdmin);
 
-        return replies.stream()
-                .map(reply -> {
-                    Member replyMember = reply.getMember();
-                    MemberProfile profile = replyMember == null ? null
-                            : memberProfileRepository.findByMemberId(replyMember.getId()).orElse(null);
-
-                    VoteLabel label = replyMember == null ? null : replyMember.getMemberVoteOptions().stream()
-                            .filter(opt -> opt.getVoteOption().getVote().getId().equals(voteId))
-                            .map(opt -> opt.getVoteOption().getLabel())
-                            .findFirst()
-                            .orElse(null);
-
-
-                    LocalDateTime now = LocalDateTime.now();
-                    LocalDateTime createdAt = reply.getCreatedAt();
-                    long totalHours = ChronoUnit.HOURS.between(createdAt, now);
-                    long daysAgo = totalHours / 24;
-                    long hoursAgo = totalHours % 24;
-
-                    boolean isAdmin = loginUser != null && loginUser.getRole() == Role.ADMIN;
-                    boolean canDelete = false;
-                    if (loginUser != null) {
-                        canDelete = isAdmin || (replyMember != null && replyMember.getId().equals(loginUser.getId()));
-                    }
-
-                    return CommentReplyResponseDto.builder()
-                            .id(reply.getId())
-                            .nickname(profile != null ? profile.getNickname() : "탈퇴한 사용자")
-                            .title(replyMember != null ? getEquippedTitleName(replyMember.getId()) : null)
-                            .createdAt(reply.getCreatedAt())
-                            .content(reply.getContent())
-                            .likeCount(reply.getLikeCount())
-                            .replyCount(reply.getReplyCount())
-                            .isDeleted(reply.getDeletedAt() != null)
-                            .deletedAt(reply.getDeletedAt())
-                            .label(label)
-                            .daysAgo(daysAgo)
-                            .hoursAgo(hoursAgo)
-                            .canDelete(canDelete)
-                            .build();
-                })
-                .collect(Collectors.toList());
-    }
-
-    private String getEquippedTitleName(Long memberId) {
-        return memberProfileTitleRepository.findByMemberProfileMemberIdAndEquippedTrue(memberId)
-                .map(MemberProfileTitle::getTitle)
-                .map(Title::getName)
-                .orElse(null);
+        return PagedCommentReplyResponse.builder()
+                .replies(replies.getContent())
+                .page(pageable.getPageNumber())
+                .size(pageable.getPageSize())
+                .hasNext(replies.hasNext())
+                .build();
     }
 
     private void validateParentCommentBelongsToVote(Comment parent, Long voteId) {
