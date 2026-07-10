@@ -5,6 +5,7 @@ import com.valanse.valanse.domain.enums.PinType;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import com.valanse.valanse.dto.Vote.VoteResponseDto;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -26,10 +27,10 @@ public interface VoteService {
     VoteCancleResponseDto processVote(Long userId, Long voteId, Long voteOptionId);
 
     VoteDetailResponse getVoteDetailById(Long voteId);
-    List<VoteResponseDto> getMyCreatedVotes(Long memberId, String sort, VoteCategory category);
+    PagedVoteResponse getMyCreatedVotes(Long memberId, String sort, VoteCategory category, Pageable pageable);
     Long createVote(Long userId, VoteCreateRequest request);
     Long createVote(Long userId, VoteCreateRequest request, Map<String, MultipartFile> optionImageFiles);
-    List<VoteResponseDto> getMyVotedVotes(Long memberId, String sort, VoteCategory category);
+    PagedVoteResponse getMyVotedVotes(Long memberId, String sort, VoteCategory category, Pageable pageable);
     // /votes get 메서드 cursor기반으로 변경
     VoteListResponse getVotesByCategoryAndSort(Member loginUser, String category, String sort, String cursor, int size);
     void deleteVote(Long userId, Long voteId);

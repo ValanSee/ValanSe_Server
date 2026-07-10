@@ -18,6 +18,8 @@ import com.valanse.valanse.service.PointService.PointService;
 import com.valanse.valanse.service.StorageService.StorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -57,60 +59,78 @@ public class VoteServiceImpl implements VoteService {
     * 사용자가 직접 생성한 투표 목록을 정렬과 카테고리 조건으로 조회하는 메서드입니다.
     */
    @Override
-   public List<VoteResponseDto> getMyCreatedVotes(Long memberId, String sort, VoteCategory category) {
+   public PagedVoteResponse getMyCreatedVotes(Long memberId, String sort, VoteCategory category, Pageable pageable) {
        Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
                .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
-       List<Vote> votes;
+       Slice<Vote> votes;
 
        boolean isAllCategory = category == VoteCategory.ALL;
 
        if (isAllCategory) {
            votes = sort.equals("latest") ?
-                   voteRepository.findAllByMemberOrderByCreatedAtDesc(member) :
-                   voteRepository.findAllByMemberOrderByCreatedAtAsc(member);
+                   voteRepository.findSliceByMemberOrderByCreatedAtDesc(member, pageable) :
+                   voteRepository.findSliceByMemberOrderByCreatedAtAsc(member, pageable);
        } else {
            if (category == null)
                throw new ApiException(VoteErrorMessage.CATEGORY_REQUIRED.message(), HttpStatus.BAD_REQUEST);
 
            votes = sort.equals("latest") ?
-                   voteRepository.findAllByMemberAndCategoryOrderByCreatedAtDesc(member, category) :
-                   voteRepository.findAllByMemberAndCategoryOrderByCreatedAtAsc(member, category);
+                   voteRepository.findSliceByMemberAndCategoryOrderByCreatedAtDesc(member, category, pageable) :
+                   voteRepository.findSliceByMemberAndCategoryOrderByCreatedAtAsc(member, category, pageable);
        }
 
-       return votes.stream()
-               .map(vote -> new VoteResponseDto(vote, getEquippedTitleName(vote.getMember())))
-               .collect(Collectors.toList());
+       return toPagedVoteResponse(votes, pageable);
    }
 
     /**
      * 사용자가 참여한 투표 목록을 정렬과 카테고리 조건으로 조회하는 메서드입니다.
      */
     @Override
-    public List<VoteResponseDto> getMyVotedVotes(Long memberId, String sort, VoteCategory category) {
+    public PagedVoteResponse getMyVotedVotes(Long memberId, String sort, VoteCategory category, Pageable pageable) {
         Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
-        List<Vote> votes;
+        Slice<Vote> votes;
 
         boolean isAllCategory = category == VoteCategory.ALL;
 
         if (isAllCategory) {
             votes = sort.equals("latest") ?
-                    voteRepository.findAllByMemberVotedOrderByCreatedAtDesc(member) :
-                    voteRepository.findAllByMemberVotedOrderByCreatedAtAsc(member);
+                    voteRepository.findSliceByMemberVotedOrderByCreatedAtDesc(member, pageable) :
+                    voteRepository.findSliceByMemberVotedOrderByCreatedAtAsc(member, pageable);
         } else {
             if (category == null)
                 throw new ApiException(VoteErrorMessage.CATEGORY_REQUIRED.message(), HttpStatus.BAD_REQUEST);
 
             votes = sort.equals("latest") ?
-                    voteRepository.findAllByMemberVotedAndCategoryOrderByCreatedAtDesc(member, category) :
-                    voteRepository.findAllByMemberVotedAndCategoryOrderByCreatedAtAsc(member, category);
+                    voteRepository.findSliceByMemberVotedAndCategoryOrderByCreatedAtDesc(member, category, pageable) :
+                    voteRepository.findSliceByMemberVotedAndCategoryOrderByCreatedAtAsc(member, category, pageable);
         }
 
-        return votes.stream()
-                .map(vote -> new VoteResponseDto(vote, getEquippedTitleName(vote.getMember())))
-                .collect(Collectors.toList());
+        return toPagedVoteResponse(votes, pageable);
+    }
+
+    private PagedVoteResponse toPagedVoteResponse(Slice<Vote> votes, Pageable pageable) {
+        List<Long> creatorMemberIds = votes.getContent().stream()
+                .map(Vote::getMember)
+                .filter(member -> member != null && member.getId() != null)
+                .map(Member::getId)
+                .distinct()
+                .toList();
+        Map<Long, String> titleNamesByMemberId = getEquippedTitleNamesByMemberIds(creatorMemberIds);
+
+        return PagedVoteResponse.builder()
+                .votes(votes.getContent().stream()
+                        .map(vote -> new VoteResponseDto(
+                                vote,
+                                vote.getMember() == null ? null : titleNamesByMemberId.get(vote.getMember().getId())
+                        ))
+                        .collect(Collectors.toList()))
+                .page(pageable.getPageNumber())
+                .size(pageable.getPageSize())
+                .hasNext(votes.hasNext())
+                .build();
     }
 
     //여기서부터 영서 코드
