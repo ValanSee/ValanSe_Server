@@ -11,10 +11,11 @@ import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.enums.ReportReason;
 import com.valanse.valanse.domain.enums.ReportType;
 import com.valanse.valanse.domain.enums.Role;
-import com.valanse.valanse.dto.Report.ReportedTargetResponse;
+import com.valanse.valanse.dto.Report.PagedReportedTargetResponse;
 import com.valanse.valanse.dto.Report.ReportDetailItemResponse;
 import com.valanse.valanse.dto.Report.ReportDetailResponse;
 import com.valanse.valanse.dto.Report.ReportedCommentResponse;
+import com.valanse.valanse.dto.Report.ReportedTargetResponse;
 import com.valanse.valanse.dto.Report.ReportedVoteResponse;
 import com.valanse.valanse.repository.CommentRepository;
 import com.valanse.valanse.repository.ReportRepository;
@@ -22,6 +23,8 @@ import com.valanse.valanse.repository.ReportRepositoryCustom.ReportRepositoryCus
 import com.valanse.valanse.repository.VoteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -90,9 +93,15 @@ public class ReportServiceImpl implements ReportService{
      */
     @Override
     @Transactional(readOnly = true)
-    public List<ReportedTargetResponse> getReportedTargets(Member member, ReportType type, String sort) {
+    public PagedReportedTargetResponse getReportedTargets(Member member, ReportType type, String sort, Pageable pageable) {
         validateAdmin(member);
-        return reportRepositoryCustom.findReportedTargets(type, sort);
+        Slice<ReportedTargetResponse> reports = reportRepositoryCustom.findReportedTargets(type, sort, pageable);
+        return PagedReportedTargetResponse.builder()
+                .reports(reports.getContent())
+                .page(pageable.getPageNumber())
+                .size(pageable.getPageSize())
+                .hasNext(reports.hasNext())
+                .build();
     }
 
     @Override

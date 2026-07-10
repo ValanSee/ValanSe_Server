@@ -120,10 +120,14 @@ public class CommentController {
      * 특정 부모 댓글의 대댓글 목록과 작성자/삭제 가능 여부 정보를 조회하는 메서드입니다.
      */
     @GetMapping("/{commentId}/replies")
-    public ResponseEntity<List<CommentReplyResponseDto>> getReplies(
+    public ResponseEntity<PagedCommentReplyResponse> getReplies(
             @PathVariable("voteId") Long voteId,
-            @PathVariable("commentId") Long commentId
+            @PathVariable("commentId") Long commentId,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size
     ) {
+        PaginationValidator.validatePageAndSize(page, size);
+
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         Member member = null;
         if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
@@ -138,7 +142,8 @@ public class CommentController {
             }
         }
 
-        List<CommentReplyResponseDto> replies = commentService.getReplies(member, voteId, commentId);
+        Pageable pageable = PageRequest.of(page, size);
+        PagedCommentReplyResponse replies = commentService.getReplies(member, voteId, commentId, pageable);
         return ResponseEntity.ok(replies);
     }
 }

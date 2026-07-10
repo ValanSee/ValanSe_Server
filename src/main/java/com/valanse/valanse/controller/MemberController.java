@@ -1,6 +1,7 @@
 package com.valanse.valanse.controller;
 
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.api.PaginationValidator;
 import com.valanse.valanse.common.message.MemberErrorMessage;
 import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileImageResponse;
@@ -22,6 +23,8 @@ import com.valanse.valanse.service.TitleService.TitleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -152,9 +155,15 @@ public class MemberController {
      * 회원의 포인트 변동 이력을 최신순 응답으로 조회하는 메서드입니다.
      */
     @GetMapping("/point-history")
-    public ResponseEntity<PointHistoryResponse> getPointHistory() {
+    public ResponseEntity<PointHistoryResponse> getPointHistory(
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size
+    ) {
+        PaginationValidator.validatePageAndSize(page, size);
+
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
-        PointHistoryResponse response = pointService.getPointHistory(userId);
+        Pageable pageable = PageRequest.of(page, size);
+        PointHistoryResponse response = pointService.getPointHistory(userId, pageable);
         return ResponseEntity.ok(response);
     }
 

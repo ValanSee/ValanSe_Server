@@ -3,6 +3,7 @@ package com.valanse.valanse.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.api.PaginationValidator;
 import com.valanse.valanse.common.auth.SecurityUtils;
 import com.valanse.valanse.common.message.VoteErrorMessage;
 import com.valanse.valanse.domain.Member;
@@ -20,6 +21,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -58,11 +61,14 @@ public class VoteController {
     /**
      * 사용자가 직접 생성한 투표 목록을 정렬과 카테고리 조건으로 조회하는 메서드입니다.
      */
-    public ResponseEntity<List<VoteResponseDto>> getMyCreatedVotes(
+    public ResponseEntity<PagedVoteResponse> getMyCreatedVotes(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(required = false) String category,       // 추가
-            @RequestParam(defaultValue = "latest") String sort
+            @RequestParam(defaultValue = "latest") String sort,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size
     ) {
+        PaginationValidator.validatePageAndSize(page, size);
         Long memberId = Long.parseLong(userDetails.getUsername());
         VoteCategory voteCategory = null;
 
@@ -70,7 +76,8 @@ public class VoteController {
             voteCategory = convertCategory(category);
         }
 
-        List<VoteResponseDto> votes = voteService.getMyCreatedVotes(memberId, sort, voteCategory);
+        Pageable pageable = PageRequest.of(page, size);
+        PagedVoteResponse votes = voteService.getMyCreatedVotes(memberId, sort, voteCategory, pageable);
         return ResponseEntity.ok(votes);
     }
 
@@ -82,11 +89,14 @@ public class VoteController {
     /**
      * 사용자가 참여한 투표 목록을 정렬과 카테고리 조건으로 조회하는 메서드입니다.
      */
-    public ResponseEntity<List<VoteResponseDto>> getMyVotedVotes(
+    public ResponseEntity<PagedVoteResponse> getMyVotedVotes(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(required = false) String category,       // 추가
-            @RequestParam(defaultValue = "latest") String sort
+            @RequestParam(defaultValue = "latest") String sort,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size
     ) {
+        PaginationValidator.validatePageAndSize(page, size);
         Long memberId = Long.parseLong(userDetails.getUsername());
         VoteCategory voteCategory = null;
 
@@ -94,7 +104,8 @@ public class VoteController {
             voteCategory = convertCategory(category);
         }
 
-        List<VoteResponseDto> votes = voteService.getMyVotedVotes(memberId, sort, voteCategory);
+        Pageable pageable = PageRequest.of(page, size);
+        PagedVoteResponse votes = voteService.getMyVotedVotes(memberId, sort, voteCategory, pageable);
         return ResponseEntity.ok(votes);
     }
 

@@ -9,6 +9,7 @@ import com.valanse.valanse.domain.enums.ReportReason;
 import com.valanse.valanse.domain.enums.ReportType;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.VoteCategory;
+import com.valanse.valanse.dto.Report.PagedReportedTargetResponse;
 import com.valanse.valanse.dto.Report.ReportDetailResponse;
 import com.valanse.valanse.dto.Report.ReportedTargetResponse;
 import com.valanse.valanse.repository.MemberRepository;
@@ -17,6 +18,7 @@ import com.valanse.valanse.repository.VoteRepository;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -68,12 +70,13 @@ class ReportIntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        List<ReportedTargetResponse> results =
-                reportService.getReportedTargets(admin, ReportType.VOTE, "latest");
+        PagedReportedTargetResponse results =
+                reportService.getReportedTargets(admin, ReportType.VOTE, "latest", PageRequest.of(0, 10));
 
-        assertThat(results)
+        assertThat(results.getReports())
                 .extracting(ReportedTargetResponse::getTargetId)
                 .containsExactly(activeVote.getId());
+        assertThat(results.isHasNext()).isFalse();
     }
 
     @Test

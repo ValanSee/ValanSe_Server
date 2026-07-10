@@ -2,6 +2,8 @@ package com.valanse.valanse.repository;
 
 import com.valanse.valanse.domain.PointHistory;
 import com.valanse.valanse.domain.enums.PointType;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,6 +16,7 @@ import java.util.List;
  */
 public interface PointHistoryRepository extends JpaRepository<PointHistory, Long> {
     List<PointHistory> findByMemberId(Long memberId);
+    Slice<PointHistory> findByMemberIdOrderByCreatedAtDescIdDesc(Long memberId, Pageable pageable);
 
     @Query("SELECT COUNT(p) FROM PointHistory p WHERE p.member.id = :memberId AND p.type = :type AND p.createdAt >= :from")
     long countByMemberIdAndTypeAndCreatedAtAfter(

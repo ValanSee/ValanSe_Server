@@ -12,11 +12,11 @@ import java.util.List;
 public interface CommentService {
     void deleteMyComment(Member member, Long commentId);
 
-    List<MyCommentResponseDto> getMyComments(Member member, String sort);
+    PagedMyCommentResponse getMyComments(Member member, String sort, Pageable pageable);
 
     Long createComment(Long voteId, Long userId, CommentPostRequest request);
 
     PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable,Long userId, Boolean isAdmin);
     BestCommentResponseDto getBestCommentByVoteId(Long voteId);
-    List<CommentReplyResponseDto> getReplies(Member loginUser, Long voteId, Long commentId);
+    PagedCommentReplyResponse getReplies(Member loginUser, Long voteId, Long commentId, Pageable pageable);
 }

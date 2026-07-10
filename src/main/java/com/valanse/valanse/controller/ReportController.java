@@ -1,22 +1,23 @@
 package com.valanse.valanse.controller;
 
+import com.valanse.valanse.common.api.PaginationValidator;
 import com.valanse.valanse.common.auth.SecurityUtils;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.ReportType;
 import com.valanse.valanse.domain.enums.Role;
+import com.valanse.valanse.dto.Report.PagedReportedTargetResponse;
 import com.valanse.valanse.dto.Report.ReportRequest;
 import com.valanse.valanse.dto.Report.ReportDetailResponse;
-import com.valanse.valanse.dto.Report.ReportedTargetResponse;
 import com.valanse.valanse.service.MemberService.MemberService;
 import com.valanse.valanse.service.ReportService.ReportService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @Tag(name = "신고 관련 API")
 @RestController
@@ -46,15 +47,20 @@ public class ReportController {
      * 관리자가 신고 누적 대상 목록을 조회하는 메서드입니다.
      */
     @GetMapping
-    public ResponseEntity<List<ReportedTargetResponse>> getReportedTargets(
+    public ResponseEntity<PagedReportedTargetResponse> getReportedTargets(
             @RequestParam ReportType type,
-            @RequestParam(defaultValue = "latest")  String sort) {
+            @RequestParam(defaultValue = "latest")  String sort,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size) {
+        PaginationValidator.validatePageAndSize(page, size);
+
         Long loginId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         Member member = SecurityUtils.isCurrentUserAdmin()
                 ? Member.builder().id(loginId).role(Role.ADMIN).build()
                 : memberService.findById(loginId);
 
-        List<ReportedTargetResponse> results = reportService.getReportedTargets(member, type, sort);
+        Pageable pageable = PageRequest.of(page, size);
+        PagedReportedTargetResponse results = reportService.getReportedTargets(member, type, sort, pageable);
         return ResponseEntity.ok().body(results);
     }
 

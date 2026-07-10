@@ -16,6 +16,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.SliceImpl;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -77,11 +79,11 @@ class PointServiceImplTest {
 
         when(memberRepository.findByIdAndDeletedAtIsNull(memberId))
             .thenReturn(Optional.of(member));
-        when(pointHistoryRepository.findByMemberId(memberId))
-            .thenReturn(histories);
+        when(pointHistoryRepository.findByMemberIdOrderByCreatedAtDescIdDesc(memberId, PageRequest.of(0, 10)))
+            .thenReturn(new SliceImpl<>(histories, PageRequest.of(0, 10), false));
 
         // When
-        PointHistoryResponse response = pointService.getPointHistory(memberId);
+        PointHistoryResponse response = pointService.getPointHistory(memberId, PageRequest.of(0, 10));
 
         // Then
         assertThat(response).isNotNull();
@@ -103,7 +105,7 @@ class PointServiceImplTest {
             .thenReturn(Optional.empty());
 
         // When & Then
-        assertThatThrownBy(() -> pointService.getPointHistory(memberId))
+        assertThatThrownBy(() -> pointService.getPointHistory(memberId, PageRequest.of(0, 10)))
             .isInstanceOf(ApiException.class)
             .hasMessage(MemberErrorMessage.MEMBER_NOT_FOUND.message());
     }
@@ -126,11 +128,13 @@ class PointServiceImplTest {
 
         when(memberRepository.findByIdAndDeletedAtIsNull(memberId))
             .thenReturn(Optional.of(member));
+        when(pointHistoryRepository.findByMemberIdOrderByCreatedAtDescIdDesc(memberId, PageRequest.of(0, 10)))
+            .thenReturn(new SliceImpl<>(histories, PageRequest.of(0, 10), false));
         when(pointHistoryRepository.findByMemberId(memberId))
             .thenReturn(histories);
 
         // When
-        PointHistoryResponse response = pointService.getPointHistory(memberId);
+        PointHistoryResponse response = pointService.getPointHistory(memberId, PageRequest.of(0, 10));
 
         // Then
         List<PointHistoryResponse.PointHistoryItem> items = response.pointHistory();
@@ -191,11 +195,11 @@ class PointServiceImplTest {
 
         when(memberRepository.findByIdAndDeletedAtIsNull(memberId))
             .thenReturn(Optional.of(member));
-        when(pointHistoryRepository.findByMemberId(memberId))
-            .thenReturn(histories);
+        when(pointHistoryRepository.findByMemberIdOrderByCreatedAtDescIdDesc(memberId, PageRequest.of(0, 10)))
+            .thenReturn(new SliceImpl<>(histories, PageRequest.of(0, 10), false));
 
         // When
-        PointHistoryResponse response = pointService.getPointHistory(memberId);
+        PointHistoryResponse response = pointService.getPointHistory(memberId, PageRequest.of(0, 10));
 
         // Then
         assertThat(response).isNotNull();
