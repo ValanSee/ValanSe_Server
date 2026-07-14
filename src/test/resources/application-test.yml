@@ -32,6 +32,9 @@ spring:
     init:
       mode: never
 
+  flyway:
+    enabled: false
+
 jwt:
   secret: ZHVtbXktc2VjcmV0LWZvci10ZXN0LWR1bW15LXNlY3JldC1mb3ItdGVzdA==
   access-token-expiration: 15
