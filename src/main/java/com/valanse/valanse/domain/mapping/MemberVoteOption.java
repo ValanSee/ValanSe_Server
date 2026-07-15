@@ -38,4 +38,8 @@ public class MemberVoteOption extends BaseEntity {
     @ManyToOne
     @JoinColumn(name = "vote_option_id")
     private VoteOption voteOption;
+
+    public void changeVoteOption(VoteOption voteOption) {
+        this.voteOption = voteOption;
+    }
 }
