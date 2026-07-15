@@ -148,6 +148,32 @@ class ConcurrencyIntegrityTest {
     }
 
     @Test
+    @DisplayName("다른 선택지로 재투표하면 기존 투표 행을 유지한 채 선택지만 변경한다")
+    void changingVoteOptionUpdatesExistingRow() {
+        Member member = saveMember("vote-change-user");
+        saveProfile(member, 0L);
+        Vote vote = saveVoteWithOptions(member);
+        VoteOption optionA = vote.getVoteOptions().get(0);
+        VoteOption optionB = vote.getVoteOptions().get(1);
+
+        voteService.processVote(member.getId(), vote.getId(), optionA.getId());
+        voteService.processVote(member.getId(), vote.getId(), optionB.getId());
+
+        MemberVoteOption changedVote = memberVoteOptionRepository
+                .findByMemberIdAndVoteId(member.getId(), vote.getId())
+                .orElseThrow();
+        Vote reloadedVote = voteRepository.findById(vote.getId()).orElseThrow();
+        VoteOption reloadedOptionA = voteOptionRepository.findById(optionA.getId()).orElseThrow();
+        VoteOption reloadedOptionB = voteOptionRepository.findById(optionB.getId()).orElseThrow();
+
+        assertThat(changedVote.getVoteOption().getId()).isEqualTo(optionB.getId());
+        assertThat(memberVoteOptionRepository.count()).isEqualTo(1);
+        assertThat(reloadedVote.getTotalVoteCount()).isEqualTo(1);
+        assertThat(reloadedOptionA.getVoteCount()).isZero();
+        assertThat(reloadedOptionB.getVoteCount()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("댓글 중복 삭제는 totalCommentCount와 replyCount를 음수로 만들지 않는다")
     void duplicateCommentDeleteDoesNotMakeCountsNegative() throws Exception {
         Member member = saveMember("comment-delete-user");

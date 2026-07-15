@@ -360,8 +360,9 @@ class VoteServiceImplTest {
         assertThat(result.getVoteOptionCount()).isEqualTo(11); // 새 옵션 +1
         assertThat(result.isVoted()).isTrue();
         assertThat(oldOption.getVoteCount()).isEqualTo(2); // 기존 옵션 -1
-        verify(memberVoteOptionRepository, times(1)).delete(any(MemberVoteOption.class));
-        verify(memberVoteOptionRepository, times(1)).save(any(MemberVoteOption.class));
+        assertThat(mvo.getVoteOption()).isSameAs(newOption);
+        verify(memberVoteOptionRepository, never()).delete(any(MemberVoteOption.class));
+        verify(memberVoteOptionRepository, never()).save(any(MemberVoteOption.class));
     }
 
     @Test
