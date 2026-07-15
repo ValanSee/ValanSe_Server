@@ -230,19 +230,12 @@ public class VoteServiceImpl implements VoteService {
                 updatedVoteOptionCount = oldVoteOption.getVoteCount();
 
             } else {
-                // 3-2. 다른 선택지를 클릭한 경우: 기존 투표 취소 후 새 투표 기록 (재선택)
-                // 기존 member_vote_option 기록 삭제
-                memberVoteOptionRepository.delete(oldMemberVoteOption);
+                // 3-2. 다른 선택지를 클릭한 경우: 기존 투표 기록의 선택지만 변경 (재선택)
+                // 같은 (member_id, vote_id)로 delete 후 insert하면 Hibernate의 실행 순서에 따라
+                // unique 제약조건 위반이 발생할 수 있으므로 기존 행을 update합니다.
+                oldMemberVoteOption.changeVoteOption(newVoteOption);
                 // 기존 선택지의 투표 수 감소
                 oldVoteOption.setVoteCount(decrementCount(oldVoteOption.getVoteCount()));
-
-                // 새로운 member_vote_option 기록 생성 및 저장
-                MemberVoteOption newMemberVoteOption = MemberVoteOption.builder()
-                        .member(member)
-                        .vote(vote)
-                        .voteOption(newVoteOption)
-                        .build();
-                saveMemberVoteOption(newMemberVoteOption);
                 // 새로운 선택지의 투표 수 증가
                 newVoteOption.setVoteCount(incrementCount(newVoteOption.getVoteCount()));
 
