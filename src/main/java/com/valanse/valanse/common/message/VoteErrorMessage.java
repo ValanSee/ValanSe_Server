@@ -7,6 +7,7 @@ public enum VoteErrorMessage {
     CATEGORY_REQUIRED("카테고리를 입력해주세요."),
     HOT_ISSUE_VOTE_NOT_FOUND("핫이슈 투표를 찾을 수 없습니다."),
     TRENDING_VOTE_NOT_FOUND("인기 급상승 투표를 찾을 수 없습니다."),
+    TRENDING_PERIOD_INVALID("조회 기간은 1일 이상 30일 이하여야 합니다."),
     VOTE_NOT_FOUND("투표가 존재하지 않습니다."),
     VOTE_DETAIL_NOT_FOUND("투표를 찾을 수 없습니다."),
     VOTE_OPTION_NOT_FOUND("투표 선택지가 존재하지 않습니다."),

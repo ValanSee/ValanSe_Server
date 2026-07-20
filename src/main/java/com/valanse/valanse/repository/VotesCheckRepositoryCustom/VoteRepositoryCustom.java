@@ -1,6 +1,7 @@
 package com.valanse.valanse.repository.VotesCheckRepositoryCustom;
 
 import com.valanse.valanse.domain.Vote;
+import com.valanse.valanse.dto.Vote.TrendingVoteScore;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,6 +12,9 @@ import java.util.Optional;
  */
 public interface VoteRepositoryCustom {
     List<Vote> findVotesByCursor(String category, String sort, String cursor, int size);
-    Optional<Vote> findHotIssueVote();
-    Optional<Vote> findTrendingVote(LocalDateTime from, LocalDateTime to);
+    List<TrendingVoteScore> findTopTrendingVotes(LocalDateTime from, LocalDateTime to, int limit);
+    List<TrendingVoteScore> findTopAllTimeTrendingVotes(int limit);
+    Optional<TrendingVoteScore> findTrendingScoreByVoteId(Long voteId, LocalDateTime from, LocalDateTime to);
+    Optional<TrendingVoteScore> findAllTimeTrendingScoreByVoteId(Long voteId);
+    List<Vote> findTrendingVoteDetailsByIds(List<Long> voteIds);
 }

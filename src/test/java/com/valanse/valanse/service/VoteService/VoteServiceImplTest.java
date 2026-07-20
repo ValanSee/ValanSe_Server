@@ -13,6 +13,10 @@ import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import com.valanse.valanse.dto.Vote.VoteCancleResponseDto;
 import com.valanse.valanse.dto.Vote.VoteCreateRequest;
 import com.valanse.valanse.dto.Vote.VoteDetailResponse;
+import com.valanse.valanse.dto.Vote.TrendingDisplayType;
+import com.valanse.valanse.dto.Vote.TrendingScoreType;
+import com.valanse.valanse.dto.Vote.TrendingVoteScore;
+import com.valanse.valanse.dto.Vote.TrendingVotesResponse;
 import com.valanse.valanse.repository.*;
 import com.valanse.valanse.service.PointService.PointService;
 import com.valanse.valanse.service.StorageService.StorageService;
@@ -36,6 +40,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -57,6 +64,84 @@ class VoteServiceImplTest {
     @Mock private MemberProfileTitleRepository memberProfileTitleRepository;
     @Mock private PointService pointService;
     @Mock private StorageService storageService;
+    @Mock private Clock clock;
+
+    @Test
+    @DisplayName("트렌딩 기간이 허용 범위를 벗어나면 예외가 발생한다")
+    void getTrendingVotes_InvalidDays() {
+        assertThatThrownBy(() -> voteService.getTrendingVotes(0))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("조회 기간은 1일 이상 30일 이하여야 합니다.");
+
+        verifyNoInteractions(voteRepository);
+    }
+
+    @Test
+    @DisplayName("기간 내 반응이 없으면 전체 누적 반응성으로 조회한다")
+    void getTrendingVotes_FallsBackToAllTime() {
+        stubClock();
+        Vote first = Vote.builder().id(1L).title("첫 번째").voteOptions(List.of()).build();
+        Vote second = Vote.builder().id(2L).title("두 번째").voteOptions(List.of()).build();
+        List<TrendingVoteScore> allTimeScores = List.of(
+                new TrendingVoteScore(1L, 5L, 3L, 8L, null),
+                new TrendingVoteScore(2L, 2L, 1L, 3L, null)
+        );
+
+        when(voteRepository.findTopTrendingVotes(any(), any(), eq(5))).thenReturn(List.of());
+        when(voteRepository.findTopAllTimeTrendingVotes(5)).thenReturn(allTimeScores);
+        when(voteRepository.findByPinType(PinType.TRENDING)).thenReturn(Optional.empty());
+        when(voteRepository.findTrendingVoteDetailsByIds(List.of(1L, 2L)))
+                .thenReturn(List.of(second, first));
+
+        TrendingVotesResponse response = voteService.getTrendingVotes(7);
+
+        assertThat(response.isFallbackApplied()).isTrue();
+        assertThat(response.getScoreType()).isEqualTo(TrendingScoreType.ALL_TIME);
+        assertThat(response.getVotes()).extracting("voteId").containsExactly(1L, 2L);
+        assertThat(response.getVotes()).extracting("reactivityScore").containsExactly(8L, 3L);
+    }
+
+    @Test
+    @DisplayName("고정 투표는 중복 없이 첫 번째에 배치하고 나머지를 반응성 순으로 채운다")
+    void getTrendingVotes_PinnedVoteComesFirstWithoutDuplication() {
+        stubClock();
+        List<TrendingVoteScore> scores = List.of(
+                new TrendingVoteScore(1L, 10L, 0L, 10L, null),
+                new TrendingVoteScore(2L, 9L, 0L, 9L, null),
+                new TrendingVoteScore(3L, 8L, 0L, 8L, null),
+                new TrendingVoteScore(4L, 7L, 0L, 7L, null),
+                new TrendingVoteScore(5L, 6L, 0L, 6L, null)
+        );
+        List<Vote> votes = scores.stream()
+                .map(score -> Vote.builder()
+                        .id(score.voteId())
+                        .title("투표 " + score.voteId())
+                        .voteOptions(List.of())
+                        .build())
+                .toList();
+
+        when(voteRepository.findTopTrendingVotes(any(), any(), eq(5))).thenReturn(scores);
+        when(voteRepository.findByPinType(PinType.TRENDING))
+                .thenReturn(Optional.of(votes.get(2)));
+        when(voteRepository.findTrendingVoteDetailsByIds(List.of(3L, 1L, 2L, 4L, 5L)))
+                .thenReturn(votes);
+
+        TrendingVotesResponse response = voteService.getTrendingVotes(7);
+
+        assertThat(response.isFallbackApplied()).isFalse();
+        assertThat(response.getVotes()).extracting("voteId")
+                .containsExactly(3L, 1L, 2L, 4L, 5L);
+        assertThat(response.getVotes().get(0).getDisplayType())
+                .isEqualTo(TrendingDisplayType.PINNED);
+        assertThat(response.getVotes().subList(1, 5))
+                .extracting("displayType")
+                .containsOnly(TrendingDisplayType.RANKED);
+    }
+
+    private void stubClock() {
+        when(clock.instant()).thenReturn(Instant.parse("2026-07-20T00:00:00Z"));
+        when(clock.getZone()).thenReturn(ZoneId.of("Asia/Seoul"));
+    }
 
     @org.junit.jupiter.api.AfterEach
     void clearSecurityContext() {
@@ -538,27 +623,27 @@ class VoteServiceImplTest {
         Member user = Member.builder().id(1L).role(Role.USER).build();
 
         ApiException ex = assertThrows(ApiException.class,
-                () -> voteService.updatePinStatus(user, 10L, PinType.HOT));
+                () -> voteService.updatePinStatus(user, 10L, PinType.TRENDING));
         assertThat(ex.getMessage()).isEqualTo("권한이 없습니다.");
         assertThat(ex.getStatus()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
-    @DisplayName("관리자가 HOT 핀 설정 시 기존 HOT 게시물의 핀이 해제된다")
-    void 핀설정_기존핀해제() {
+    @DisplayName("관리자가 TRENDING 핀 설정 시 기존 TRENDING 게시물의 핀이 해제된다")
+    void 트렌딩핀설정_기존핀해제() {
         Member admin = Member.builder().id(1L).role(Role.ADMIN).build();
 
-        Vote existingHot = Vote.builder().id(99L).build();
-        existingHot.pin(PinType.HOT);
+        Vote existingTrending = Vote.builder().id(99L).build();
+        existingTrending.pin(PinType.TRENDING);
         Vote newVote = Vote.builder().id(10L).build();
 
         when(voteRepository.findById(10L)).thenReturn(Optional.of(newVote));
-        when(voteRepository.findByPinType(PinType.HOT)).thenReturn(Optional.of(existingHot));
+        when(voteRepository.findByPinType(PinType.TRENDING)).thenReturn(Optional.of(existingTrending));
 
-        voteService.updatePinStatus(admin, 10L, PinType.HOT);
+        voteService.updatePinStatus(admin, 10L, PinType.TRENDING);
 
-        assertThat(existingHot.getPinType()).isEqualTo(PinType.NONE); // 기존 게시물 핀 해제
-        assertThat(newVote.getPinType()).isEqualTo(PinType.HOT);      // 새 게시물 핀 설정
+        assertThat(existingTrending.getPinType()).isEqualTo(PinType.NONE);
+        assertThat(newVote.getPinType()).isEqualTo(PinType.TRENDING);
         verify(voteRepository, times(2)).save(any(Vote.class));
     }
 
@@ -567,7 +652,7 @@ class VoteServiceImplTest {
     void 핀해제() {
         Member admin = Member.builder().id(1L).role(Role.ADMIN).build();
         Vote vote = Vote.builder().id(10L).build();
-        vote.pin(PinType.HOT);
+        vote.pin(PinType.TRENDING);
 
         when(voteRepository.findById(10L)).thenReturn(Optional.of(vote));
 

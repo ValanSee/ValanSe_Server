@@ -2,7 +2,6 @@ package com.valanse.valanse.repository;
 
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Predicate;
-import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.valanse.valanse.domain.QCommentGroup;
 import com.valanse.valanse.domain.QMember;
@@ -10,18 +9,20 @@ import com.valanse.valanse.domain.QMemberProfile;
 import com.valanse.valanse.domain.QVote;
 import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.enums.VoteCategory;
+import com.valanse.valanse.dto.Vote.TrendingVoteScore;
 import com.valanse.valanse.repository.VotesCheckRepositoryCustom.VoteRepositoryCustom;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static com.valanse.valanse.domain.QComment.comment;
 import static com.valanse.valanse.domain.QVoteOption.voteOption;
-import static com.valanse.valanse.domain.mapping.QMemberVoteOption.memberVoteOption;
 
 @Repository
 @RequiredArgsConstructor
@@ -31,6 +32,7 @@ import static com.valanse.valanse.domain.mapping.QMemberVoteOption.memberVoteOpt
 public class VoteRepositoryImpl implements VoteRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
+    private final EntityManager entityManager;
     private final QVote vote = QVote.vote;
     private final QMember member = QMember.member;
     private final QMemberProfile memberProfile = QMemberProfile.memberProfile;
@@ -113,65 +115,242 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                 .fetch();
     }
 
-    /**
-     * 투표 수와 댓글 수를 합산해 핫이슈 후보를 조회하는 메서드입니다.
-     */
     @Override
-    public Optional<Vote> findHotIssueVote() {
-        return Optional.ofNullable(
-                queryFactory
-                        .selectFrom(vote)
-                        .leftJoin(vote.commentGroup, commentGroup)
-                        .orderBy(
-                        vote.totalVoteCount
-                                .add(commentGroup.totalCommentCount.coalesce(0))
-                                .desc(),
-                        vote.createdAt.desc()  // 점수 같을 때 최신순
-                        )
-                        .fetchFirst());
+    public List<TrendingVoteScore> findTopTrendingVotes(
+            LocalDateTime from,
+            LocalDateTime to,
+            int limit
+    ) {
+        Query query = entityManager.createNativeQuery("""
+                SELECT reactions.vote_id,
+                       SUM(reactions.vote_count) AS vote_reaction_count,
+                       SUM(reactions.comment_count) AS comment_reaction_count,
+                       SUM(reactions.vote_count + reactions.comment_count) AS reactivity_score,
+                       MAX(reactions.latest_reaction_at) AS latest_reaction_at
+                FROM (
+                    SELECT mvo.vote_id,
+                           COUNT(*) AS vote_count,
+                           0 AS comment_count,
+                           MAX(mvo.created_at) AS latest_reaction_at
+                    FROM member_vote_option mvo
+                    WHERE mvo.created_at >= :from
+                      AND mvo.created_at < :to
+                      AND mvo.deleted_at IS NULL
+                    GROUP BY mvo.vote_id
+
+                    UNION ALL
+
+                    SELECT cg.vote_id,
+                           0 AS vote_count,
+                           COUNT(*) AS comment_count,
+                           MAX(c.created_at) AS latest_reaction_at
+                    FROM `comment` c
+                    JOIN comment_group cg ON cg.id = c.comment_group_id
+                    WHERE c.created_at >= :from
+                      AND c.created_at < :to
+                      AND c.deleted_at IS NULL
+                    GROUP BY cg.vote_id
+                ) reactions
+                JOIN vote v ON v.id = reactions.vote_id
+                WHERE v.deleted_at IS NULL
+                GROUP BY reactions.vote_id
+                ORDER BY reactivity_score DESC,
+                         latest_reaction_at DESC,
+                         reactions.vote_id DESC
+                LIMIT :limit
+                """);
+
+        query.setParameter("from", from);
+        query.setParameter("to", to);
+        query.setParameter("limit", limit);
+        return toTrendingVoteScores(query.getResultList());
     }
 
-    /**
-     * 기간 내 댓글 또는 투표 활동이 있는 투표 중 반응성이 높은 항목을 조회하는 메서드입니다.
-     */
     @Override
-    public Optional<Vote> findTrendingVote(LocalDateTime from, LocalDateTime to) {
-        return Optional.ofNullable(
-                queryFactory
-                        .selectFrom(vote)
-                        .leftJoin(vote.commentGroup, commentGroup)
-                        .where(
-                                // 기간 내 댓글 존재
-                                JPAExpressions
-                                        .selectOne()
-                                        .from(comment)
-                                        .where(
-                                                comment.commentGroup.eq(commentGroup),
-                                                comment.createdAt.between(from, to),
-                                                comment.deletedAt.isNull()
-                                        )
-                                        .exists()
-                                        .or(
-                                                // 기간 내 투표 존재
-                                                JPAExpressions
-                                                        .selectOne()
-                                                        .from(memberVoteOption)
-                                                        .join(memberVoteOption.voteOption, voteOption)
-                                                        .where(
-                                                                voteOption.vote.eq(vote),
-                                                                memberVoteOption.createdAt.between(from, to)
-                                                        )
-                                                        .exists()
-                                        )
-                        )
-                        .orderBy(
-                                vote.totalVoteCount
-                                        .add(commentGroup.totalCommentCount.coalesce(0))
-                                        .desc(),
-                                vote.createdAt.desc()  // 점수 같을 때 최신순
-                        )
-                        .fetchFirst());
+    public List<TrendingVoteScore> findTopAllTimeTrendingVotes(int limit) {
+        Query query = entityManager.createNativeQuery("""
+                SELECT v.id AS vote_id,
+                       COALESCE(reactions.vote_count, 0) AS vote_reaction_count,
+                       COALESCE(reactions.comment_count, 0) AS comment_reaction_count,
+                       COALESCE(reactions.vote_count, 0) + COALESCE(reactions.comment_count, 0) AS reactivity_score,
+                       reactions.latest_reaction_at
+                FROM vote v
+                LEFT JOIN (
+                    SELECT activity.vote_id,
+                           SUM(activity.vote_count) AS vote_count,
+                           SUM(activity.comment_count) AS comment_count,
+                           MAX(activity.latest_reaction_at) AS latest_reaction_at
+                    FROM (
+                        SELECT mvo.vote_id,
+                               COUNT(*) AS vote_count,
+                               0 AS comment_count,
+                               MAX(mvo.created_at) AS latest_reaction_at
+                        FROM member_vote_option mvo
+                        WHERE mvo.deleted_at IS NULL
+                        GROUP BY mvo.vote_id
 
+                        UNION ALL
+
+                        SELECT cg.vote_id,
+                               0 AS vote_count,
+                               COUNT(*) AS comment_count,
+                               MAX(c.created_at) AS latest_reaction_at
+                        FROM `comment` c
+                        JOIN comment_group cg ON cg.id = c.comment_group_id
+                        WHERE c.deleted_at IS NULL
+                        GROUP BY cg.vote_id
+                    ) activity
+                    GROUP BY activity.vote_id
+                ) reactions ON reactions.vote_id = v.id
+                WHERE v.deleted_at IS NULL
+                ORDER BY reactivity_score DESC,
+                         latest_reaction_at DESC,
+                         v.id DESC
+                LIMIT :limit
+                """);
+
+        query.setParameter("limit", limit);
+        return toTrendingVoteScores(query.getResultList());
+    }
+
+    @Override
+    public Optional<TrendingVoteScore> findTrendingScoreByVoteId(
+            Long voteId,
+            LocalDateTime from,
+            LocalDateTime to
+    ) {
+        Query query = entityManager.createNativeQuery("""
+                SELECT reactions.vote_id,
+                       SUM(reactions.vote_count) AS vote_reaction_count,
+                       SUM(reactions.comment_count) AS comment_reaction_count,
+                       SUM(reactions.vote_count + reactions.comment_count) AS reactivity_score,
+                       MAX(reactions.latest_reaction_at) AS latest_reaction_at
+                FROM (
+                    SELECT mvo.vote_id,
+                           COUNT(*) AS vote_count,
+                           0 AS comment_count,
+                           MAX(mvo.created_at) AS latest_reaction_at
+                    FROM member_vote_option mvo
+                    WHERE mvo.vote_id = ?1
+                      AND mvo.created_at >= ?2
+                      AND mvo.created_at < ?3
+                      AND mvo.deleted_at IS NULL
+                    GROUP BY mvo.vote_id
+
+                    UNION ALL
+
+                    SELECT cg.vote_id,
+                           0 AS vote_count,
+                           COUNT(*) AS comment_count,
+                           MAX(c.created_at) AS latest_reaction_at
+                    FROM `comment` c
+                    JOIN comment_group cg ON cg.id = c.comment_group_id
+                    WHERE cg.vote_id = ?1
+                      AND c.created_at >= ?2
+                      AND c.created_at < ?3
+                      AND c.deleted_at IS NULL
+                    GROUP BY cg.vote_id
+                ) reactions
+                JOIN vote v ON v.id = reactions.vote_id
+                WHERE v.deleted_at IS NULL
+                GROUP BY reactions.vote_id
+                """);
+
+        query.setParameter(1, voteId);
+        query.setParameter(2, from);
+        query.setParameter(3, to);
+        return toTrendingVoteScores(query.getResultList()).stream().findFirst();
+    }
+
+    @Override
+    public Optional<TrendingVoteScore> findAllTimeTrendingScoreByVoteId(Long voteId) {
+        Query query = entityManager.createNativeQuery("""
+                SELECT v.id AS vote_id,
+                       COALESCE(reactions.vote_count, 0) AS vote_reaction_count,
+                       COALESCE(reactions.comment_count, 0) AS comment_reaction_count,
+                       COALESCE(reactions.vote_count, 0) + COALESCE(reactions.comment_count, 0) AS reactivity_score,
+                       reactions.latest_reaction_at
+                FROM vote v
+                LEFT JOIN (
+                    SELECT activity.vote_id,
+                           SUM(activity.vote_count) AS vote_count,
+                           SUM(activity.comment_count) AS comment_count,
+                           MAX(activity.latest_reaction_at) AS latest_reaction_at
+                    FROM (
+                        SELECT mvo.vote_id,
+                               COUNT(*) AS vote_count,
+                               0 AS comment_count,
+                               MAX(mvo.created_at) AS latest_reaction_at
+                        FROM member_vote_option mvo
+                        WHERE mvo.vote_id = ?1
+                          AND mvo.deleted_at IS NULL
+                        GROUP BY mvo.vote_id
+
+                        UNION ALL
+
+                        SELECT cg.vote_id,
+                               0 AS vote_count,
+                               COUNT(*) AS comment_count,
+                               MAX(c.created_at) AS latest_reaction_at
+                        FROM `comment` c
+                        JOIN comment_group cg ON cg.id = c.comment_group_id
+                        WHERE cg.vote_id = ?1
+                          AND c.deleted_at IS NULL
+                        GROUP BY cg.vote_id
+                    ) activity
+                    GROUP BY activity.vote_id
+                ) reactions ON reactions.vote_id = v.id
+                WHERE v.id = ?1
+                  AND v.deleted_at IS NULL
+                """);
+
+        query.setParameter(1, voteId);
+        return toTrendingVoteScores(query.getResultList()).stream().findFirst();
+    }
+
+    @Override
+    public List<Vote> findTrendingVoteDetailsByIds(List<Long> voteIds) {
+        if (voteIds.isEmpty()) {
+            return List.of();
+        }
+
+        return queryFactory
+                .selectFrom(vote)
+                .distinct()
+                .leftJoin(vote.member, member).fetchJoin()
+                .leftJoin(member.profile, memberProfile).fetchJoin()
+                .leftJoin(vote.voteOptions, voteOption).fetchJoin()
+                .where(vote.id.in(voteIds))
+                .fetch();
+    }
+
+    private List<TrendingVoteScore> toTrendingVoteScores(List<?> rows) {
+        return rows.stream()
+                .map(row -> toTrendingVoteScore((Object[]) row))
+                .toList();
+    }
+
+    private TrendingVoteScore toTrendingVoteScore(Object[] row) {
+        return new TrendingVoteScore(
+                ((Number) row[0]).longValue(),
+                ((Number) row[1]).longValue(),
+                ((Number) row[2]).longValue(),
+                ((Number) row[3]).longValue(),
+                toLocalDateTime(row[4])
+        );
+    }
+
+    private LocalDateTime toLocalDateTime(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof LocalDateTime localDateTime) {
+            return localDateTime;
+        }
+        if (value instanceof Timestamp timestamp) {
+            return timestamp.toLocalDateTime();
+        }
+        throw new IllegalArgumentException("지원하지 않는 날짜 타입입니다: " + value.getClass().getName());
     }
 
 }

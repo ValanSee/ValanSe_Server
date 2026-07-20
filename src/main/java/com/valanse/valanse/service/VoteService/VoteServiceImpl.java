@@ -28,6 +28,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime; // 기존 코드에 있었으므로 유지
+import java.time.Clock;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List; // 기존 코드에 있었으므로 유지
@@ -53,6 +55,11 @@ public class VoteServiceImpl implements VoteService {
     private final MemberProfileTitleRepository memberProfileTitleRepository;
     private final PointService pointService;
     private final StorageService storageService;
+    private final Clock clock;
+
+    private static final int TRENDING_LIMIT = 5;
+    private static final int MIN_TRENDING_DAYS = 1;
+    private static final int MAX_TRENDING_DAYS = 30;
 
    //작은 민지가 구현한 것
    /**
@@ -133,75 +140,202 @@ public class VoteServiceImpl implements VoteService {
                 .build();
     }
 
-    //여기서부터 영서 코드
-    /**
-     * 핫이슈로 노출할 투표를 고정값 또는 반응성 기준으로 선정하는 메서드입니다.
-     */
     @Override
-    public HotIssueVoteResponse getHotIssueVote() { // 파라미터 없음
-        // 0. 고정 게시물이 있다면 반환.
-        Optional<Vote> pinnedHot = voteRepository.findByPinType(PinType.HOT);
-        if (pinnedHot.isPresent()) {
-            Vote hotIssueVote = pinnedHot.get();
-            return getHotIssueVoteResponse(hotIssueVote);
-        }
+    public TrendingVotesResponse getTrendingVotes(int days) {
+        validateTrendingDays(days);
 
-        // 수정: 작일 반응성 기준으로 변경
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime yesterdayStart = now.minusDays(1).withHour(0).withMinute(0).withSecond(0);
+        LocalDateTime to = LocalDateTime.now(clock);
+        LocalDateTime from = to.minusDays(days);
+        List<TrendingVoteScore> periodScores = voteRepository
+                .findTopTrendingVotes(from, to, TRENDING_LIMIT);
 
-        //  작일 동안 반응성이 가장 높은 투표 조회 시도
-        Optional<Vote> yesterdayHotIssue = voteRepository.findTrendingVote(yesterdayStart, now);
-        Vote hotIssueVote;
-        if (yesterdayHotIssue.isPresent()) {
-            // 작일 반응성 데이터가 있는 경우
-            hotIssueVote = yesterdayHotIssue.get();
-        } else {
-            hotIssueVote = voteRepository.findHotIssueVote()
-                    .orElseThrow(() -> new ApiException(VoteErrorMessage.HOT_ISSUE_VOTE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
-        }
+        boolean fallbackApplied = periodScores.isEmpty();
+        TrendingScoreType scoreType = fallbackApplied
+                ? TrendingScoreType.ALL_TIME
+                : TrendingScoreType.PERIOD;
+        List<TrendingVoteScore> rankedScores = fallbackApplied
+                ? voteRepository.findTopAllTimeTrendingVotes(TRENDING_LIMIT)
+                : periodScores;
 
-        // 3. 투표 생성자 정보 조회 (닉네임) - 기존 로직 유지
-        return getHotIssueVoteResponse(hotIssueVote);
+        Optional<Vote> pinnedVote = voteRepository.findByPinType(PinType.TRENDING);
+        List<SelectedTrendingVote> selectedVotes = selectTrendingVotes(
+                rankedScores,
+                pinnedVote,
+                scoreType,
+                from,
+                to
+        );
+
+        List<TrendingVoteItemResponse> voteItems = buildTrendingVoteItems(selectedVotes);
+        return TrendingVotesResponse.builder()
+                .requestedDays(days)
+                .from(from)
+                .to(to)
+                .scoreType(scoreType)
+                .fallbackApplied(fallbackApplied)
+                .votes(voteItems)
+                .build();
     }
 
-    // 인기 급상승 토픽
-    /**
-     * 최근 기간의 반응성을 기준으로 인기 급상승 투표를 선정하는 메서드입니다.
-     */
-    @Override
-    public HotIssueVoteResponse getTrendingVote() {
-       // 0. 고정 게시물이 있다면 반환.
-        Optional<Vote> pinnedTrending = voteRepository.findByPinType(PinType.TRENDING);
-        if (pinnedTrending.isPresent()) {
+    private void validateTrendingDays(int days) {
+        if (days < MIN_TRENDING_DAYS || days > MAX_TRENDING_DAYS) {
+            throw new ApiException(VoteErrorMessage.TRENDING_PERIOD_INVALID.message(), HttpStatus.BAD_REQUEST);
+        }
+    }
 
-            Vote trendingVote = pinnedTrending.get();
+    private List<SelectedTrendingVote> selectTrendingVotes(
+            List<TrendingVoteScore> rankedScores,
+            Optional<Vote> pinnedVote,
+            TrendingScoreType scoreType,
+            LocalDateTime from,
+            LocalDateTime to
+    ) {
+        List<SelectedTrendingVote> selectedVotes = new ArrayList<>();
+        Long pinnedVoteId = pinnedVote.map(Vote::getId).orElse(null);
 
-            return getHotIssueVoteResponse(trendingVote);
-
+        if (pinnedVoteId != null) {
+            TrendingVoteScore pinnedScore = rankedScores.stream()
+                    .filter(score -> score.voteId().equals(pinnedVoteId))
+                    .findFirst()
+                    .orElseGet(() -> findPinnedVoteScore(pinnedVoteId, scoreType, from, to));
+            selectedVotes.add(new SelectedTrendingVote(
+                    pinnedVoteId,
+                    pinnedScore,
+                    TrendingDisplayType.PINNED
+            ));
         }
 
-        // 7일 이전 시간 계산
-        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
-        LocalDateTime now = LocalDateTime.now();
+        rankedScores.stream()
+                .filter(score -> !score.voteId().equals(pinnedVoteId))
+                .limit(TRENDING_LIMIT - selectedVotes.size())
+                .map(score -> new SelectedTrendingVote(
+                        score.voteId(),
+                        score,
+                        TrendingDisplayType.RANKED
+                ))
+                .forEach(selectedVotes::add);
 
-        // 최근 7일 내 반응성이 가장 높은 투표 조회
-        Optional<Vote> recentTrendingVote = voteRepository
-                .findTrendingVote(sevenDaysAgo, now);
+        return selectedVotes;
+    }
 
-        Vote trendingVote;
-        if (recentTrendingVote.isPresent()) {
-            // 7일 내 데이터가 있는 경우 - 새로 업데이트
-            trendingVote = recentTrendingVote.get();
-        } else {
-            // 7일 내 데이터가 없는 경우 - 이전 데이터 유지 (전체 기간에서 가장 높은 반응성)
-            trendingVote = voteRepository.findHotIssueVote()
-                    .orElseThrow(() -> new ApiException(VoteErrorMessage.TRENDING_VOTE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+    private TrendingVoteScore findPinnedVoteScore(
+            Long pinnedVoteId,
+            TrendingScoreType scoreType,
+            LocalDateTime from,
+            LocalDateTime to
+    ) {
+        Optional<TrendingVoteScore> score = scoreType == TrendingScoreType.PERIOD
+                ? voteRepository.findTrendingScoreByVoteId(pinnedVoteId, from, to)
+                : voteRepository.findAllTimeTrendingScoreByVoteId(pinnedVoteId);
+        return score.orElseGet(() -> TrendingVoteScore.empty(pinnedVoteId));
+    }
+
+    private List<TrendingVoteItemResponse> buildTrendingVoteItems(
+            List<SelectedTrendingVote> selectedVotes
+    ) {
+        if (selectedVotes.isEmpty()) {
+            return List.of();
         }
 
-        // 3. 투표 생성자 정보 조회 (닉네임) - 기존 로직 유지
-        return getHotIssueVoteResponse(trendingVote);
+        List<Long> voteIds = selectedVotes.stream()
+                .map(SelectedTrendingVote::voteId)
+                .toList();
+        Map<Long, Vote> votesById = voteRepository.findTrendingVoteDetailsByIds(voteIds).stream()
+                .collect(Collectors.toMap(Vote::getId, vote -> vote));
 
+        List<Long> memberIds = votesById.values().stream()
+                .map(Vote::getMember)
+                .filter(member -> member != null && member.getId() != null)
+                .map(Member::getId)
+                .distinct()
+                .toList();
+        Map<Long, String> titleNamesByMemberId = getEquippedTitleNamesByMemberIds(memberIds);
+        Map<Long, String> nicknamesByMemberId = getNicknamesByMemberIds(memberIds);
+
+        List<TrendingVoteItemResponse> responses = new ArrayList<>();
+        for (SelectedTrendingVote selectedVote : selectedVotes) {
+            Vote vote = votesById.get(selectedVote.voteId());
+            if (vote == null) {
+                continue;
+            }
+            responses.add(toTrendingVoteItemResponse(
+                    responses.size() + 1,
+                    selectedVote,
+                    vote,
+                    titleNamesByMemberId,
+                    nicknamesByMemberId
+            ));
+        }
+        return responses;
+    }
+
+    private TrendingVoteItemResponse toTrendingVoteItemResponse(
+            int displayOrder,
+            SelectedTrendingVote selectedVote,
+            Vote vote,
+            Map<Long, String> titleNamesByMemberId,
+            Map<Long, String> nicknamesByMemberId
+    ) {
+        TrendingVoteScore score = selectedVote.score();
+        Member creator = vote.getMember();
+        String createdBy = "익명";
+        String creatorTitle = null;
+        if (creator != null) {
+            if (nicknamesByMemberId.get(creator.getId()) != null) {
+                createdBy = nicknamesByMemberId.get(creator.getId());
+            } else if (creator.getName() != null) {
+                createdBy = creator.getName();
+            }
+            creatorTitle = titleNamesByMemberId.get(creator.getId());
+        }
+
+        List<HotIssueVoteOptionDto> options = vote.getVoteOptions().stream()
+                .map(option -> HotIssueVoteOptionDto.builder()
+                        .optionId(option.getId())
+                        .content(option.getContent())
+                        .imageUrl(option.getImageUrl())
+                        .vote_count(option.getVoteCount())
+                        .build())
+                .toList();
+
+        return TrendingVoteItemResponse.builder()
+                .displayOrder(displayOrder)
+                .displayType(selectedVote.displayType())
+                .voteId(vote.getId())
+                .title(vote.getTitle())
+                .content(vote.getContent())
+                .category(vote.getCategory() == null ? null : vote.getCategory().name())
+                .reactivityScore(score.reactivityScore())
+                .voteReactionCount(score.voteReactionCount())
+                .commentReactionCount(score.commentReactionCount())
+                .totalParticipants(vote.getTotalVoteCount())
+                .createdBy(createdBy)
+                .creatorTitle(creatorTitle)
+                .createdAt(vote.getCreatedAt())
+                .options(options)
+                .build();
+    }
+
+    private Map<Long, String> getNicknamesByMemberIds(List<Long> memberIds) {
+        if (memberIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return memberProfileRepository.findAllByMemberIdIn(memberIds).stream()
+                .filter(profile -> profile.getMember() != null)
+                .filter(profile -> profile.getNickname() != null)
+                .collect(Collectors.toMap(
+                        profile -> profile.getMember().getId(),
+                        MemberProfile::getNickname,
+                        (existing, replacement) -> existing
+                ));
+    }
+
+    private record SelectedTrendingVote(
+            Long voteId,
+            TrendingVoteScore score,
+            TrendingDisplayType displayType
+    ) {
     }
 
     /**
@@ -676,7 +810,7 @@ public class VoteServiceImpl implements VoteService {
     @Transactional
     // 고정 , 고정 해제 기능은 vote 엔티티에 메서드로 존재
     /**
-     * 관리자 권한으로 투표의 HOT/TRENDING 고정 상태를 변경하는 메서드입니다.
+     * 관리자 권한으로 투표의 트렌딩 고정 상태를 변경하는 메서드입니다.
      */
     public void updatePinStatus(Member member, Long voteId, PinType pinType) {
         if (member.getRole() != Role.ADMIN) {
@@ -701,45 +835,6 @@ public class VoteServiceImpl implements VoteService {
             vote.unpin();
         }
         voteRepository.save(vote);
-    }
-
-    // 핫이슈 발런스 게임을 뽑아내는 메서드
-    private HotIssueVoteResponse getHotIssueVoteResponse(Vote hotIssueVote) {
-        String createdByNickname = "익명"; // 기본값 설정
-        if (hotIssueVote.getMember() != null) { // Member가 null이 아닌 경우
-            Member creatorMember = hotIssueVote.getMember(); // 생성자 Member 객체 가져오기
-            MemberProfile profile = memberProfileRepository.findByMemberId(creatorMember.getId()).orElse(null); // MemberProfile 조회
-            if (profile != null && profile.getNickname() != null) { // 프로필이 있고 닉네임이 있는 경우
-                createdByNickname = profile.getNickname(); // 닉네임 설정
-            } else {
-                // MemberProfile이 없거나 닉네임이 없는 경우, Member의 기본 이름 사용 (카카오 이름 등)
-                if (creatorMember.getName() != null) { // Member의 이름이 있는 경우
-                    createdByNickname = creatorMember.getName(); // 이름으로 닉네임 설정
-                }
-            }
-        }
-
-        List<HotIssueVoteOptionDto> options = hotIssueVote.getVoteOptions().stream()
-                .map(option -> HotIssueVoteOptionDto.builder() // HotIssueVoteOptionDto 빌더 사용
-                        .optionId(option.getId())  //option ID넣기
-                        .content(option.getContent()) // 옵션 내용 설정
-                        .imageUrl(option.getImageUrl())
-                        .vote_count(option.getVoteCount()) // 투표 수 설정
-                        .build())
-                .collect(Collectors.toList()); // 리스트로 수집
-
-        return HotIssueVoteResponse.builder()
-                .voteId(hotIssueVote.getId()) // 투표 ID 설정
-                .title(hotIssueVote.getTitle()) // 제목 설정
-                .content(hotIssueVote.getContent())
-                .category(hotIssueVote.getCategory() != null ? hotIssueVote.getCategory().name() : null) // 카테고리 설정
-                .totalParticipants(hotIssueVote.getTotalVoteCount()) // 총 참여자 수 설정
-                .createdBy(createdByNickname) // 생성자 닉네임 설정
-                .creatorTitle(getEquippedTitleName(hotIssueVote.getMember()))
-                .createdAt(hotIssueVote.getCreatedAt()) // 추가된 부분: createdAt 설정
-                .pinType(hotIssueVote.getPinType())
-                .options(options) // 옵션 리스트 설정
-                .build();
     }
 
     private String getEquippedTitleName(Member member) {
