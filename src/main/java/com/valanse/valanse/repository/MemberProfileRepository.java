@@ -17,6 +17,7 @@ import java.util.Optional;
 public interface MemberProfileRepository extends JpaRepository<MemberProfile, Long> {
 
     Optional<MemberProfile> findByMemberId(Long id);
+    List<MemberProfile> findAllByMemberIdIn(List<Long> memberIds);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select mp from MemberProfile mp where mp.member.id = :memberId")

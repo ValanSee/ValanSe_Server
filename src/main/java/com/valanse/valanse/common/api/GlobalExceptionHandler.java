@@ -5,6 +5,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.HttpStatus;
@@ -65,6 +68,30 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<?> handleMissingServletRequestParameterException(
+            MissingServletRequestParameterException e
+    ) {
+        return badRequest(e.getParameterName() + " 파라미터를 입력해주세요.");
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<?> handleMethodArgumentTypeMismatchException(
+            MethodArgumentTypeMismatchException e
+    ) {
+        return badRequest(e.getName() + " 파라미터 형식이 올바르지 않습니다.");
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNoResourceFoundException(
+            NoResourceFoundException e
+    ) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("error", "요청한 API를 찾을 수 없습니다.");
+        error.put("status", HttpStatus.NOT_FOUND.value());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
     /**
      * GlobalExceptionHandler의 handleUnexpectedException 기능을 수행하는 메서드입니다.
      */
@@ -92,5 +119,12 @@ public class GlobalExceptionHandler {
         return Arrays.stream(activeProfiles.split(","))
                 .map(String::trim)
                 .anyMatch("prod"::equals);
+    }
+
+    private ResponseEntity<Map<String, Object>> badRequest(String message) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("error", message);
+        error.put("status", HttpStatus.BAD_REQUEST.value());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 }

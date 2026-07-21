@@ -16,10 +16,7 @@ import java.util.Map;
  */
 public interface VoteService {
 
-    // 신규 추가: 인기 급상승 토픽 조회
-    HotIssueVoteResponse getTrendingVote();
-
-    HotIssueVoteResponse getHotIssueVote();
+    TrendingVotesResponse getTrendingVotes(int days);
     // 사용자의 투표를 처리하는 핵심 메서드.
     // userId: 현재 로그인한 사용자의 ID
     // voteId: 사용자가 투표하려는 투표의 ID

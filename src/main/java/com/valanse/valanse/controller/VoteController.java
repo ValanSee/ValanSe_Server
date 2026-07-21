@@ -116,47 +116,17 @@ public class VoteController {
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.CATEGORY_INVALID.message(), HttpStatus.BAD_REQUEST));
     }
 
-   //여기서 부터 영서 부분
     @Operation(
-            summary = "오늘의 핫이슈 밸런스 게임 선택지들 반환",
-            description = "가장 많이 참여한 밸런스 게임 투표의 상세 정보와 옵션 목록을 조회합니다. " +
-                    "총 참여자 수가 가장 많은 투표를 반환하며, 참여자 수가 동일한 경우 가장 최근에 생성된 투표를 우선합니다. \n" +
-                    "  voteId -> 가장 투표 참여 횟수가 많은 투표의 id\n" +
-                    "  title -> 가장 투표 참여 횟수가 많은 투표의 제목\n" +
-                    "  category -> 가장 투표 참여 횟수가 많은 투표의 카테고리\n" +
-                    "  totalParticipants -> 가장 투표 참여 횟수가 많은 투표의 총 투표 수\n" +
-                    "  createdBy -> 가장 투표 참여 횟수가 많은 투표를 생성한 사람의 닉네임\n" +
-                    "  createdAt -> 투표 생성 날짜\n" +
-                    "  options -> 투표 옵션 리스트 (content, vote_count)"
+            summary = "기간별 인기 급상승 밸런스 게임 반환",
+            description = "최근 days일 동안 생성된 유효 투표 참여와 삭제되지 않은 댓글/대댓글을 합산해 " +
+                    "반응성이 높은 투표를 최대 5개 반환합니다. 기간 내 반응이 없으면 전체 누적 반응성으로 조회합니다. " +
+                    "관리자 고정 투표가 있으면 첫 번째에 배치하고 나머지를 반응성 순위로 채웁니다."
     )
-    /**
-     * 핫이슈로 노출할 투표를 고정값 또는 반응성 기준으로 선정하는 메서드입니다.
-     */
-    @GetMapping("/best") // 새로운 엔드포인트: /votes/best (GET 메서드)
-    public ResponseEntity<HotIssueVoteResponse> getHotIssueVote() {
-        HotIssueVoteResponse response = voteService.getHotIssueVote();
-        return ResponseEntity.ok(response);
-    }
-
-    // 인기 급상승 토픽
-    @Operation(
-            summary = "인기 급상승 밸런스 게임 선택지들 반환",
-            description = "최근 7일 이내 반응성(투표수 + 댓글수)이 가장 높은 밸런스 게임을 반환합니다. " +
-                    "7일 이내 새로 추가되는 반응이 없을 경우 이전 데이터를 유지합니다.\n" +
-                    "  voteId -> 7일 내 반응성이 가장 높은 투표의 id\n" +
-                    "  title -> 7일 내 반응성이 가장 높은 투표의 제목\n" +
-                    "  category -> 7일 내 반응성이 가장 높은 투표의 카테고리\n" +
-                    "  totalParticipants -> 7일 내 반응성이 가장 높은 투표의 총 투표 수\n" +
-                    "  createdBy -> 7일 내 반응성이 가장 높은 투표를 생성한 사람의 닉네임\n" +
-                    "  createdAt -> 투표 생성 날짜\n" +
-                    "  options -> 투표 옵션 리스트 (content, vote_count)"
-    )
-    /**
-     * 최근 기간의 반응성을 기준으로 인기 급상승 투표를 선정하는 메서드입니다.
-     */
     @GetMapping("/trending")
-    public ResponseEntity<HotIssueVoteResponse> getTrendingVote() {
-        HotIssueVoteResponse response = voteService.getTrendingVote();
+    public ResponseEntity<TrendingVotesResponse> getTrendingVotes(
+            @RequestParam(name = "days") int days
+    ) {
+        TrendingVotesResponse response = voteService.getTrendingVotes(days);
         return ResponseEntity.ok(response);
     }
 
@@ -307,7 +277,7 @@ public ResponseEntity<VoteListResponse> getVotes(
     }
 
     /**
-     * 관리자 권한으로 투표의 HOT/TRENDING 고정 상태를 변경하는 메서드입니다.
+     * 관리자 권한으로 투표의 트렌딩 고정 상태를 변경하는 메서드입니다.
      */
     @PatchMapping("/{voteId}/pin")
     @Operation(summary = "고정", description = "관리자 권한으로 게시물을 고정합니다.")
