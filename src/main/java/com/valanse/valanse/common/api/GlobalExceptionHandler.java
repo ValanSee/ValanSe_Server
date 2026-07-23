@@ -25,6 +25,7 @@ import java.time.Instant;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final String TRACE_ID_HEADER = "X-Trace-Id";
     private final ApplicationEventPublisher eventPublisher;
 
     @Value("${spring.profiles.active:}")
@@ -39,8 +40,9 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<?> handleApiException(ApiException e, HttpServletRequest request) {
+        String traceId = null;
         if (e.getStatus().is5xxServerError()) {
-            String traceId = UUID.randomUUID().toString();
+            traceId = UUID.randomUUID().toString();
             log.error("Controlled API server exception. traceId={}", traceId, e);
             publishServerError(e, e.getStatus(), request, traceId);
         }
@@ -48,9 +50,16 @@ public class GlobalExceptionHandler {
         Map<String, Object> error = new HashMap<>();
         error.put("error", e.getMessage());
         error.put("status", e.getStatus().value());
+        if (traceId != null) {
+            error.put("traceId", traceId);
+        }
 //        error.put("type", e.getClass().getSimpleName());
 
-        return ResponseEntity.status(e.getStatus()).body(error);
+        ResponseEntity.BodyBuilder response = ResponseEntity.status(e.getStatus());
+        if (traceId != null) {
+            response.header(TRACE_ID_HEADER, traceId);
+        }
+        return response.body(error);
     }
 
     // 예상치 못한 IllegalArgumentException을 400 에러로 포장해서 내보내기 위함
@@ -92,12 +101,15 @@ public class GlobalExceptionHandler {
         Map<String, Object> error = new HashMap<>();
         error.put("error", "서버 내부 오류가 발생했습니다.");
         error.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+        error.put("traceId", traceId);
         if (!isProdProfile()) {
             error.put("message", e.getMessage());
             error.put("type", e.getClass().getSimpleName());
         }
 
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .header(TRACE_ID_HEADER, traceId)
+                .body(error);
     }
 
     private void publishServerError(

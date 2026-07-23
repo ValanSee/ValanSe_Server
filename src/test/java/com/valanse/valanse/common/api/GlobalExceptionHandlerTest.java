@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,6 +41,8 @@ class GlobalExceptionHandlerTest {
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.error").value("서버 내부 오류가 발생했습니다."))
                 .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.traceId").isNotEmpty())
+                .andExpect(header().exists("X-Trace-Id"))
                 .andExpect(jsonPath("$.message").doesNotExist())
                 .andExpect(jsonPath("$.type").doesNotExist());
     }
@@ -53,6 +56,8 @@ class GlobalExceptionHandlerTest {
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.error").value("서버 내부 오류가 발생했습니다."))
                 .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.traceId").isNotEmpty())
+                .andExpect(header().exists("X-Trace-Id"))
                 .andExpect(jsonPath("$.message").value("boom"))
                 .andExpect(jsonPath("$.type").value("IllegalStateException"));
     }
@@ -62,8 +67,11 @@ class GlobalExceptionHandlerTest {
     void handleUnexpectedException_PublishesServerErrorEvent() throws Exception {
         MockMvc mockMvc = mockMvc("prod");
 
-        mockMvc.perform(get("/boom"))
-                .andExpect(status().isInternalServerError());
+        String responseTraceId = mockMvc.perform(get("/boom"))
+                .andExpect(status().isInternalServerError())
+                .andReturn()
+                .getResponse()
+                .getHeader("X-Trace-Id");
 
         ArgumentCaptor<ServerErrorEvent> captor = ArgumentCaptor.forClass(ServerErrorEvent.class);
         verify(eventPublisher).publishEvent(captor.capture());
@@ -74,7 +82,7 @@ class GlobalExceptionHandlerTest {
         assertThat(event.httpMethod()).isEqualTo("GET");
         assertThat(event.requestUri()).isEqualTo("/boom");
         assertThat(event.exceptionType()).isEqualTo("IllegalStateException");
-        assertThat(event.traceId()).isNotBlank();
+        assertThat(event.traceId()).isEqualTo(responseTraceId);
     }
 
     @Test
@@ -83,7 +91,9 @@ class GlobalExceptionHandlerTest {
         MockMvc mockMvc = mockMvc("prod");
 
         mockMvc.perform(get("/controlled-server-error"))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.traceId").isNotEmpty())
+                .andExpect(header().exists("X-Trace-Id"));
 
         ArgumentCaptor<ServerErrorEvent> captor = ArgumentCaptor.forClass(ServerErrorEvent.class);
         verify(eventPublisher).publishEvent(captor.capture());
@@ -97,7 +107,9 @@ class GlobalExceptionHandlerTest {
         MockMvc mockMvc = mockMvc("prod");
 
         mockMvc.perform(get("/controlled-client-error"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.traceId").doesNotExist())
+                .andExpect(header().doesNotExist("X-Trace-Id"));
 
         verify(eventPublisher, never()).publishEvent(any());
     }
