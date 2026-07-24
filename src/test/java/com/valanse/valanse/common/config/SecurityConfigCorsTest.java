@@ -42,6 +42,14 @@ class SecurityConfigCorsTest {
         assertThat(configuration.checkOrigin("https://test-front-security.netlify.app")).isNull();
     }
 
+    @Test
+    @DisplayName("CORS 응답에서 traceId 헤더를 클라이언트에 노출한다")
+    void corsConfiguration_ExposesTraceIdHeader() {
+        CorsConfiguration configuration = corsConfiguration("prod");
+
+        assertThat(configuration.getExposedHeaders()).containsExactly("X-Trace-Id");
+    }
+
     private CorsConfiguration corsConfiguration(String activeProfile) {
         MockEnvironment environment = new MockEnvironment();
         environment.setActiveProfiles(activeProfile);

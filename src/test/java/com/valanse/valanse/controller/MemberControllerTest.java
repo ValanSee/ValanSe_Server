@@ -55,7 +55,7 @@ class MemberControllerTest {
         );
 
         mockMvc = MockMvcBuilders.standaloneSetup(memberController)
-                .setControllerAdvice(new GlobalExceptionHandler())
+                .setControllerAdvice(new GlobalExceptionHandler(event -> { }))
                 .build();
     }
 
