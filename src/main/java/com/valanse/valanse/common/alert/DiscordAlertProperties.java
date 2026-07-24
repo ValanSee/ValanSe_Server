@@ -14,6 +14,8 @@ public class DiscordAlertProperties {
     private int maxAttempts = 3;
     private Duration initialBackoff = Duration.ofMillis(500);
     private Duration maxBackoff = Duration.ofSeconds(2);
+    private boolean deduplicationEnabled = true;
+    private Duration deduplicationWindow = Duration.ofMinutes(1);
 
     public boolean isEnabled() {
         return enabled;
@@ -69,5 +71,21 @@ public class DiscordAlertProperties {
 
     public void setMaxBackoff(Duration maxBackoff) {
         this.maxBackoff = maxBackoff;
+    }
+
+    public boolean isDeduplicationEnabled() {
+        return deduplicationEnabled;
+    }
+
+    public void setDeduplicationEnabled(boolean deduplicationEnabled) {
+        this.deduplicationEnabled = deduplicationEnabled;
+    }
+
+    public Duration getDeduplicationWindow() {
+        return deduplicationWindow;
+    }
+
+    public void setDeduplicationWindow(Duration deduplicationWindow) {
+        this.deduplicationWindow = deduplicationWindow;
     }
 }
