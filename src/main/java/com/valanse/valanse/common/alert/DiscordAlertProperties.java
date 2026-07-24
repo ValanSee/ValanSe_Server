@@ -11,6 +11,9 @@ public class DiscordAlertProperties {
     private String webhookUrl = "";
     private Duration connectTimeout = Duration.ofSeconds(2);
     private Duration readTimeout = Duration.ofSeconds(3);
+    private int maxAttempts = 3;
+    private Duration initialBackoff = Duration.ofMillis(500);
+    private Duration maxBackoff = Duration.ofSeconds(2);
 
     public boolean isEnabled() {
         return enabled;
@@ -42,5 +45,29 @@ public class DiscordAlertProperties {
 
     public void setReadTimeout(Duration readTimeout) {
         this.readTimeout = readTimeout;
+    }
+
+    public int getMaxAttempts() {
+        return maxAttempts;
+    }
+
+    public void setMaxAttempts(int maxAttempts) {
+        this.maxAttempts = maxAttempts;
+    }
+
+    public Duration getInitialBackoff() {
+        return initialBackoff;
+    }
+
+    public void setInitialBackoff(Duration initialBackoff) {
+        this.initialBackoff = initialBackoff;
+    }
+
+    public Duration getMaxBackoff() {
+        return maxBackoff;
+    }
+
+    public void setMaxBackoff(Duration maxBackoff) {
+        this.maxBackoff = maxBackoff;
     }
 }
