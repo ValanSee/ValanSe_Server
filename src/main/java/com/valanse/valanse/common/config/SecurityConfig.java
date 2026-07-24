@@ -82,7 +82,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/analytics/events/page-view").permitAll()
                         .requestMatchers(HttpMethod.GET, "/admin/analytics/mau").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/admin/purge/preview").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/admin/test/server-error").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/report").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/report/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/member/titles/admin").hasRole("ADMIN")
