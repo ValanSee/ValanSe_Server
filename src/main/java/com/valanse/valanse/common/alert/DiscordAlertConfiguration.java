@@ -23,9 +23,9 @@ public class DiscordAlertConfiguration {
     @Bean(name = ALERT_EXECUTOR)
     public TaskExecutor discordAlertExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(1);
+        executor.setCorePoolSize(2);
         executor.setMaxPoolSize(2);
-        executor.setQueueCapacity(100);
+        executor.setQueueCapacity(50);
         executor.setThreadNamePrefix("discord-alert-");
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
         executor.setWaitForTasksToCompleteOnShutdown(false);
