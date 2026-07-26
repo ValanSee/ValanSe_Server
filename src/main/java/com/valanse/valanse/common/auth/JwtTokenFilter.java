@@ -3,6 +3,7 @@ package com.valanse.valanse.common.auth;
 import com.valanse.valanse.common.message.AuthErrorMessage;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -122,9 +123,9 @@ public class JwtTokenFilter extends OncePerRequestFilter {
                 response.getWriter().write(AuthErrorMessage.INVALID_TOKEN.tokenErrorResponse());
                 return;
 
-            } catch (Exception e) {
+            } catch (JwtException | IllegalArgumentException e) {
                 // ============================================
-                // ✅ 기타 예외: 401 반환
+                // ✅ 기타 JWT 형식/클레임 예외: 401 반환
                 // ============================================
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType("application/json;charset=UTF-8");
