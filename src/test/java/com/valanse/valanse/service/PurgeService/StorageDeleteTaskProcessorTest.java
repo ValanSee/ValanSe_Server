@@ -11,6 +11,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -59,5 +60,32 @@ class StorageDeleteTaskProcessorTest {
                 now.plusSeconds(120),
                 8,
                 "IllegalStateException: R2 unavailable");
+    }
+
+    @Test
+    void retriesSafelyWhenStorageWasDeletedButCompletionCouldNotBeRecorded() {
+        LocalDateTime now = LocalDateTime.of(2026, 7, 31, 4, 0);
+        ClaimedStorageDeleteTask firstAttempt = new ClaimedStorageDeleteTask(
+                3L, "https://cdn.example.com/c.png", "first-token", 1);
+        ClaimedStorageDeleteTask recoveredAttempt = new ClaimedStorageDeleteTask(
+                3L, "https://cdn.example.com/c.png", "second-token", 2);
+        when(repository.claimBatch(now, 50, Duration.ofSeconds(300)))
+                .thenReturn(List.of(firstAttempt));
+        when(repository.claimBatch(now.plusMinutes(1), 50, Duration.ofSeconds(300)))
+                .thenReturn(List.of(recoveredAttempt));
+        when(repository.markCompleted(firstAttempt, now))
+                .thenThrow(new IllegalStateException("database unavailable"));
+
+        processor.processBatch(now);
+        processor.processBatch(now.plusMinutes(1));
+
+        verify(storageService, times(2)).deleteImageByUrl(firstAttempt.objectUrl());
+        verify(repository).markFailed(
+                firstAttempt,
+                now,
+                now.plusSeconds(30),
+                8,
+                "IllegalStateException: database unavailable");
+        verify(repository).markCompleted(recoveredAttempt, now.plusMinutes(1));
     }
 }
