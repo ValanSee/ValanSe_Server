@@ -57,3 +57,7 @@ cloudflare:
     access-key: test-access-key
     secret-key: test-secret-key
     public-url: http://localhost:9000/test-bucket
+
+purge:
+  storage-delete:
+    enabled: false
