@@ -142,8 +142,11 @@ public class VoteControllerTest {
                         .with(user(member1Id.toString()))
                         .param("category", "ALL"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].voteId").value(hotIssueVoteId));
+                .andExpect(jsonPath("$.votes.length()").value(1))
+                .andExpect(jsonPath("$.votes[0].voteId").value(hotIssueVoteId))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(10))
+                .andExpect(jsonPath("$.hasNext").value(false));
     }
 
     @Test
@@ -153,7 +156,10 @@ public class VoteControllerTest {
                         .with(user(member1Id.toString()))
                         .param("category", "ALL"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.votes.length()").value(0))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(10))
+                .andExpect(jsonPath("$.hasNext").value(false));
     }
 
     @Test
