@@ -32,6 +32,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -54,6 +55,8 @@ public class VoteControllerTest {
     @Autowired private MemberVoteOptionRepository memberVoteOptionRepository;
     @Autowired private EntityManager entityManager;
     @Autowired private EntityManagerFactory entityManagerFactory;
+    private Long member1Id;
+    private Long hotIssueVoteId;
 
     @BeforeEach
     void setUp() {
@@ -67,6 +70,7 @@ public class VoteControllerTest {
                 .profile_image_url("http://image.com/test1.jpg")
                 .kakaoAccessToken("token1").kakaoRefreshToken("refresh1").build();
         memberRepository.save(member1);
+        member1Id = member1.getId();
 
         memberProfileRepository.save(MemberProfile.builder()
                 .member(member1).nickname("테스터1닉네임")
@@ -78,6 +82,7 @@ public class VoteControllerTest {
                 .reactivityUpdatedAt(LocalDateTime.now())
                 .member(member1).pinType(PinType.NONE).build();
         voteRepository.save(hotIssueVote);
+        hotIssueVoteId = hotIssueVote.getId();
 
         commentGroupRepository.save(CommentGroup.builder()
                 .vote(hotIssueVote).totalCommentCount(10).build());
@@ -114,6 +119,49 @@ public class VoteControllerTest {
                 .vote(hotIssueVote)
                 .voteOption(optionA)
                 .build());
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자는 자신이 만든 투표 목록을 조회할 수 없다.")
+    void getMyCreatedVotes_Anonymous_ReturnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/votes/mine/created"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자는 자신이 참여한 투표 목록을 조회할 수 없다.")
+    void getMyVotedVotes_Anonymous_ReturnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/votes/mine/voted"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("로그인 사용자는 자신이 만든 투표 목록을 조회할 수 있다.")
+    void getMyCreatedVotes_Authenticated_ReturnsVotes() throws Exception {
+        mockMvc.perform(get("/votes/mine/created")
+                        .with(user(member1Id.toString()))
+                        .param("category", "ALL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].voteId").value(hotIssueVoteId));
+    }
+
+    @Test
+    @DisplayName("로그인 사용자는 자신이 참여한 투표 목록을 조회할 수 있다.")
+    void getMyVotedVotes_Authenticated_ReturnsVotes() throws Exception {
+        mockMvc.perform(get("/votes/mine/voted")
+                        .with(user(member1Id.toString()))
+                        .param("category", "ALL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자도 공개 투표 상세를 조회할 수 있다.")
+    void getVoteDetail_Anonymous_ReturnsVote() throws Exception {
+        mockMvc.perform(get("/votes/{voteId}", hotIssueVoteId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.voteId").value(hotIssueVoteId));
     }
 
     @Test

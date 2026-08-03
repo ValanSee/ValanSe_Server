@@ -5,18 +5,26 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.DelegatingAuthenticationEntryPoint;
+import org.springframework.security.web.authentication.Http403ForbiddenEntryPoint;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 @Configuration
@@ -93,6 +101,9 @@ public class SecurityConfig {
                         // HTTP 메서드별 설정 (중요! 순서 지키기!)
                         // ============================================
 
+                        // 회원 전용 투표 조회
+                        .requestMatchers("/votes/mine/**").authenticated()
+
                         // GET - 공개 (모든 사람이 볼 수 있음)
                         .requestMatchers(HttpMethod.GET, "/votes/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/comments/**").permitAll()
@@ -115,9 +126,6 @@ public class SecurityConfig {
                         // PATCH
                         .requestMatchers(HttpMethod.PATCH, "/votes/*/pin").hasRole("ADMIN")
 
-                        // 특별한 경로 (내가 만든/투표한 게임)
-                        .requestMatchers("/votes/mine/**").authenticated()
-
                         // 회원 관련
                         .requestMatchers("/member/**").authenticated()
 
@@ -127,9 +135,22 @@ public class SecurityConfig {
                 .cors(c -> c.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
+                .exceptionHandling(exception -> exception.authenticationEntryPoint(authenticationEntryPoint()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtTokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
+    }
+
+    private AuthenticationEntryPoint authenticationEntryPoint() {
+        LinkedHashMap<RequestMatcher, AuthenticationEntryPoint> entryPoints = new LinkedHashMap<>();
+        entryPoints.put(
+                new AntPathRequestMatcher("/votes/mine/**"),
+                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)
+        );
+
+        DelegatingAuthenticationEntryPoint entryPoint = new DelegatingAuthenticationEntryPoint(entryPoints);
+        entryPoint.setDefaultEntryPoint(new Http403ForbiddenEntryPoint());
+        return entryPoint;
     }
 
     /**
