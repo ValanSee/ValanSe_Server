@@ -30,7 +30,7 @@ public class StorageDeleteTask {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "deduplication_key", nullable = false, length = 64)
+    @Column(name = "deduplication_key", nullable = false, length = 64, columnDefinition = "CHAR(64)")
     private String deduplicationKey;
 
     @Column(name = "object_url", nullable = false, length = 2048)
