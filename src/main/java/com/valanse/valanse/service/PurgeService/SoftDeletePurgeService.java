@@ -1,6 +1,5 @@
 package com.valanse.valanse.service.PurgeService;
 
-import com.valanse.valanse.service.StorageService.StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -16,7 +15,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SoftDeletePurgeService {
     private final JdbcTemplate jdbcTemplate;
-    private final StorageService storageService;
+    private final StorageDeleteTaskRepository storageDeleteTaskRepository;
     private final PurgeProperties properties;
 
     @Transactional(readOnly = true)
@@ -57,7 +56,13 @@ public class SoftDeletePurgeService {
     private int purgeVotes(LocalDateTime cutoff) {
         List<Long> voteIds = findIds("select id from vote where deleted_at < ? order by id limit ?", cutoff);
         for (Long voteId : voteIds) {
-            deleteImages(jdbcTemplate.queryForList("select image_url from vote_option where vote_id = ? and image_url is not null", String.class, voteId));
+            enqueueImageDeletes(
+                    jdbcTemplate.queryForList(
+                            "select image_url from vote_option where vote_id = ? and image_url is not null",
+                            String.class,
+                            voteId),
+                    "VOTE",
+                    voteId);
             List<Long> commentIds = jdbcTemplate.queryForList(
                     "select c.id from comment c join comment_group cg on c.comment_group_id = cg.id where cg.vote_id = ?",
                     Long.class, voteId);
@@ -79,7 +84,13 @@ public class SoftDeletePurgeService {
     private int purgeMembers(LocalDateTime cutoff) {
         List<Long> memberIds = findIds("select id from member where deleted_at < ? order by id limit ?", cutoff);
         for (Long memberId : memberIds) {
-            deleteImages(jdbcTemplate.queryForList("select profile_image_url from member where id = ? and profile_image_url is not null", String.class, memberId));
+            enqueueImageDeletes(
+                    jdbcTemplate.queryForList(
+                            "select profile_image_url from member where id = ? and profile_image_url is not null",
+                            String.class,
+                            memberId),
+                    "MEMBER",
+                    memberId);
             jdbcTemplate.update("delete from comment_like where user_id = ?", memberId);
             jdbcTemplate.update("delete from member_vote_option where member_id = ?", memberId);
             jdbcTemplate.update("delete from point_history where member_id = ?", memberId);
@@ -101,8 +112,9 @@ public class SoftDeletePurgeService {
         return jdbcTemplate.queryForList(sql, Long.class, Timestamp.valueOf(cutoff), properties.batchSize());
     }
 
-    private void deleteImages(List<String> urls) {
-        urls.forEach(storageService::deleteImageByUrl);
+    private void enqueueImageDeletes(List<String> urls, String sourceType, Long sourceId) {
+        LocalDateTime now = LocalDateTime.now();
+        urls.forEach(url -> storageDeleteTaskRepository.enqueue(url, sourceType, sourceId, now));
     }
 
     private long valueOrZero(Long value) {
