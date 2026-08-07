@@ -157,10 +157,12 @@ public class MemberProfileServiceImpl implements MemberProfileService {
 
     /**
      * isAvailableNickname 조건을 판별하는 메서드입니다.
+     * 로그인한 사용자 본인이 현재 사용 중인 닉네임은 중복 검사에서 제외합니다.
      */
     @Override
     public boolean isAvailableNickname(String nickname) {
-        return !memberProfileRepository.existsByNicknameAndDeletedAtIsNull(nickname);
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        return !memberProfileRepository.existsByNicknameAndDeletedAtIsNullAndMemberIdNot(nickname, userId);
     }
 
     /**

@@ -29,6 +29,8 @@ public interface MemberProfileRepository extends JpaRepository<MemberProfile, Lo
 
     boolean existsByNicknameAndDeletedAtIsNull(String nickname);
 
+    boolean existsByNicknameAndDeletedAtIsNullAndMemberIdNot(String nickname, Long memberId);
+
     List<MemberProfile> findAllByDeletedAtIsNullOrderByPointDesc();
 
 }
