@@ -209,7 +209,7 @@ class MemberProfileServiceImplTest {
     @Test
     @DisplayName("[핵심] isAvailableNickname은 soft delete된 회원 닉네임을 사용 가능으로 반환해야 한다")
     void isAvailableNickname_탈퇴회원_닉네임은_사용가능() {
-        when(memberProfileRepository.existsByNicknameAndDeletedAtIsNull("탈퇴한닉네임"))
+        when(memberProfileRepository.existsByNicknameAndDeletedAtIsNullAndMemberIdNot("탈퇴한닉네임", 1L))
                 .thenReturn(false);
 
         assertThat(memberProfileService.isAvailableNickname("탈퇴한닉네임")).isTrue();
@@ -218,10 +218,43 @@ class MemberProfileServiceImplTest {
     @Test
     @DisplayName("[핵심] isAvailableNickname은 활성 회원 닉네임을 사용 불가로 반환해야 한다")
     void isAvailableNickname_활성회원_닉네임은_사용불가() {
-        when(memberProfileRepository.existsByNicknameAndDeletedAtIsNull("활성닉네임"))
+        when(memberProfileRepository.existsByNicknameAndDeletedAtIsNullAndMemberIdNot("활성닉네임", 1L))
                 .thenReturn(true);
 
         assertThat(memberProfileService.isAvailableNickname("활성닉네임")).isFalse();
+    }
+
+    @Test
+    @DisplayName("[이슈 #262] isAvailableNickname은 본인이 현재 사용 중인 닉네임을 사용 가능으로 반환해야 한다")
+    void isAvailableNickname_본인_현재닉네임은_사용가능() {
+        // given: 로그인 사용자(memberId=1) 본인의 닉네임을 제외하면 중복이 없는 상황
+        when(memberProfileRepository.existsByNicknameAndDeletedAtIsNullAndMemberIdNot("내닉네임", 1L))
+                .thenReturn(false);
+
+        // when & then
+        assertThat(memberProfileService.isAvailableNickname("내닉네임")).isTrue();
+    }
+
+    @Test
+    @DisplayName("[이슈 #262] isAvailableNickname은 다른 활성 회원의 닉네임을 사용 불가로 반환해야 한다")
+    void isAvailableNickname_타인_활성닉네임은_사용불가() {
+        // given: 로그인 사용자(memberId=1)를 제외하고도 해당 닉네임을 쓰는 다른 활성 회원이 존재
+        when(memberProfileRepository.existsByNicknameAndDeletedAtIsNullAndMemberIdNot("타인닉네임", 1L))
+                .thenReturn(true);
+
+        // when & then
+        assertThat(memberProfileService.isAvailableNickname("타인닉네임")).isFalse();
+    }
+
+    @Test
+    @DisplayName("[이슈 #262] isAvailableNickname은 아무도 쓰지 않는 신규 닉네임을 사용 가능으로 반환해야 한다")
+    void isAvailableNickname_신규닉네임은_사용가능() {
+        // given: 신규 프로필 생성 단계(본인 프로필 없음)에서도 기존 중복 검사 동작이 유지되어야 함
+        when(memberProfileRepository.existsByNicknameAndDeletedAtIsNullAndMemberIdNot("아무도안쓰는닉네임", 1L))
+                .thenReturn(false);
+
+        // when & then
+        assertThat(memberProfileService.isAvailableNickname("아무도안쓰는닉네임")).isTrue();
     }
 
     // ───────────────────────────────────────────────
