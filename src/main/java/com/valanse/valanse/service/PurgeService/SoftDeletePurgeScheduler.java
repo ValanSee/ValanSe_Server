@@ -2,12 +2,12 @@ package com.valanse.valanse.service.PurgeService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 @Component
@@ -16,15 +16,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class SoftDeletePurgeScheduler {
     private final SoftDeletePurgeService purgeService;
     private final PurgeProperties properties;
-    private final AtomicBoolean running = new AtomicBoolean(false);
 
     @Scheduled(cron = "${purge.cron:0 0 4 * * *}", zone = "${purge.zone:Asia/Seoul}")
+    @SchedulerLock(
+            name = "softDeletePurge",
+            lockAtMostFor = "${purge.lock-at-most-for:PT30M}",
+            lockAtLeastFor = "${purge.lock-at-least-for:PT0S}"
+    )
     public void purge() {
         if (!properties.enabled()) return;
-        if (!running.compareAndSet(false, true)) {
-            log.info("Soft-delete purge skipped because a previous execution is still running");
-            return;
-        }
         long startedAt = System.nanoTime();
         LocalDateTime startedNow = LocalDateTime.now();
         LocalDateTime cutoff = startedNow.minusDays(properties.retentionDays());
@@ -49,8 +49,6 @@ public class SoftDeletePurgeScheduler {
             log.error("PURGE_FAILED batches={} comments={} votes={} members={} durationMs={}",
                     batches, comments, votes, members, elapsedMillis(startedAt), e);
             throw e;
-        } finally {
-            running.set(false);
         }
     }
 

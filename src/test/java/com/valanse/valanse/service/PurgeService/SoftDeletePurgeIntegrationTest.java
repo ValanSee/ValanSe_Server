@@ -29,6 +29,7 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -95,6 +96,10 @@ class SoftDeletePurgeIntegrationTest {
     @Test
     void expiredVoteAndAllChildrenArePhysicallyDeleted() {
         Fixture fixture = createFixture();
+        jdbcTemplate.update(
+                "update vote_option set image_url = ? where id = ?",
+                "https://cdn.example.com/vote.png",
+                fixture.option().getId());
         Comment parent = saveComment(fixture, null, "부모");
         saveComment(fixture, parent, "대댓글");
         commentLikeRepository.saveAndFlush(CommentLike.builder().user(fixture.member()).comment(parent).build());
@@ -111,11 +116,20 @@ class SoftDeletePurgeIntegrationTest {
         assertThat(jdbcTemplate.queryForObject("select count(*) from member_vote_option where vote_id = ?", Integer.class, fixture.vote().getId())).isZero();
         assertThat(jdbcTemplate.queryForObject("select count(*) from comment", Integer.class)).isZero();
         assertThat(jdbcTemplate.queryForObject("select count(*) from comment_like", Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from storage_delete_task where source_type = 'VOTE' and source_id = ?",
+                Integer.class,
+                fixture.vote().getId())).isEqualTo(1);
+        verifyNoInteractions(storageService);
     }
 
     @Test
     void expiredMemberIsDeletedButAuthoredContentRemainsAnonymous() {
         Fixture fixture = createFixture();
+        jdbcTemplate.update(
+                "update member set profile_image_url = ? where id = ?",
+                "https://cdn.example.com/member.png",
+                fixture.member().getId());
         Comment comment = saveComment(fixture, null, "유지할 댓글");
         expire("member", fixture.member().getId());
 
@@ -129,6 +143,11 @@ class SoftDeletePurgeIntegrationTest {
         assertThat(jdbcTemplate.queryForObject("select member_id from comment where id = ?", Long.class, comment.getId())).isNull();
         assertThat(jdbcTemplate.queryForObject("select content from comment where id = ?", String.class, comment.getId()))
                 .isEqualTo("유지할 댓글");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from storage_delete_task where source_type = 'MEMBER' and source_id = ?",
+                Integer.class,
+                fixture.member().getId())).isEqualTo(1);
+        verifyNoInteractions(storageService);
     }
 
     private Fixture createFixture() {
