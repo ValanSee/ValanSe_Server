@@ -1,0 +1,20 @@
+CREATE TABLE storage_delete_task (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    deduplication_key CHAR(64) NOT NULL,
+    object_url VARCHAR(2048) NOT NULL,
+    source_type VARCHAR(32) NOT NULL,
+    source_id BIGINT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    attempt_count INT NOT NULL DEFAULT 0,
+    next_attempt_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    locked_until DATETIME(6) DEFAULT NULL,
+    lock_token VARCHAR(36) DEFAULT NULL,
+    last_error VARCHAR(1000) DEFAULT NULL,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    completed_at DATETIME(6) DEFAULT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_storage_delete_task_deduplication (deduplication_key),
+    KEY idx_storage_delete_task_dispatch (status, next_attempt_at),
+    KEY idx_storage_delete_task_lease (status, locked_until)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
