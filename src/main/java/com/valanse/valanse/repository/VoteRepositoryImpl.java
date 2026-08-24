@@ -2,6 +2,8 @@ package com.valanse.valanse.repository;
 
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Predicate;
+import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.valanse.valanse.domain.QCommentGroup;
@@ -124,11 +126,24 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                         .leftJoin(vote.commentGroup, commentGroup)
                         .orderBy(
                         vote.totalVoteCount
-                                .add(commentGroup.totalCommentCount.coalesce(0))
+                                .add(nonBotCommentCount())
                                 .desc(),
                         vote.createdAt.desc()  // 점수 같을 때 최신순
                         )
                         .fetchFirst());
+    }
+
+    /**
+     * 봇 댓글을 제외한 최상위 댓글 수를 세는 상관 서브쿼리입니다.
+     * commentGroup.totalCommentCount는 봇 댓글도 그대로 누적하므로 반응성 점수 계산에는 쓰지 않습니다.
+     */
+    private NumberExpression<Long> nonBotCommentCount() {
+        return Expressions.numberTemplate(
+                Long.class,
+                "(select count(c) from Comment c where c.commentGroup.id = {0} " +
+                        "and c.parent is null and c.deletedAt is null and c.member.isBot = false)",
+                commentGroup.id
+        );
     }
 
     /**
@@ -148,7 +163,8 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                                         .where(
                                                 comment.commentGroup.eq(commentGroup),
                                                 comment.createdAt.between(from, to),
-                                                comment.deletedAt.isNull()
+                                                comment.deletedAt.isNull(),
+                                                comment.member.isBot.isFalse()
                                         )
                                         .exists()
                                         .or(
@@ -159,14 +175,15 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                                                         .join(memberVoteOption.voteOption, voteOption)
                                                         .where(
                                                                 voteOption.vote.eq(vote),
-                                                                memberVoteOption.createdAt.between(from, to)
+                                                                memberVoteOption.createdAt.between(from, to),
+                                                                memberVoteOption.member.isBot.isFalse()
                                                         )
                                                         .exists()
                                         )
                         )
                         .orderBy(
                                 vote.totalVoteCount
-                                        .add(commentGroup.totalCommentCount.coalesce(0))
+                                        .add(nonBotCommentCount())
                                         .desc(),
                                 vote.createdAt.desc()  // 점수 같을 때 최신순
                         )
