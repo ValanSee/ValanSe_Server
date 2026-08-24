@@ -24,6 +24,7 @@ public class HotIssueVoteResponse {
     private String category; // 가장 투표 참여 횟수가 많은 투표의 카테고리
     private Integer totalParticipants; // 가장 투표 참여 횟수가 많은 투표의 총 투표 수
     private String createdBy; // 가장 투표 참여 횟수가 많은 투표를 생성한 사람의 닉네임
+    private Boolean isBot;
     private String creatorTitle;
     private LocalDateTime createdAt; // 투표 생성 날짜
     private PinType pinType; // 고정 여부

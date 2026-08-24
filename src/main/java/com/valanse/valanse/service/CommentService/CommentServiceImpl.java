@@ -252,6 +252,7 @@ public class CommentServiceImpl implements CommentService {
                     return CommentReplyResponseDto.builder()
                             .id(reply.getId())
                             .nickname(profile != null ? profile.getNickname() : "탈퇴한 사용자")
+                            .isBot(replyMember != null && replyMember.isBot())
                             .title(replyMember != null ? getEquippedTitleName(replyMember.getId()) : null)
                             .createdAt(reply.getCreatedAt())
                             .content(reply.getContent())
