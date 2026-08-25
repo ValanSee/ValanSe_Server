@@ -37,6 +37,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.LocalDateTime;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -174,6 +175,35 @@ class BotIsolationIntegrationTest {
 
         Vote hotIssueVote = voteRepository.findHotIssueVote().orElseThrow();
         assertThat(hotIssueVote.getId()).isEqualTo(voteWithAnonymizedComment.getId());
+    }
+
+    @Test
+    @DisplayName("트렌딩 조회도 탈퇴 회원의 익명화된 댓글을 기간 내 활동으로 인정한다")
+    void trendingVote_IncludesAnonymizedMemberComments() {
+        LocalDateTime from = LocalDateTime.now().minusDays(1);
+
+        Member voteCreator = saveMember("trending-vote-with-anonymized-comment", false);
+        saveProfile(voteCreator, Gender.MALE, Age.TWENTY);
+        Vote voteWithAnonymizedComment = saveVoteWithOptions(voteCreator);
+
+        Member withdrawnMember = saveMember("trending-withdrawn-commenter", false);
+        saveProfile(withdrawnMember, Gender.FEMALE, Age.TWENTY);
+        Long commentId = commentService.createComment(voteWithAnonymizedComment.getId(), withdrawnMember.getId(),
+                CommentPostRequest.builder().content("탈퇴 전에 남긴 실제 댓글").build());
+
+        // 회원 물리 삭제 시 SoftDeletePurgeService.anonymizeComments()가 하는 것과 동일하게
+        // 댓글 작성자를 NULL로 익명화한 상황을 재현합니다.
+        inTransaction(() -> {
+            jdbcTemplate.update("update comment set member_id = null where id = ?", commentId);
+            return null;
+        });
+
+        LocalDateTime to = LocalDateTime.now().plusMinutes(1);
+
+        // 익명화된 댓글이 "기간 내 활동 존재" 조건에서 봇 댓글처럼 배제되면 이 투표는 후보에서
+        // 아예 빠져 findTrendingVote가 빈 결과를 반환한다.
+        Vote trendingVote = voteRepository.findTrendingVote(from, to).orElseThrow();
+        assertThat(trendingVote.getId()).isEqualTo(voteWithAnonymizedComment.getId());
     }
 
     private Member saveMember(String socialId, boolean isBot) {
