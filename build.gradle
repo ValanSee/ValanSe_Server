@@ -7,6 +7,10 @@ plugins {
 group = 'com.valanse'
 version = '0.0.1-SNAPSHOT'
 
+ext['testcontainers.version'] = '2.0.2'
+ext['commons-compress.version'] = '1.28.0'
+ext['commons-lang3.version'] = '3.18.0'
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(17)
@@ -49,9 +53,11 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 
     // 마이그레이션 SQL을 실제 MySQL에 적용해 검증하는 Testcontainers 설정
-    testImplementation platform('org.testcontainers:testcontainers-bom:1.20.4')
-    testImplementation 'org.testcontainers:junit-jupiter'
-    testImplementation 'org.testcontainers:mysql'
+    testImplementation enforcedPlatform('org.testcontainers:testcontainers-bom:2.0.2')
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation 'org.testcontainers:testcontainers-mysql'
+    testImplementation 'org.apache.commons:commons-compress:1.28.0'
+    testImplementation 'org.apache.commons:commons-lang3:3.18.0'
 
     // JWT 설정
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
