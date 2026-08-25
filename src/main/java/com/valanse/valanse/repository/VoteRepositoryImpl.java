@@ -140,8 +140,8 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
     private NumberExpression<Long> nonBotCommentCount() {
         return Expressions.numberTemplate(
                 Long.class,
-                "(select count(c) from Comment c where c.commentGroup.id = {0} " +
-                        "and c.parent is null and c.deletedAt is null and c.member.isBot = false)",
+                "(select count(c) from Comment c left join c.member m where c.commentGroup.id = {0} " +
+                        "and c.parent is null and c.deletedAt is null and (m is null or m.isBot = false))",
                 commentGroup.id
         );
     }
@@ -160,11 +160,12 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                                 JPAExpressions
                                         .selectOne()
                                         .from(comment)
+                                        .leftJoin(comment.member, member)
                                         .where(
                                                 comment.commentGroup.eq(commentGroup),
                                                 comment.createdAt.between(from, to),
                                                 comment.deletedAt.isNull(),
-                                                comment.member.isBot.isFalse()
+                                                member.isNull().or(member.isBot.isFalse())
                                         )
                                         .exists()
                                         .or(

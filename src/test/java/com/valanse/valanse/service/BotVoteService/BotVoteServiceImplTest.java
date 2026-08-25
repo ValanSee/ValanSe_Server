@@ -60,6 +60,7 @@ class BotVoteServiceImplTest {
         // Then
         ArgumentCaptor<MemberVoteOption> captor = ArgumentCaptor.forClass(MemberVoteOption.class);
         verify(memberVoteOptionRepository).save(captor.capture());
+        verify(memberVoteOptionRepository).flush();
         assertThat(captor.getValue().getMember()).isEqualTo(botMember);
         assertThat(captor.getValue().getVoteOption()).isEqualTo(voteOption);
         assertThat(captor.getValue().getVote()).isEqualTo(vote);
@@ -67,6 +68,22 @@ class BotVoteServiceImplTest {
         // 집계 카운트는 그대로다 (증가 로직 자체가 없음을 값으로도 재확인)
         assertThat(vote.getTotalVoteCount()).isZero();
         assertThat(voteOption.getVoteCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("봇이 아닌 일반 회원 ID로 호출하면 예외를 던지고 저장하지 않는다")
+    void castBotVote_MemberNotBot_ThrowsException() {
+        // Given
+        Long memberId = 2L;
+        Long voteOptionId = 10L;
+        Member humanMember = Member.builder().id(memberId).isBot(false).build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(memberId)).thenReturn(Optional.of(humanMember));
+
+        // When / Then
+        assertThatThrownBy(() -> botVoteService.castBotVote(memberId, voteOptionId))
+                .isInstanceOf(ApiException.class);
+        verify(memberVoteOptionRepository, never()).save(any());
     }
 
     @Test

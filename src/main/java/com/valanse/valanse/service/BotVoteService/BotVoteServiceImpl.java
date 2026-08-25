@@ -29,6 +29,10 @@ public class BotVoteServiceImpl implements BotVoteService {
         Member member = memberRepository.findByIdAndDeletedAtIsNull(botMemberId)
                 .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
+        if (!member.isBot()) {
+            throw new ApiException(MemberErrorMessage.MEMBER_NOT_BOT.message(), HttpStatus.FORBIDDEN);
+        }
+
         VoteOption voteOption = voteOptionRepository.findById(voteOptionId)
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_OPTION_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
@@ -40,6 +44,7 @@ public class BotVoteServiceImpl implements BotVoteService {
 
         try {
             memberVoteOptionRepository.save(memberVoteOption);
+            memberVoteOptionRepository.flush();
         } catch (DataIntegrityViolationException e) {
             throw new ApiException(VoteErrorMessage.VOTE_ALREADY_PROCESSED.message(), HttpStatus.BAD_REQUEST);
         }

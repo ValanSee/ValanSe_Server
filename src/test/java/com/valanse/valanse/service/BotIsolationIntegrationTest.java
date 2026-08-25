@@ -32,6 +32,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -62,6 +63,7 @@ class BotIsolationIntegrationTest {
     @Autowired private CommentRepository commentRepository;
     @Autowired private PointHistoryRepository pointHistoryRepository;
     @Autowired private PlatformTransactionManager transactionManager;
+    @Autowired private JdbcTemplate jdbcTemplate;
 
     @BeforeEach
     void cleanUpBefore() {
@@ -145,6 +147,33 @@ class BotIsolationIntegrationTest {
 
         Vote hotIssueVote = voteRepository.findHotIssueVote().orElseThrow();
         assertThat(hotIssueVote.getId()).isEqualTo(voteWithRealVote.getId());
+    }
+
+    @Test
+    @DisplayName("탈퇴 회원의 댓글이 익명화(member_id=NULL)되어도 반응성 점수에서 제외되지 않는다")
+    void hotIssueRanking_IncludesAnonymizedMemberComments() {
+        Member voteCreator = saveMember("vote-with-anonymized-comment", false);
+        saveProfile(voteCreator, Gender.MALE, Age.TWENTY);
+        Vote voteWithAnonymizedComment = saveVoteWithOptions(voteCreator);
+
+        Member withdrawnMember = saveMember("withdrawn-commenter", false);
+        saveProfile(withdrawnMember, Gender.FEMALE, Age.TWENTY);
+        Long commentId = commentService.createComment(voteWithAnonymizedComment.getId(), withdrawnMember.getId(),
+                CommentPostRequest.builder().content("탈퇴 전에 남긴 실제 댓글").build());
+
+        // 회원 물리 삭제 시 SoftDeletePurgeService.anonymizeComments()가 하는 것과 동일하게
+        // 댓글 작성자를 NULL로 익명화한 상황을 재현합니다.
+        inTransaction(() -> {
+            jdbcTemplate.update("update comment set member_id = null where id = ?", commentId);
+            return null;
+        });
+
+        Member laterCreator = saveMember("vote-with-no-activity", false);
+        saveProfile(laterCreator, Gender.MALE, Age.TWENTY);
+        saveVoteWithOptions(laterCreator); // 활동이 전혀 없는, 더 나중에 생성된 투표 (비교 대상)
+
+        Vote hotIssueVote = voteRepository.findHotIssueVote().orElseThrow();
+        assertThat(hotIssueVote.getId()).isEqualTo(voteWithAnonymizedComment.getId());
     }
 
     private Member saveMember(String socialId, boolean isBot) {
