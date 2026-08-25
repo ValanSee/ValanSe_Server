@@ -7,13 +7,17 @@ import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.VoteOption;
 import com.valanse.valanse.domain.enums.Age;
 import com.valanse.valanse.domain.enums.Gender;
+import com.valanse.valanse.domain.enums.MbtiIe;
+import com.valanse.valanse.domain.enums.MbtiTf;
 import com.valanse.valanse.domain.enums.PinType;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.SocialType;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.dto.Comment.CommentPostRequest;
+import com.valanse.valanse.dto.VotesCheck.VoteAgeResultResponseDto;
 import com.valanse.valanse.dto.VotesCheck.VoteGenderResultResponseDto;
+import com.valanse.valanse.dto.VotesCheck.VoteMbtiResultResponseDto;
 import com.valanse.valanse.repository.CommentGroupRepository;
 import com.valanse.valanse.repository.CommentRepository;
 import com.valanse.valanse.repository.MemberProfileRepository;
@@ -117,6 +121,85 @@ class BotIsolationIntegrationTest {
         VoteGenderResultResponseDto result = voteResultQueryRepository.findVoteResultByGender(vote.getId(), "FEMALE");
 
         assertThat(result.getTotalCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("연령 통계는 봇 투표를 제외한다")
+    void ageStats_ExcludeBotVotes() {
+        Member creator = saveMember("age-stats-creator", false);
+        saveProfile(creator, Gender.MALE, Age.TWENTY);
+        Vote vote = saveVoteWithOptions(creator);
+        VoteOption option = vote.getVoteOptions().get(0);
+
+        Member realVoter = saveMember("age-stats-real-voter", false);
+        saveProfile(realVoter, Gender.FEMALE, Age.TWENTY);
+        voteService.processVote(realVoter.getId(), vote.getId(), option.getId());
+
+        Member bot = saveMember("content-seed-bot-006", true);
+        saveProfile(bot, Gender.FEMALE, Age.TWENTY);
+        botVoteService.castBotVote(bot.getId(), option.getId());
+
+        VoteAgeResultResponseDto result = voteResultQueryRepository.findVoteResultByAge(vote.getId());
+
+        VoteAgeResultResponseDto.AgeGroupStats stats = result.getAgeRatios().get(option.getLabel().name());
+        assertThat(stats.getTotalCount()).isEqualTo(1);
+        assertThat(stats.getAgeGroups().get("20대").getVoteCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("MBTI 통계는 봇 투표를 제외한다")
+    void mbtiStats_ExcludeBotVotes() {
+        Member creator = saveMember("mbti-stats-creator", false);
+        saveProfile(creator, Gender.MALE, Age.TWENTY);
+        Vote vote = saveVoteWithOptions(creator);
+        VoteOption option = vote.getVoteOptions().get(0);
+
+        Member realVoter = saveMember("mbti-stats-real-voter", false);
+        saveProfileWithMbti(realVoter, Gender.FEMALE, Age.TWENTY, MbtiIe.I, MbtiTf.F, "INFP");
+        voteService.processVote(realVoter.getId(), vote.getId(), option.getId());
+
+        Member bot = saveMember("content-seed-bot-007", true);
+        saveProfileWithMbti(bot, Gender.FEMALE, Age.TWENTY, MbtiIe.I, MbtiTf.F, "INFP");
+        botVoteService.castBotVote(bot.getId(), option.getId());
+
+        VoteMbtiResultResponseDto result = voteResultQueryRepository.findVoteResultByMbti(vote.getId(), "ie");
+
+        VoteMbtiResultResponseDto.OptionRatio optionResult = result.getMbti_ratios().get("I").stream()
+                .filter(r -> r.getContent().equals(option.getContent()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(optionResult.getVote_count()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("트렌딩 순위는 봇 투표·댓글만 있는 게시글을 후보에서 제외한다")
+    void trendingRanking_ExcludesBotOnlyActivity() {
+        LocalDateTime from = LocalDateTime.now().minusDays(1);
+
+        Member realVoteCreator = saveMember("trending-real-participation", false);
+        saveProfile(realVoteCreator, Gender.MALE, Age.TWENTY);
+        Vote voteWithRealVote = saveVoteWithOptions(realVoteCreator);
+        VoteOption realOption = voteWithRealVote.getVoteOptions().get(0);
+
+        Member realVoter = saveMember("trending-real-voter", false);
+        saveProfile(realVoter, Gender.MALE, Age.TWENTY);
+        voteService.processVote(realVoter.getId(), voteWithRealVote.getId(), realOption.getId());
+
+        Member botOnlyCreator = saveMember("trending-bot-only", false);
+        saveProfile(botOnlyCreator, Gender.MALE, Age.TWENTY);
+        Vote voteWithBotActivity = saveVoteWithOptions(botOnlyCreator);
+        VoteOption botOption = voteWithBotActivity.getVoteOptions().get(0);
+
+        Member bot = saveMember("content-seed-bot-008", true);
+        saveProfile(bot, Gender.FEMALE, Age.TWENTY);
+        botVoteService.castBotVote(bot.getId(), botOption.getId());
+        commentService.createComment(voteWithBotActivity.getId(), bot.getId(),
+                CommentPostRequest.builder().content("bot comment").build());
+
+        LocalDateTime to = LocalDateTime.now().plusMinutes(1);
+
+        Vote trendingVote = voteRepository.findTrendingVote(from, to).orElseThrow();
+        assertThat(trendingVote.getId()).isEqualTo(voteWithRealVote.getId());
     }
 
     @Test
@@ -226,6 +309,22 @@ class BotIsolationIntegrationTest {
                     .nickname(managedMember.getNickname())
                     .gender(gender)
                     .age(age)
+                    .point(0L)
+                    .build());
+        });
+    }
+
+    private MemberProfile saveProfileWithMbti(Member member, Gender gender, Age age, MbtiIe mbtiIe, MbtiTf mbtiTf, String mbti) {
+        return inTransaction(() -> {
+            Member managedMember = memberRepository.findById(member.getId()).orElseThrow();
+            return memberProfileRepository.save(MemberProfile.builder()
+                    .member(managedMember)
+                    .nickname(managedMember.getNickname())
+                    .gender(gender)
+                    .age(age)
+                    .mbtiIe(mbtiIe)
+                    .mbtiTf(mbtiTf)
+                    .mbti(mbti)
                     .point(0L)
                     .build());
         });
