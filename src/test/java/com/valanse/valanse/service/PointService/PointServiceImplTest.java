@@ -215,6 +215,57 @@ class PointServiceImplTest {
     }
 
     @Test
+    @DisplayName("일반 회원에게는 포인트가 정상 지급되고 이력이 저장된다")
+    void givePoint_NormalMember_PointGivenAndHistorySaved() {
+        // Given
+        Long memberId = 1L;
+        Member member = Member.builder().id(memberId).isBot(false).build();
+        MemberProfile profileBeforeUpdate = MemberProfile.builder().member(member).point(100L).build();
+        MemberProfile profileAfterUpdate = MemberProfile.builder().member(member).point(105L).build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(memberId)).thenReturn(Optional.of(member));
+        when(memberProfileRepository.findByMemberIdForUpdate(memberId)).thenReturn(Optional.of(profileBeforeUpdate));
+        when(memberProfileRepository.findByMemberId(memberId)).thenReturn(Optional.of(profileAfterUpdate));
+
+        // When
+        pointService.givePoint(memberId, PointType.POST_CREATE);
+
+        // Then
+        verify(memberProfileRepository).addPointAtomically(memberId, 5L);
+        verify(pointHistoryRepository).save(argThat(history ->
+            history.getMember() == member &&
+                history.getAmount().equals(5L) &&
+                history.getRemainingPoint().equals(105L) &&
+                history.getType() == PointType.POST_CREATE
+        ));
+    }
+
+    @Test
+    @DisplayName("회원가입 포인트는 일반 회원에게 40점 지급된다")
+    void givePoint_SignUp_Gives40Points() {
+        // Given
+        Long memberId = 2L;
+        Member member = Member.builder().id(memberId).isBot(false).build();
+        MemberProfile profileBeforeUpdate = MemberProfile.builder().member(member).point(0L).build();
+        MemberProfile profileAfterUpdate = MemberProfile.builder().member(member).point(40L).build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(memberId)).thenReturn(Optional.of(member));
+        when(memberProfileRepository.findByMemberIdForUpdate(memberId)).thenReturn(Optional.of(profileBeforeUpdate));
+        when(memberProfileRepository.findByMemberId(memberId)).thenReturn(Optional.of(profileAfterUpdate));
+
+        // When
+        pointService.givePoint(memberId, PointType.SIGN_UP);
+
+        // Then
+        verify(memberProfileRepository).addPointAtomically(memberId, 40L);
+        verify(pointHistoryRepository).save(argThat(history ->
+            history.getAmount().equals(40L) &&
+                history.getRemainingPoint().equals(40L) &&
+                history.getType() == PointType.SIGN_UP
+        ));
+    }
+
+    @Test
     @DisplayName("봇 회원에게는 포인트를 지급하지 않는다")
     void givePoint_BotMember_NoPointGiven() {
         // Given
