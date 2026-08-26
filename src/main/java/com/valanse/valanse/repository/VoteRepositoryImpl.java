@@ -133,9 +133,11 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                            0 AS comment_count,
                            MAX(mvo.created_at) AS latest_reaction_at
                     FROM member_vote_option mvo
+                    LEFT JOIN member m ON m.id = mvo.member_id
                     WHERE mvo.created_at >= :from
                       AND mvo.created_at < :to
                       AND mvo.deleted_at IS NULL
+                      AND (m.id IS NULL OR m.is_bot = FALSE)
                     GROUP BY mvo.vote_id
 
                     UNION ALL
@@ -146,9 +148,11 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                            MAX(c.created_at) AS latest_reaction_at
                     FROM `comment` c
                     JOIN comment_group cg ON cg.id = c.comment_group_id
+                    LEFT JOIN member m ON m.id = c.member_id
                     WHERE c.created_at >= :from
                       AND c.created_at < :to
                       AND c.deleted_at IS NULL
+                      AND (m.id IS NULL OR m.is_bot = FALSE)
                     GROUP BY cg.vote_id
                 ) reactions
                 JOIN vote v ON v.id = reactions.vote_id
@@ -186,7 +190,9 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                                0 AS comment_count,
                                MAX(mvo.created_at) AS latest_reaction_at
                         FROM member_vote_option mvo
+                        LEFT JOIN member m ON m.id = mvo.member_id
                         WHERE mvo.deleted_at IS NULL
+                          AND (m.id IS NULL OR m.is_bot = FALSE)
                         GROUP BY mvo.vote_id
 
                         UNION ALL
@@ -197,7 +203,9 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                                MAX(c.created_at) AS latest_reaction_at
                         FROM `comment` c
                         JOIN comment_group cg ON cg.id = c.comment_group_id
+                        LEFT JOIN member m ON m.id = c.member_id
                         WHERE c.deleted_at IS NULL
+                          AND (m.id IS NULL OR m.is_bot = FALSE)
                         GROUP BY cg.vote_id
                     ) activity
                     GROUP BY activity.vote_id
@@ -231,10 +239,12 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                            0 AS comment_count,
                            MAX(mvo.created_at) AS latest_reaction_at
                     FROM member_vote_option mvo
+                    LEFT JOIN member m ON m.id = mvo.member_id
                     WHERE mvo.vote_id = ?1
                       AND mvo.created_at >= ?2
                       AND mvo.created_at < ?3
                       AND mvo.deleted_at IS NULL
+                      AND (m.id IS NULL OR m.is_bot = FALSE)
                     GROUP BY mvo.vote_id
 
                     UNION ALL
@@ -245,10 +255,12 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                            MAX(c.created_at) AS latest_reaction_at
                     FROM `comment` c
                     JOIN comment_group cg ON cg.id = c.comment_group_id
+                    LEFT JOIN member m ON m.id = c.member_id
                     WHERE cg.vote_id = ?1
                       AND c.created_at >= ?2
                       AND c.created_at < ?3
                       AND c.deleted_at IS NULL
+                      AND (m.id IS NULL OR m.is_bot = FALSE)
                     GROUP BY cg.vote_id
                 ) reactions
                 JOIN vote v ON v.id = reactions.vote_id
@@ -282,8 +294,10 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                                0 AS comment_count,
                                MAX(mvo.created_at) AS latest_reaction_at
                         FROM member_vote_option mvo
+                        LEFT JOIN member m ON m.id = mvo.member_id
                         WHERE mvo.vote_id = ?1
                           AND mvo.deleted_at IS NULL
+                          AND (m.id IS NULL OR m.is_bot = FALSE)
                         GROUP BY mvo.vote_id
 
                         UNION ALL
@@ -294,8 +308,10 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                                MAX(c.created_at) AS latest_reaction_at
                         FROM `comment` c
                         JOIN comment_group cg ON cg.id = c.comment_group_id
+                        LEFT JOIN member m ON m.id = c.member_id
                         WHERE cg.vote_id = ?1
                           AND c.deleted_at IS NULL
+                          AND (m.id IS NULL OR m.is_bot = FALSE)
                         GROUP BY cg.vote_id
                     ) activity
                     GROUP BY activity.vote_id
