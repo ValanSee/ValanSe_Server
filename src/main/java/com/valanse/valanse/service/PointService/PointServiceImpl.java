@@ -58,10 +58,6 @@ public class PointServiceImpl implements PointService {
         Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
-        if (member.isBot()) {
-            return;
-        }
-
         MemberProfile profile = findMemberProfileForUpdate(memberId)
                 .orElseThrow(() -> new ApiException(ProfileErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 

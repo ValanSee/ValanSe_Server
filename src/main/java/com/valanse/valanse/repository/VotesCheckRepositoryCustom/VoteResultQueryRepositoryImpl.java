@@ -59,8 +59,7 @@ public class VoteResultQueryRepositoryImpl implements VoteResultQueryRepository 
                 .join(member.profile, profile)
                 .where(
                         mvo.voteOption.vote.id.eq(voteId),
-                        profile.gender.stringValue().eq(gender),
-                        member.isBot.isFalse()
+                        profile.gender.stringValue().eq(gender)
                 )
                 .fetchOne();
 
@@ -75,8 +74,7 @@ public class VoteResultQueryRepositoryImpl implements VoteResultQueryRepository 
                 .join(member.profile, profile)
                 .where(
                         mvo.voteOption.vote.id.eq(voteId),
-                        profile.gender.stringValue().eq(gender),
-                        member.isBot.isFalse()
+                        profile.gender.stringValue().eq(gender)
                 )
                 .groupBy(option.label, option.content)
                 .fetch();
@@ -135,7 +133,7 @@ public class VoteResultQueryRepositoryImpl implements VoteResultQueryRepository 
                 .join(mvo.voteOption, option)
                 .join(mvo.member, member)
                 .join(member.profile, profile)
-                .where(mvo.voteOption.vote.id.eq(voteId), member.isBot.isFalse())
+                .where(mvo.voteOption.vote.id.eq(voteId))
                 .groupBy(option.label, profile.age, option.content)
                 .fetch();
 
@@ -228,7 +226,7 @@ public class VoteResultQueryRepositoryImpl implements VoteResultQueryRepository 
                 .join(mvo.member, member)
                 .join(member.profile, profile)
                 .join(mvo.voteOption, option)
-                .where(mvo.voteOption.vote.id.eq(voteId), member.isBot.isFalse())
+                .where(mvo.voteOption.vote.id.eq(voteId))
                 .groupBy(mbtiField, option.content)
                 .fetch();
 

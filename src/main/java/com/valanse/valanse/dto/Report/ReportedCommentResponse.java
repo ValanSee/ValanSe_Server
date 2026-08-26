@@ -14,7 +14,6 @@ public class ReportedCommentResponse {
     private Long commentId;
     private Long voteId;
     private String nickname;
-    private Boolean isBot;
     private String content;
     private Integer likeCount;
     private Integer replyCount;
@@ -27,7 +26,6 @@ public class ReportedCommentResponse {
         this.content = comment.getContent();
         this.likeCount = comment.getLikeCount();
         this.nickname = comment.getMember() != null ? comment.getMember().getNickname() : "탈퇴한 사용자";
-        this.isBot = comment.getMember() != null && comment.getMember().isBot();
         this.replyCount = comment.getReplyCount();
         this.voteId = comment.getCommentGroup().getVote().getId();
     }

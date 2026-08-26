@@ -5,7 +5,6 @@ package com.valanse.valanse.common.message;
  */
 public enum MemberErrorMessage {
     MEMBER_NOT_FOUND("회원이 존재하지 않습니다."),
-    MEMBER_NOT_BOT("봇 계정이 아닙니다."),
     NICKNAME_REQUIRED("닉네임을 입력해주세요"),
     NICKNAME_INVALID_FORMAT("닉네임 형식이 올바르지 않습니다."),
     NICKNAME_NOT_CLEAN("사용할 수 없는 닉네임입니다."),

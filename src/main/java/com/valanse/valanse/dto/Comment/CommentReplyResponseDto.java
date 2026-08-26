@@ -15,7 +15,6 @@ public class CommentReplyResponseDto {
 
     private Long id;
     private String nickname;
-    private Boolean isBot;
     private String title;
     private LocalDateTime createdAt;
     private String content;

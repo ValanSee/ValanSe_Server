@@ -330,7 +330,6 @@ public class VoteServiceImpl implements VoteService {
         if (vote.getMember() != null && vote.getMember().getProfile() != null) {
             creatorNickname = vote.getMember().getProfile().getNickname();
         }
-        Boolean creatorIsBot = vote.getMember() != null && vote.getMember().isBot();
 
         List<VoteDetailResponse.VoteOptionDto> optionDtos = vote.getVoteOptions().stream()
                 .map(option -> VoteDetailResponse.VoteOptionDto.builder()
@@ -376,7 +375,6 @@ public class VoteServiceImpl implements VoteService {
                 .category(vote.getCategory())
                 .totalVoteCount(vote.getTotalVoteCount())
                 .creatorNickname(creatorNickname) // 수정된 닉네임 사용
-                .isBot(creatorIsBot)
                 .creatorTitle(creatorTitle)
                 .createdAt(vote.getCreatedAt())
                 .options(optionDtos)
@@ -549,7 +547,6 @@ public class VoteServiceImpl implements VoteService {
                             .category(vote.getCategory().name())
                             .member_id(vote.getMember() != null ? vote.getMember().getId() : null)
                             .nickname(creatorNickname)
-                            .isBot(vote.getMember() != null && vote.getMember().isBot())
                             .member_title(vote.getMember() != null
                                     ? equippedTitleNamesByMemberId.get(vote.getMember().getId())
                                     : null)
@@ -718,7 +715,6 @@ public class VoteServiceImpl implements VoteService {
                 .category(hotIssueVote.getCategory() != null ? hotIssueVote.getCategory().name() : null) // 카테고리 설정
                 .totalParticipants(hotIssueVote.getTotalVoteCount()) // 총 참여자 수 설정
                 .createdBy(createdByNickname) // 생성자 닉네임 설정
-                .isBot(hotIssueVote.getMember() != null && hotIssueVote.getMember().isBot())
                 .creatorTitle(getEquippedTitleName(hotIssueVote.getMember()))
                 .createdAt(hotIssueVote.getCreatedAt()) // 추가된 부분: createdAt 설정
                 .pinType(hotIssueVote.getPinType())
