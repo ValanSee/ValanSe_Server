@@ -20,6 +20,7 @@ public class MyCommentResponseDto {
     private String content;
     private Long memberId;
     private String memberName;
+    private Boolean isBot;
     private boolean isReply;
     private LocalDateTime createdAt;
     private LocalDateTime voteCreatedAt;    // 투표 생성 시간 추가
@@ -33,7 +34,7 @@ public class MyCommentResponseDto {
      */
     @QueryProjection
     public MyCommentResponseDto(Long id, String title, String content, Long memberId, String memberName,
-                                Boolean isReply, LocalDateTime createdAt, LocalDateTime voteCreatedAt,
+                                Boolean isBot, Boolean isReply, LocalDateTime createdAt, LocalDateTime voteCreatedAt,
                                 Long voteOwnerId, String voteOwnerNickname, String voteTitle,
                                 String voteOptionLabel) {
         this.id = id;
@@ -41,6 +42,7 @@ public class MyCommentResponseDto {
         this.content = content;
         this.memberId = memberId;
         this.memberName = memberName;
+        this.isBot = isBot != null && isBot;
         this.isReply = Boolean.TRUE.equals(isReply);
         this.createdAt = createdAt;
         this.voteCreatedAt = voteCreatedAt;
@@ -60,6 +62,7 @@ public class MyCommentResponseDto {
                 .content(comment.getContent())
                 .memberId(comment.getMember().getId())
                 .memberName(comment.getMember().getName())
+                .isBot(comment.getMember().isBot())
                 .isReply(comment.getParent() != null)
                 .createdAt(comment.getCreatedAt())  // 댓글 생성 시간
                 .voteCreatedAt(comment.getCommentGroup().getVote().getCreatedAt())  // 투표 생성 시간

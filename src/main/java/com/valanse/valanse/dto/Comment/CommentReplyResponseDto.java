@@ -16,6 +16,7 @@ public class CommentReplyResponseDto {
 
     private Long id;
     private String nickname;
+    private Boolean isBot;
     private String title;
     private LocalDateTime createdAt;
     private String content;
@@ -32,12 +33,13 @@ public class CommentReplyResponseDto {
      * CommentReplyResponseDto 의존성을 주입하거나 객체를 초기화하는 생성자입니다.
      */
     @QueryProjection
-    public CommentReplyResponseDto(Long id, String nickname, String title, LocalDateTime createdAt,
+    public CommentReplyResponseDto(Long id, String nickname, Boolean isBot, String title, LocalDateTime createdAt,
                                    String content, Integer likeCount, Integer replyCount,
                                    Boolean isDeleted, LocalDateTime deletedAt, VoteLabel label,
                                    Long daysAgo, Long hoursAgo, Boolean canDelete) {
         this.id = id;
         this.nickname = nickname != null ? nickname : "탈퇴한 사용자";
+        this.isBot = isBot != null && isBot;
         this.title = title;
         this.createdAt = createdAt;
         this.content = content;

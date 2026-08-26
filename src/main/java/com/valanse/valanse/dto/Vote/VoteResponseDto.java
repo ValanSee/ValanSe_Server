@@ -19,6 +19,7 @@ public class VoteResponseDto {
     private int totalVoteCount;
     private String createdAt;
     private String creatorTitle;
+    private Boolean isBot;
     private List<OptionDto> options;
 
     /**
@@ -39,6 +40,7 @@ public class VoteResponseDto {
         this.totalVoteCount = vote.getTotalVoteCount();
         this.createdAt = vote.getCreatedAt().toLocalDate().toString();
         this.creatorTitle = creatorTitle;
+        this.isBot = vote.getMember() != null && vote.getMember().isBot();
         this.options = vote.getVoteOptions()
                 .stream()
                 .map(option -> new OptionDto(option.getContent(), option.getImageUrl()))

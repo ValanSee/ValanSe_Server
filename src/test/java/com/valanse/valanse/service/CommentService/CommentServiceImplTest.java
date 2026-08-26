@@ -539,6 +539,7 @@ class CommentServiceImplTest {
                 11L,
                 "테스터",
                 null,
+                null,
                 reply.getCreatedAt(),
                 reply.getContent(),
                 0,
