@@ -36,6 +36,7 @@ public class VoteListResponse {
         private String category; // ENUM 이름을 String으로 반환
         private Long member_id;
         private String nickname;
+        private Boolean isBot;
         private String member_title;
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
         private LocalDateTime created_at;

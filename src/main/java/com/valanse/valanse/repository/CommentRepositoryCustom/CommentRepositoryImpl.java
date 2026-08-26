@@ -75,6 +75,7 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                         comment.id,
                         vote.id,
                         profile.nickname,
+                        member.isBot,
                         title.name,
                         comment.createdAt,
                         vote.createdAt,

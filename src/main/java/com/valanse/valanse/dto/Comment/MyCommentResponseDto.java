@@ -20,6 +20,7 @@ public class MyCommentResponseDto {
     private String content;
     private Long memberId;
     private String memberName;
+    private Boolean isBot;
     private boolean isReply;
     private LocalDateTime createdAt;
     private LocalDateTime voteCreatedAt;    // 투표 생성 시간 추가
@@ -38,6 +39,7 @@ public class MyCommentResponseDto {
                 .content(comment.getContent())
                 .memberId(comment.getMember().getId())
                 .memberName(comment.getMember().getName())
+                .isBot(comment.getMember().isBot())
                 .isReply(comment.getParent() != null)
                 .createdAt(comment.getCreatedAt())  // 댓글 생성 시간
                 .voteCreatedAt(comment.getCommentGroup().getVote().getCreatedAt())  // 투표 생성 시간

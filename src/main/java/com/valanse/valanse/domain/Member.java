@@ -52,6 +52,9 @@ public class Member extends BaseEntity {
     private String nickname;
 
     @Builder.Default
+    private boolean isBot = false;
+
+    @Builder.Default
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)
     private List<Comment> comments = new ArrayList<>();
 
