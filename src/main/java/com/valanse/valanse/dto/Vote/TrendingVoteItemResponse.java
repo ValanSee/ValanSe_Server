@@ -24,6 +24,7 @@ public class TrendingVoteItemResponse {
     private long commentReactionCount;
     private Integer totalParticipants;
     private String createdBy;
+    private Boolean isBot;
     private String creatorTitle;
     private LocalDateTime createdAt;
     private List<HotIssueVoteOptionDto> options;

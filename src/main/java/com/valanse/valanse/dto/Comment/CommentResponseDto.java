@@ -16,6 +16,7 @@ public class CommentResponseDto {
     private Long commentId;
     private Long voteId;
     private String nickname;
+    private Boolean isBot;
     private String title;
     private LocalDateTime commentCreatedAt;  // 추가
     private LocalDateTime voteCreatedAt;     // 추가
@@ -32,7 +33,7 @@ public class CommentResponseDto {
      * CommentResponseDto 의존성을 주입하거나 객체를 초기화하는 생성자입니다.
      */
     @QueryProjection
-    public CommentResponseDto(Long commentId, Long voteId, String nickname, String title,
+    public CommentResponseDto(Long commentId, Long voteId, String nickname, Boolean isBot, String title,
                               LocalDateTime commentCreatedAt, LocalDateTime voteCreatedAt,  // 추가
                               String content, Integer likeCount, Integer replyCount,
                               LocalDateTime deletedAt, String voteOptionLabel, Long daysAgo, Long hoursAgo,
@@ -40,6 +41,7 @@ public class CommentResponseDto {
         this.commentId = commentId;
         this.voteId = voteId;
         this.nickname = nickname != null ? nickname : "탈퇴한 사용자";
+        this.isBot = isBot != null && isBot;
         this.title = title;
         this.commentCreatedAt = commentCreatedAt;
         this.voteCreatedAt = voteCreatedAt;

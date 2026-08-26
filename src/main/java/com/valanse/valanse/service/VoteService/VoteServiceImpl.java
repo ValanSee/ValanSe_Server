@@ -280,6 +280,7 @@ public class VoteServiceImpl implements VoteService {
         Member creator = vote.getMember();
         String createdBy = "익명";
         String creatorTitle = null;
+        Boolean creatorIsBot = creator != null && creator.isBot();
         if (creator != null) {
             if (nicknamesByMemberId.get(creator.getId()) != null) {
                 createdBy = nicknamesByMemberId.get(creator.getId());
@@ -310,6 +311,7 @@ public class VoteServiceImpl implements VoteService {
                 .commentReactionCount(score.commentReactionCount())
                 .totalParticipants(vote.getTotalVoteCount())
                 .createdBy(createdBy)
+                .isBot(creatorIsBot)
                 .creatorTitle(creatorTitle)
                 .createdAt(vote.getCreatedAt())
                 .options(options)
@@ -481,6 +483,7 @@ public class VoteServiceImpl implements VoteService {
         // MemberProfile의 nickname을 가져오도록 수정
         String creatorNickname = "탈퇴한 사용자";
         String creatorTitle = getEquippedTitleName(vote.getMember());
+        Boolean creatorIsBot = vote.getMember() != null && vote.getMember().isBot();
         if (vote.getMember() != null && vote.getMember().getProfile() != null) {
             creatorNickname = vote.getMember().getProfile().getNickname();
         }
@@ -529,6 +532,7 @@ public class VoteServiceImpl implements VoteService {
                 .category(vote.getCategory())
                 .totalVoteCount(vote.getTotalVoteCount())
                 .creatorNickname(creatorNickname) // 수정된 닉네임 사용
+                .isBot(creatorIsBot)
                 .creatorTitle(creatorTitle)
                 .createdAt(vote.getCreatedAt())
                 .options(optionDtos)
@@ -701,6 +705,7 @@ public class VoteServiceImpl implements VoteService {
                             .category(vote.getCategory().name())
                             .member_id(vote.getMember() != null ? vote.getMember().getId() : null)
                             .nickname(creatorNickname)
+                            .isBot(vote.getMember() != null && vote.getMember().isBot())
                             .member_title(vote.getMember() != null
                                     ? equippedTitleNamesByMemberId.get(vote.getMember().getId())
                                     : null)

@@ -78,6 +78,7 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                         comment.id,
                         vote.id,
                         profile.nickname,
+                        member.isBot,
                         title.name,
                         comment.createdAt,
                         vote.createdAt,
@@ -131,6 +132,7 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                         comment.content,
                         member.id,
                         member.name,
+                        member.isBot,
                         comment.parent.isNotNull(),
                         comment.createdAt,
                         vote.createdAt,
@@ -199,6 +201,7 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                 .select(new QCommentReplyResponseDto(
                         reply.id,
                         profile.nickname,
+                        member.isBot,
                         title.name,
                         reply.createdAt,
                         reply.content,
