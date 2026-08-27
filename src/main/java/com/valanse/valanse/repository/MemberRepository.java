@@ -16,5 +16,5 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     Optional<Member> findByIdAndDeletedAtIsNull(Long id);
 
-    List<Member> findByIsBotTrueOrderByIdAsc();
+    List<Member> findByIsBotTrueAndDeletedAtIsNullOrderByIdAsc();
 }

@@ -34,7 +34,7 @@ public class BotAccountSelector {
     // 같은 주의 수동 실행이 항상 같은 결과를 받도록, 요일과 무관하게 그 주의
     // 월요일로 정규화한 뒤 계산한다.
     public List<Member> selectActiveBots(LocalDate referenceDate) {
-        List<Member> bots = memberRepository.findByIsBotTrueOrderByIdAsc();
+        List<Member> bots = memberRepository.findByIsBotTrueAndDeletedAtIsNullOrderByIdAsc();
         int botCount = bots.size();
         if (botCount == 0) {
             return List.of();

@@ -52,7 +52,7 @@ class BotAccountSelectorTest {
 
     @Test
     void 봇_2개씩_1_2_3주차가_AB_CD_EA_순서로_순환한다() {
-        when(memberRepository.findByIsBotTrueOrderByIdAsc()).thenReturn(fiveBots());
+        when(memberRepository.findByIsBotTrueAndDeletedAtIsNullOrderByIdAsc()).thenReturn(fiveBots());
         properties.setBotsPerRun(2);
 
         List<String> week1 = socialIds(selector.selectActiveBots(REFERENCE_MONDAY));
@@ -66,7 +66,7 @@ class BotAccountSelectorTest {
 
     @Test
     void botsPerRun이_4일_때도_봇_5개_범위를_wrap_around_한다() {
-        when(memberRepository.findByIsBotTrueOrderByIdAsc()).thenReturn(fiveBots());
+        when(memberRepository.findByIsBotTrueAndDeletedAtIsNullOrderByIdAsc()).thenReturn(fiveBots());
         properties.setBotsPerRun(4);
 
         List<String> week1 = socialIds(selector.selectActiveBots(REFERENCE_MONDAY));
@@ -80,7 +80,7 @@ class BotAccountSelectorTest {
 
     @Test
     void botsPerRun이_5일_때는_매주_봇_5개_전부가_선택된다() {
-        when(memberRepository.findByIsBotTrueOrderByIdAsc()).thenReturn(fiveBots());
+        when(memberRepository.findByIsBotTrueAndDeletedAtIsNullOrderByIdAsc()).thenReturn(fiveBots());
         properties.setBotsPerRun(5);
 
         List<String> week1 = socialIds(selector.selectActiveBots(REFERENCE_MONDAY));
@@ -94,7 +94,7 @@ class BotAccountSelectorTest {
 
     @Test
     void 같은_주_안에서는_요일과_무관하게_같은_조합을_반환한다_자동_수동_동일_조합() {
-        when(memberRepository.findByIsBotTrueOrderByIdAsc()).thenReturn(fiveBots());
+        when(memberRepository.findByIsBotTrueAndDeletedAtIsNullOrderByIdAsc()).thenReturn(fiveBots());
         properties.setBotsPerRun(2);
 
         LocalDate monday = REFERENCE_MONDAY.plusWeeks(3);
@@ -106,7 +106,7 @@ class BotAccountSelectorTest {
 
     @Test
     void 연말_연초_경계를_넘어가도_순환이_끊기지_않는다() {
-        when(memberRepository.findByIsBotTrueOrderByIdAsc()).thenReturn(fiveBots());
+        when(memberRepository.findByIsBotTrueAndDeletedAtIsNullOrderByIdAsc()).thenReturn(fiveBots());
         properties.setBotsPerRun(2);
 
         // REFERENCE_MONDAY(2026-01-05)로부터 51주 뒤 월요일은 2026-12-28, 그 다음 주는 2027-01-04.
@@ -124,7 +124,7 @@ class BotAccountSelectorTest {
 
     @Test
     void 활성_봇이_없으면_빈_목록을_반환한다() {
-        when(memberRepository.findByIsBotTrueOrderByIdAsc()).thenReturn(List.of());
+        when(memberRepository.findByIsBotTrueAndDeletedAtIsNullOrderByIdAsc()).thenReturn(List.of());
         properties.setBotsPerRun(2);
 
         assertThat(selector.selectActiveBots(REFERENCE_MONDAY)).isEmpty();
