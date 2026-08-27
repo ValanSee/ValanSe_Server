@@ -1,6 +1,5 @@
 package com.valanse.valanse.service.ContentSeedService;
 
-import com.valanse.valanse.domain.enums.VoteCategory;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -12,7 +11,7 @@ class ContentQualityGateTest {
     private final ContentQualityGate gate = new ContentQualityGate();
 
     private GeneratedPost validPost() {
-        return new GeneratedPost("치킨 vs 피자", "저녁 뭐 먹지 고민이야", "치킨", "피자", VoteCategory.FOOD);
+        return new GeneratedPost("치킨 vs 피자", "저녁 뭐 먹지 고민이야", "치킨", "피자", GeneratableVoteCategory.FOOD);
     }
 
     private GeneratedInteraction validInteraction() {
@@ -48,7 +47,7 @@ class ContentQualityGateTest {
     @Test
     void 제목이_25자를_초과하면_거절된다() {
         String longTitle = "가".repeat(26);
-        GeneratedPost post = new GeneratedPost(longTitle, "본문", "A", "B", VoteCategory.FOOD);
+        GeneratedPost post = new GeneratedPost(longTitle, "본문", "A", "B", GeneratableVoteCategory.FOOD);
 
         QualityCheckResult result = gate.validatePost(post, List.of());
 
@@ -66,7 +65,7 @@ class ContentQualityGateTest {
 
     @Test
     void 본문이_100자를_초과하면_거절된다() {
-        GeneratedPost post = new GeneratedPost("제목", "가".repeat(101), "A", "B", VoteCategory.FOOD);
+        GeneratedPost post = new GeneratedPost("제목", "가".repeat(101), "A", "B", GeneratableVoteCategory.FOOD);
 
         QualityCheckResult result = gate.validatePost(post, List.of());
 
@@ -76,16 +75,16 @@ class ContentQualityGateTest {
 
     @Test
     void 선택지가_공백이거나_서로_중복되면_거절된다() {
-        GeneratedPost blankOption = new GeneratedPost("제목", "본문", " ", "피자", VoteCategory.FOOD);
-        GeneratedPost duplicateOption = new GeneratedPost("제목", "본문", "치킨", "치킨", VoteCategory.FOOD);
+        GeneratedPost blankOption = new GeneratedPost("제목", "본문", " ", "피자", GeneratableVoteCategory.FOOD);
+        GeneratedPost duplicateOption = new GeneratedPost("제목", "본문", "치킨", "치킨", GeneratableVoteCategory.FOOD);
 
         assertThat(gate.validatePost(blankOption, List.of()).reasons()).anyMatch(r -> r.contains("공백"));
         assertThat(gate.validatePost(duplicateOption, List.of()).reasons()).anyMatch(r -> r.contains("중복"));
     }
 
     @Test
-    void 카테고리가_ALL이면_거절된다() {
-        GeneratedPost post = new GeneratedPost("제목", "본문", "A", "B", VoteCategory.ALL);
+    void 카테고리가_없으면_거절된다() {
+        GeneratedPost post = new GeneratedPost("제목", "본문", "A", "B", null);
 
         QualityCheckResult result = gate.validatePost(post, List.of());
 
@@ -95,8 +94,8 @@ class ContentQualityGateTest {
 
     @Test
     void 본문에_이메일이나_전화번호가_있으면_거절된다() {
-        GeneratedPost withEmail = new GeneratedPost("제목", "연락은 test@example.com 으로", "A", "B", VoteCategory.FOOD);
-        GeneratedPost withPhone = new GeneratedPost("제목", "010-1234-5678로 연락줘", "A", "B", VoteCategory.FOOD);
+        GeneratedPost withEmail = new GeneratedPost("제목", "연락은 test@example.com 으로", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost withPhone = new GeneratedPost("제목", "010-1234-5678로 연락줘", "A", "B", GeneratableVoteCategory.FOOD);
 
         assertThat(gate.validatePost(withEmail, List.of()).reasons()).anyMatch(r -> r.contains("개인정보"));
         assertThat(gate.validatePost(withPhone, List.of()).reasons()).anyMatch(r -> r.contains("개인정보"));
@@ -133,6 +132,13 @@ class ContentQualityGateTest {
         assertThat(gate.containsPersonalInformation("test@example.com 입니다")).isTrue();
         assertThat(gate.containsPersonalInformation("010-1234-5678 입니다")).isTrue();
         assertThat(gate.containsPersonalInformation("평범한 댓글입니다")).isFalse();
+    }
+
+    @Test
+    void 일반전화와_국제표기_전화번호도_감지한다() {
+        assertThat(gate.containsPersonalInformation("02-1234-5678로 연락주세요")).isTrue();
+        assertThat(gate.containsPersonalInformation("031-123-4567로 연락주세요")).isTrue();
+        assertThat(gate.containsPersonalInformation("+82-10-1234-5678로 연락주세요")).isTrue();
     }
 
     @Test

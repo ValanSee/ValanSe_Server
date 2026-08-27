@@ -1,6 +1,5 @@
 package com.valanse.valanse.service.ContentSeedService;
 
-import com.valanse.valanse.domain.enums.VoteCategory;
 import org.springframework.stereotype.Component;
 
 import java.text.Normalizer;
@@ -27,8 +26,11 @@ public class ContentQualityGate {
 
     private static final Pattern EMAIL_PATTERN =
             Pattern.compile("[\\w.+-]+@[\\w-]+\\.[\\w.-]+");
-    private static final Pattern PHONE_PATTERN =
-            Pattern.compile("01[016789][-.\\s]?\\d{3,4}[-.\\s]?\\d{4}");
+    // 010 등 휴대전화, 02/031 등 일반전화, +82 국제표기를 모두 포함한다.
+    // 앞자리에 0 또는 +82가 없는 임의의 숫자열까지 번호로 오인하지 않도록,
+    // 둘 중 하나가 반드시 있어야 매칭되게 한다.
+    private static final Pattern PHONE_PATTERN = Pattern.compile(
+            "(?:\\+82[-.\\s]?0?|0)(?:1[016789]|[2-6]\\d?)[-.\\s]?\\d{3,4}[-.\\s]?\\d{4}");
 
     // 공백, 특수문자, 대소문자 차이를 정리해 완전 동일 제목 비교용 키를 만든다.
     public String normalizeTitle(String title) {
@@ -62,8 +64,8 @@ public class ContentQualityGate {
 
         validateOptions(post.optionA(), post.optionB(), reasons);
 
-        if (post.category() == null || post.category() == VoteCategory.ALL) {
-            reasons.add("카테고리 위반(ALL 사용 불가)");
+        if (post.category() == null) {
+            reasons.add("카테고리 누락");
         }
 
         if (containsPersonalInformation(title) || containsPersonalInformation(post.body())

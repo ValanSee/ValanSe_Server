@@ -1,7 +1,6 @@
 package com.valanse.valanse.service.ContentSeedService;
 
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import com.valanse.valanse.domain.enums.VoteCategory;
 
 public record GeneratedPost(
         @JsonPropertyDescription("trim 후 1~25자인 게시글 제목")
@@ -16,7 +15,7 @@ public record GeneratedPost(
         @JsonPropertyDescription("두 번째 선택지. 공백이 아닌 텍스트, optionA와 중복 금지")
         String optionB,
 
-        @JsonPropertyDescription("ALL을 제외한 밸런스게임 카테고리")
-        VoteCategory category
+        @JsonPropertyDescription("밸런스게임 카테고리")
+        GeneratableVoteCategory category
 ) {
 }
