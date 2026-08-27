@@ -1,8 +1,11 @@
 package com.valanse.valanse.repository.ReportRepositoryCustom;
 
 import com.querydsl.core.Tuple;
+import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import com.valanse.valanse.domain.QComment;
 import com.valanse.valanse.domain.QReport;
+import com.valanse.valanse.domain.QVote;
 import com.valanse.valanse.domain.Comment;
 import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.enums.ReportType;
@@ -12,6 +15,9 @@ import com.valanse.valanse.dto.Report.ReportedVoteResponse;
 import com.valanse.valanse.repository.CommentRepository;
 import com.valanse.valanse.repository.VoteRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -34,21 +40,51 @@ public class ReportRepositoryImpl implements ReportRepositoryCustom {
      * ReportedTargets 조건에 맞는 데이터를 찾는 메서드입니다.
      */
     @Override
-    public List<ReportedTargetResponse> findReportedTargets(ReportType type, String sort) {
+    public Slice<ReportedTargetResponse> findReportedTargets(ReportType type, String sort, Pageable pageable) {
         QReport report = QReport.report;
+        QVote reportedVote = QVote.vote;
+        QComment reportedComment = QComment.comment;
+        OrderSpecifier<?> orderSpecifier = sort.equalsIgnoreCase("popular")
+                ? report.count().desc()
+                : report.createdAt.max().desc();
 
-        // 기본은 최신순, sort 값에 따라서 인기순 정렬 가능
-        List<Tuple> tuples = queryFactory
-                .select(report.targetId, report.count())
-                .from(report)
-                .where(report.reportType.eq(type))
-                .groupBy(report.targetId)
-                .orderBy(
-                        sort.equalsIgnoreCase("popular")
-                                ? report.count().desc()
-                                : report.createdAt.max().desc()
-                )
-                .fetch();
+        List<Tuple> tuples;
+        if (type == ReportType.VOTE) {
+            tuples = queryFactory
+                    .select(report.targetId, report.count())
+                    .from(report)
+                    .join(reportedVote).on(reportedVote.id.eq(report.targetId))
+                    .where(
+                            report.reportType.eq(type),
+                            reportedVote.deletedAt.isNull()
+                    )
+                    .groupBy(report.targetId)
+                    .orderBy(orderSpecifier)
+                    .offset(pageable.getOffset())
+                    .limit(pageable.getPageSize() + 1)
+                    .fetch();
+        } else if (type == ReportType.COMMENT) {
+            tuples = queryFactory
+                    .select(report.targetId, report.count())
+                    .from(report)
+                    .join(reportedComment).on(reportedComment.id.eq(report.targetId))
+                    .where(
+                            report.reportType.eq(type),
+                            reportedComment.deletedAt.isNull()
+                    )
+                    .groupBy(report.targetId)
+                    .orderBy(orderSpecifier)
+                    .offset(pageable.getOffset())
+                    .limit(pageable.getPageSize() + 1)
+                    .fetch();
+        } else {
+            return new SliceImpl<>(List.of(), pageable, false);
+        }
+
+        boolean hasNext = tuples.size() > pageable.getPageSize();
+        if (hasNext) {
+            tuples.remove(tuples.size() - 1);
+        }
 
         List<Long> targetIds = tuples.stream()
                 .map(tuple -> tuple.get(report.targetId))
@@ -56,7 +92,7 @@ public class ReportRepositoryImpl implements ReportRepositoryCustom {
                 .toList();
 
         if (targetIds.isEmpty()) {
-            return List.of();
+            return new SliceImpl<>(List.of(), pageable, hasNext);
         }
 
         Map<Long, Vote> votesById = type == ReportType.VOTE
@@ -68,8 +104,7 @@ public class ReportRepositoryImpl implements ReportRepositoryCustom {
                         .collect(Collectors.toMap(Comment::getId, Function.identity()))
                 : Map.of();
 
-        // type에 따라서 분기 처리
-        return tuples.stream()
+        List<ReportedTargetResponse> responses = tuples.stream()
                 .map(t -> {
                     Long targetId = t.get(report.targetId);
                     Long count = t.get(report.count());
@@ -95,6 +130,8 @@ public class ReportRepositoryImpl implements ReportRepositoryCustom {
                 })
                 .filter(Objects::nonNull)
                 .toList();
+
+        return new SliceImpl<>(responses, pageable, hasNext);
     }
 
 }

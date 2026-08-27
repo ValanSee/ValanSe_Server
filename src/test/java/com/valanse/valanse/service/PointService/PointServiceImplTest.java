@@ -16,6 +16,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.SliceImpl;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -24,8 +26,12 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -77,11 +83,11 @@ class PointServiceImplTest {
 
         when(memberRepository.findByIdAndDeletedAtIsNull(memberId))
             .thenReturn(Optional.of(member));
-        when(pointHistoryRepository.findByMemberId(memberId))
-            .thenReturn(histories);
+        when(pointHistoryRepository.findByMemberIdOrderByCreatedAtDescIdDesc(memberId, PageRequest.of(0, 10)))
+            .thenReturn(new SliceImpl<>(histories, PageRequest.of(0, 10), false));
 
         // When
-        PointHistoryResponse response = pointService.getPointHistory(memberId);
+        PointHistoryResponse response = pointService.getPointHistory(memberId, PageRequest.of(0, 10));
 
         // Then
         assertThat(response).isNotNull();
@@ -103,7 +109,7 @@ class PointServiceImplTest {
             .thenReturn(Optional.empty());
 
         // When & Then
-        assertThatThrownBy(() -> pointService.getPointHistory(memberId))
+        assertThatThrownBy(() -> pointService.getPointHistory(memberId, PageRequest.of(0, 10)))
             .isInstanceOf(ApiException.class)
             .hasMessage(MemberErrorMessage.MEMBER_NOT_FOUND.message());
     }
@@ -126,11 +132,13 @@ class PointServiceImplTest {
 
         when(memberRepository.findByIdAndDeletedAtIsNull(memberId))
             .thenReturn(Optional.of(member));
+        when(pointHistoryRepository.findByMemberIdOrderByCreatedAtDescIdDesc(memberId, PageRequest.of(0, 10)))
+            .thenReturn(new SliceImpl<>(histories, PageRequest.of(0, 10), false));
         when(pointHistoryRepository.findByMemberId(memberId))
             .thenReturn(histories);
 
         // When
-        PointHistoryResponse response = pointService.getPointHistory(memberId);
+        PointHistoryResponse response = pointService.getPointHistory(memberId, PageRequest.of(0, 10));
 
         // Then
         List<PointHistoryResponse.PointHistoryItem> items = response.pointHistory();
@@ -191,11 +199,11 @@ class PointServiceImplTest {
 
         when(memberRepository.findByIdAndDeletedAtIsNull(memberId))
             .thenReturn(Optional.of(member));
-        when(pointHistoryRepository.findByMemberId(memberId))
-            .thenReturn(histories);
+        when(pointHistoryRepository.findByMemberIdOrderByCreatedAtDescIdDesc(memberId, PageRequest.of(0, 10)))
+            .thenReturn(new SliceImpl<>(histories, PageRequest.of(0, 10), false));
 
         // When
-        PointHistoryResponse response = pointService.getPointHistory(memberId);
+        PointHistoryResponse response = pointService.getPointHistory(memberId, PageRequest.of(0, 10));
 
         // Then
         assertThat(response).isNotNull();
@@ -208,5 +216,75 @@ class PointServiceImplTest {
         assertThat(item.remainingPoint()).isEqualTo(40L);
         assertThat(item.type()).isEqualTo(PointType.SIGN_UP);
         assertThat(item.typeDescription()).isEqualTo("회원가입");
+    }
+
+    @Test
+    @DisplayName("일반 회원에게는 포인트가 정상 지급되고 이력이 저장된다")
+    void givePoint_NormalMember_PointGivenAndHistorySaved() {
+        // Given
+        Long memberId = 1L;
+        Member member = Member.builder().id(memberId).isBot(false).build();
+        MemberProfile profileBeforeUpdate = MemberProfile.builder().member(member).point(100L).build();
+        MemberProfile profileAfterUpdate = MemberProfile.builder().member(member).point(105L).build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(memberId)).thenReturn(Optional.of(member));
+        when(memberProfileRepository.findByMemberIdForUpdate(memberId)).thenReturn(Optional.of(profileBeforeUpdate));
+        when(memberProfileRepository.findByMemberId(memberId)).thenReturn(Optional.of(profileAfterUpdate));
+
+        // When
+        pointService.givePoint(memberId, PointType.POST_CREATE);
+
+        // Then
+        verify(memberProfileRepository).addPointAtomically(memberId, 5L);
+        verify(pointHistoryRepository).save(argThat(history ->
+            history.getMember() == member &&
+                history.getAmount().equals(5L) &&
+                history.getRemainingPoint().equals(105L) &&
+                history.getType() == PointType.POST_CREATE
+        ));
+    }
+
+    @Test
+    @DisplayName("회원가입 포인트는 일반 회원에게 40점 지급된다")
+    void givePoint_SignUp_Gives40Points() {
+        // Given
+        Long memberId = 2L;
+        Member member = Member.builder().id(memberId).isBot(false).build();
+        MemberProfile profileBeforeUpdate = MemberProfile.builder().member(member).point(0L).build();
+        MemberProfile profileAfterUpdate = MemberProfile.builder().member(member).point(40L).build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(memberId)).thenReturn(Optional.of(member));
+        when(memberProfileRepository.findByMemberIdForUpdate(memberId)).thenReturn(Optional.of(profileBeforeUpdate));
+        when(memberProfileRepository.findByMemberId(memberId)).thenReturn(Optional.of(profileAfterUpdate));
+
+        // When
+        pointService.givePoint(memberId, PointType.SIGN_UP);
+
+        // Then
+        verify(memberProfileRepository).addPointAtomically(memberId, 40L);
+        verify(pointHistoryRepository).save(argThat(history ->
+            history.getAmount().equals(40L) &&
+                history.getRemainingPoint().equals(40L) &&
+                history.getType() == PointType.SIGN_UP
+        ));
+    }
+
+    @Test
+    @DisplayName("봇 회원에게는 포인트를 지급하지 않는다")
+    void givePoint_BotMember_NoPointGiven() {
+        // Given
+        Long botMemberId = 3L;
+        Member botMember = Member.builder().id(botMemberId).isBot(true).build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(botMemberId))
+            .thenReturn(Optional.of(botMember));
+
+        // When
+        pointService.givePoint(botMemberId, PointType.POST_CREATE);
+
+        // Then
+        verify(memberProfileRepository, never()).findByMemberIdForUpdate(botMemberId);
+        verify(memberProfileRepository, never()).addPointAtomically(eq(botMemberId), anyLong());
+        verify(pointHistoryRepository, never()).save(any());
     }
 }

@@ -10,6 +10,7 @@ import com.valanse.valanse.repository.VotesCheckRepositoryCustom.VoteRepositoryC
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -18,7 +19,6 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
-import java.time.LocalDateTime;
 
 @Repository
 /**
@@ -29,16 +29,26 @@ public interface VoteRepository extends JpaRepository<Vote, Long>, VoteRepositor
     // 내가 생성한 투표
     List<Vote> findAllByMemberOrderByCreatedAtDesc(Member member);
     List<Vote> findAllByMemberOrderByCreatedAtAsc(Member member);
+    Slice<Vote> findSliceByMemberOrderByCreatedAtDesc(Member member, Pageable pageable);
+    Slice<Vote> findSliceByMemberOrderByCreatedAtAsc(Member member, Pageable pageable);
 
     @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member AND v.category = :category ORDER BY v.createdAt DESC")
     List<Vote> findAllByMemberVotedAndCategoryOrderByCreatedAtDesc(@Param("member") Member member, @Param("category") VoteCategory category);
 
+    @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member AND v.category = :category ORDER BY v.createdAt DESC")
+    Slice<Vote> findSliceByMemberVotedAndCategoryOrderByCreatedAtDesc(@Param("member") Member member, @Param("category") VoteCategory category, Pageable pageable);
+
     @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member AND v.category = :category ORDER BY v.createdAt ASC")
     List<Vote> findAllByMemberVotedAndCategoryOrderByCreatedAtAsc(@Param("member") Member member, @Param("category") VoteCategory category);
 
+    @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member AND v.category = :category ORDER BY v.createdAt ASC")
+    Slice<Vote> findSliceByMemberVotedAndCategoryOrderByCreatedAtAsc(@Param("member") Member member, @Param("category") VoteCategory category, Pageable pageable);
+
     List<Vote> findAllByMemberAndCategoryOrderByCreatedAtDesc(Member member, VoteCategory category);
+    Slice<Vote> findSliceByMemberAndCategoryOrderByCreatedAtDesc(Member member, VoteCategory category, Pageable pageable);
 
     List<Vote> findAllByMemberAndCategoryOrderByCreatedAtAsc(Member member, VoteCategory category);
+    Slice<Vote> findSliceByMemberAndCategoryOrderByCreatedAtAsc(Member member, VoteCategory category, Pageable pageable);
 
     @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member AND v.category = :category ORDER BY v.createdAt DESC")
     List<Vote> findAllByMemberVotedAndCategoryOrderByCreatedAtDesc(@Param("member") Member member, @Param("category") String category);
@@ -49,26 +59,14 @@ public interface VoteRepository extends JpaRepository<Vote, Long>, VoteRepositor
     @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member ORDER BY v.createdAt DESC")
     List<Vote> findAllByMemberVotedOrderByCreatedAtDesc(@Param("member") Member member);
 
+    @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member ORDER BY v.createdAt DESC")
+    Slice<Vote> findSliceByMemberVotedOrderByCreatedAtDesc(@Param("member") Member member, Pageable pageable);
+
     @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member ORDER BY v.createdAt ASC")
     List<Vote> findAllByMemberVotedOrderByCreatedAtAsc(@Param("member") Member member);
 
-    //여기서 부터 영서 부분
-    // 가장 많은 totalVoteCount를 가진 투표 중 가장 최근에 생성된 투표를 조회
-    Optional<Vote> findTopByOrderByTotalVoteCountDescCreatedAtDesc(); //
-
-    // 추가: 특정 생성일시 이후의 투표 중 가장 많은 투표수를 가진 투표를 조회
-    Optional<Vote> findTopByCreatedAtAfterOrderByTotalVoteCountDescCreatedAtDesc(LocalDateTime createdAt);
-
-    // 추가: 작일 동안 반응성이 가장 높은 투표 조회
-    Optional<Vote> findTopByReactivityUpdatedAtBetweenOrderByReactivityScoreDescCreatedAtDesc(
-            LocalDateTime start, LocalDateTime end
-    );
-
-    Optional<Vote> findTopByCreatedAtBetweenOrderByReactivityScoreDescCreatedAtDesc(
-            LocalDateTime start, LocalDateTime end);
-
-    // 추가: 전체 기간 중 반응성이 가장 높은 투표 조회 (작일 데이터 없을 때 사용)
-    Optional<Vote> findTopByOrderByReactivityScoreDescCreatedAtDesc();
+    @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member ORDER BY v.createdAt ASC")
+    Slice<Vote> findSliceByMemberVotedOrderByCreatedAtAsc(@Param("member") Member member, Pageable pageable);
 
     // 특정 카테고리에 해당하는 투표를 페이징하여 조회
     Page<Vote> findByCategory(VoteCategory category, Pageable pageable);

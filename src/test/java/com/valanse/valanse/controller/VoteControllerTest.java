@@ -7,7 +7,11 @@ import com.valanse.valanse.domain.enums.*;
 import com.valanse.valanse.repository.CommentGroupRepository;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberRepository;
+import com.valanse.valanse.repository.MemberVoteOptionRepository;
+import com.valanse.valanse.repository.CommentRepository;
 import com.valanse.valanse.repository.VoteRepository;
+import com.valanse.valanse.repository.VoteOptionRepository;
+import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
@@ -43,9 +47,12 @@ public class VoteControllerTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private VoteRepository voteRepository;
+    @Autowired private VoteOptionRepository voteOptionRepository;
     @Autowired private MemberRepository memberRepository;
     @Autowired private MemberProfileRepository memberProfileRepository;
     @Autowired private CommentGroupRepository commentGroupRepository;
+    @Autowired private CommentRepository commentRepository;
+    @Autowired private MemberVoteOptionRepository memberVoteOptionRepository;
     @Autowired private EntityManager entityManager;
     @Autowired private EntityManagerFactory entityManagerFactory;
     private Long member1Id;
@@ -85,7 +92,7 @@ public class VoteControllerTest {
         VoteOption optionB = VoteOption.builder().vote(hotIssueVote)
                 .content("B. 부드러운 파스타").voteCount(40).label(VoteLabel.B).build();
         hotIssueVote.getVoteOptions().addAll(Arrays.asList(optionA, optionB));
-        voteRepository.save(hotIssueVote);
+        voteOptionRepository.saveAll(Arrays.asList(optionA, optionB));
 
         Member member2 = Member.builder()
                 .socialId("kakao456").email("test2@example.com").name("테스터2")
@@ -106,6 +113,12 @@ public class VoteControllerTest {
 
         commentGroupRepository.save(CommentGroup.builder()
                 .vote(otherVote).totalCommentCount(5).build());
+
+        memberVoteOptionRepository.save(MemberVoteOption.builder()
+                .member(member2)
+                .vote(hotIssueVote)
+                .voteOption(optionA)
+                .build());
     }
 
     @Test
@@ -129,8 +142,11 @@ public class VoteControllerTest {
                         .with(user(member1Id.toString()))
                         .param("category", "ALL"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].voteId").value(hotIssueVoteId));
+                .andExpect(jsonPath("$.votes.length()").value(1))
+                .andExpect(jsonPath("$.votes[0].voteId").value(hotIssueVoteId))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(10))
+                .andExpect(jsonPath("$.hasNext").value(false));
     }
 
     @Test
@@ -140,7 +156,10 @@ public class VoteControllerTest {
                         .with(user(member1Id.toString()))
                         .param("category", "ALL"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.votes.length()").value(0))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(10))
+                .andExpect(jsonPath("$.hasNext").value(false));
     }
 
     @Test
@@ -154,35 +173,112 @@ public class VoteControllerTest {
     @Test
     @DisplayName("반응성이 가장 높은 핫이슈 투표 정보를 성공적으로 조회한다.")
     void getHotIssueVote_Success() throws Exception {
-        mockMvc.perform(get("/votes/best").contentType(MediaType.APPLICATION_JSON))
+        Vote hotIssueVote = voteRepository.findAll().stream()
+                .filter(vote -> "오늘의 점심 선택은?".equals(vote.getTitle()))
+                .findFirst()
+                .orElseThrow();
+        CommentGroup hotCommentGroup = commentGroupRepository.findByVoteId(hotIssueVote.getId())
+                .orElseThrow();
+        Comment parentComment = commentRepository.save(Comment.builder()
+                .member(hotIssueVote.getMember())
+                .commentGroup(hotCommentGroup)
+                .content("최상위 댓글")
+                .build());
+        commentRepository.save(Comment.builder()
+                .member(hotIssueVote.getMember())
+                .commentGroup(hotCommentGroup)
+                .parent(parentComment)
+                .content("대댓글")
+                .build());
+
+        mockMvc.perform(get("/votes/trending")
+                        .param("days", "7")
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.voteId").isNumber())
-                .andExpect(jsonPath("$.title").value("오늘의 점심 선택은?"))
-                .andExpect(jsonPath("$.category").value(VoteCategory.FOOD.name()))
-                .andExpect(jsonPath("$.totalParticipants").value(100))
-                .andExpect(jsonPath("$.createdBy").value("테스터1닉네임"))
-                .andExpect(jsonPath("$.options[0].content").value("A. 맵고 얼큰한 라면"))
-                .andExpect(jsonPath("$.options[0].vote_count").value(60))
-                .andExpect(jsonPath("$.options[1].content").value("B. 부드러운 파스타"))
-                .andExpect(jsonPath("$.options[1].vote_count").value(40));
+                .andExpect(jsonPath("$.scoreType").value("PERIOD"))
+                .andExpect(jsonPath("$.fallbackApplied").value(false))
+                .andExpect(jsonPath("$.votes[0].voteId").isNumber())
+                .andExpect(jsonPath("$.votes[0].title").value("오늘의 점심 선택은?"))
+                .andExpect(jsonPath("$.votes[0].category").value(VoteCategory.FOOD.name()))
+                .andExpect(jsonPath("$.votes[0].reactivityScore").value(3))
+                .andExpect(jsonPath("$.votes[0].voteReactionCount").value(1))
+                .andExpect(jsonPath("$.votes[0].commentReactionCount").value(2))
+                .andExpect(jsonPath("$.votes[0].totalParticipants").value(100))
+                .andExpect(jsonPath("$.votes[0].createdBy").value("테스터1닉네임"))
+                .andExpect(jsonPath("$.votes[0].options[0].content").value("A. 맵고 얼큰한 라면"))
+                .andExpect(jsonPath("$.votes[0].options[0].vote_count").value(60));
     }
 
     @Test
-    @DisplayName("핫이슈 투표가 없을 때 404 Not Found를 반환한다.")
+    @DisplayName("트렌딩 투표가 없을 때 빈 목록을 반환한다.")
     void getHotIssueVote_NotFound() throws Exception {
+        memberVoteOptionRepository.deleteAll();
         commentGroupRepository.deleteAll();
         voteRepository.deleteAll();
 
-        mockMvc.perform(get("/votes/best").contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error").value("핫이슈 투표를 찾을 수 없습니다."))
-                .andExpect(jsonPath("$.status").value(404));
-        // 참고: GlobalExceptionHandler에서 "type" 필드는 주석 처리되어 있음
+        mockMvc.perform(get("/votes/trending")
+                        .param("days", "7")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fallbackApplied").value(true))
+                .andExpect(jsonPath("$.votes").isEmpty());
+    }
+
+    @Test
+    @DisplayName("트렌딩 조회 기간이 허용 범위를 벗어나면 400 Bad Request를 반환한다.")
+    void getTrendingVotes_InvalidDays_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/votes/trending")
+                        .param("days", "31")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("조회 기간은 1일 이상 30일 이하여야 합니다."))
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    @DisplayName("트렌딩 조회 기간을 누락하면 400 Bad Request를 반환한다.")
+    void getTrendingVotes_MissingDays_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/votes/trending")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("days 파라미터를 입력해주세요."))
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    @DisplayName("고정 투표를 첫 번째에 배치하고 반응성 순위와 중복 없이 반환한다.")
+    void getTrendingVotes_PinnedVoteComesFirst() throws Exception {
+        Vote pinnedVote = voteRepository.findAll().stream()
+                .filter(vote -> "연애 밸런스 게임".equals(vote.getTitle()))
+                .findFirst()
+                .orElseThrow();
+        pinnedVote.pin(PinType.TRENDING);
+        voteRepository.save(pinnedVote);
+
+        mockMvc.perform(get("/votes/trending")
+                        .param("days", "7")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.votes.length()").value(2))
+                .andExpect(jsonPath("$.votes[0].title").value("연애 밸런스 게임"))
+                .andExpect(jsonPath("$.votes[0].displayType").value("PINNED"))
+                .andExpect(jsonPath("$.votes[0].reactivityScore").value(0))
+                .andExpect(jsonPath("$.votes[1].title").value("오늘의 점심 선택은?"))
+                .andExpect(jsonPath("$.votes[1].displayType").value("RANKED"));
+    }
+
+    @Test
+    @DisplayName("기존 best 엔드포인트는 제거된다.")
+    void getBestVote_Removed() throws Exception {
+        mockMvc.perform(get("/votes/best")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().is4xxClientError());
     }
 
     @Test
     @DisplayName("동일한 반응성을 가진 투표 중 최신 투표를 조회한다.")
     void getHotIssueVote_SameTotalVoteCount_NewerIsHotIssue() throws Exception {
+        memberVoteOptionRepository.deleteAll();
         commentGroupRepository.deleteAll();
         voteRepository.deleteAll();
 
@@ -202,7 +298,8 @@ public class VoteControllerTest {
                 .reactivityUpdatedAt(LocalDateTime.now().minusDays(3))
                 .member(member3).pinType(PinType.NONE).build();
         voteRepository.save(oldVote);
-        commentGroupRepository.save(CommentGroup.builder().vote(oldVote).totalCommentCount(0).build());
+        CommentGroup oldCommentGroup = commentGroupRepository.save(
+                CommentGroup.builder().vote(oldVote).totalCommentCount(1).build());
 
         Vote newVote = Vote.builder()
                 .category(VoteCategory.LOVE).title("새로운 핫이슈 투표")
@@ -210,13 +307,27 @@ public class VoteControllerTest {
                 .reactivityUpdatedAt(LocalDateTime.now())
                 .member(member3).pinType(PinType.NONE).build();
         voteRepository.save(newVote);
-        commentGroupRepository.save(CommentGroup.builder().vote(newVote).totalCommentCount(0).build());
+        CommentGroup newCommentGroup = commentGroupRepository.save(
+                CommentGroup.builder().vote(newVote).totalCommentCount(1).build());
 
-        mockMvc.perform(get("/votes/best").contentType(MediaType.APPLICATION_JSON))
+        commentRepository.save(Comment.builder()
+                .member(member3)
+                .commentGroup(oldCommentGroup)
+                .content("오래된 투표의 댓글")
+                .build());
+        commentRepository.save(Comment.builder()
+                .member(member3)
+                .commentGroup(newCommentGroup)
+                .content("새로운 투표의 댓글")
+                .build());
+
+        mockMvc.perform(get("/votes/trending")
+                        .param("days", "7")
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.title").value("새로운 핫이슈 투표"))
-                .andExpect(jsonPath("$.totalParticipants").value(50))
-                .andExpect(jsonPath("$.createdBy").value("테스터3닉네임"));
+                .andExpect(jsonPath("$.votes[0].title").value("새로운 핫이슈 투표"))
+                .andExpect(jsonPath("$.votes[0].totalParticipants").value(50))
+                .andExpect(jsonPath("$.votes[0].createdBy").value("테스터3닉네임"));
     }
 
     @Test
@@ -321,12 +432,12 @@ public class VoteControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "pinType": "HOT"
+                                  "pinType": "TRENDING"
                                 }
                                 """))
                 .andExpect(status().isOk());
 
         Vote pinnedVote = voteRepository.findById(vote.getId()).orElseThrow();
-        assertThat(pinnedVote.getPinType()).isEqualTo(PinType.HOT);
+        assertThat(pinnedVote.getPinType()).isEqualTo(PinType.TRENDING);
     }
 }

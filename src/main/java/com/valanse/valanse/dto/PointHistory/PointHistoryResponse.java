@@ -8,7 +8,10 @@ import java.util.List;
  * PointHistoryResponse API 응답 또는 계층 간 전달 값을 담는 DTO 코드입니다.
  */
 public record PointHistoryResponse(
-        List<PointHistoryItem> pointHistory
+        List<PointHistoryItem> pointHistory,
+        int page,
+        int size,
+        boolean hasNext
 ) {
     /**
      * API 요청과 응답 데이터를 전달하기 위한 DTO 코드입니다.

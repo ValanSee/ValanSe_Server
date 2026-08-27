@@ -5,9 +5,11 @@ import com.valanse.valanse.common.message.AuthErrorMessage;
 import com.valanse.valanse.common.message.CommentErrorMessage;
 import com.valanse.valanse.domain.*;
 import com.valanse.valanse.domain.enums.Role;
+import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.dto.Comment.BestCommentResponseDto;
 import com.valanse.valanse.dto.Comment.CommentPostRequest;
 import com.valanse.valanse.dto.Comment.CommentReplyResponseDto;
+import com.valanse.valanse.dto.Comment.PagedCommentReplyResponse;
 import com.valanse.valanse.repository.*;
 import com.valanse.valanse.service.PointService.PointService;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +20,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -502,10 +506,11 @@ class CommentServiceImplTest {
         when(commentRepository.findById(10L)).thenReturn(Optional.of(parentComment));
 
         ApiException ex = assertThrows(ApiException.class,
-                () -> commentService.getReplies(member, 1L, 10L));
+                () -> commentService.getReplies(member, 1L, 10L, PageRequest.of(0, 10)));
 
         assertThat(ex.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
         verify(commentRepository, never()).findAllByParentId(any());
+        verify(commentRepository, never()).findRepliesByParentIdSlice(anyLong(), anyLong(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -530,16 +535,33 @@ class CommentServiceImplTest {
 
         when(voteRepository.findById(1L)).thenReturn(Optional.of(vote));
         when(commentRepository.findById(10L)).thenReturn(Optional.of(parent));
-        when(commentRepository.findAllByParentId(10L)).thenReturn(List.of(reply));
-        when(memberProfileRepository.findByMemberId(1L)).thenReturn(Optional.of(profile));
-        when(memberProfileTitleRepository.findByMemberProfileMemberIdAndEquippedTrue(1L))
-                .thenReturn(Optional.empty());
+        CommentReplyResponseDto pagedReply = new CommentReplyResponseDto(
+                11L,
+                "테스터",
+                null,
+                null,
+                reply.getCreatedAt(),
+                reply.getContent(),
+                0,
+                0,
+                true,
+                reply.getDeletedAt(),
+                VoteLabel.A,
+                0L,
+                1L,
+                true
+        );
+        when(commentRepository.findRepliesByParentIdSlice(eq(1L), eq(10L), any(), eq(1L), eq(false)))
+                .thenReturn(new SliceImpl<>(List.of(pagedReply), PageRequest.of(0, 10), false));
 
-        List<CommentReplyResponseDto> responses = commentService.getReplies(member, 1L, 10L);
+        PagedCommentReplyResponse response = commentService.getReplies(member, 1L, 10L, PageRequest.of(0, 10));
 
-        assertThat(responses).singleElement().satisfies(response -> {
-            assertThat(response.isDeleted()).isTrue();
-            assertThat(response.getDeletedAt()).isNotNull();
+        assertThat(response.getPage()).isZero();
+        assertThat(response.getSize()).isEqualTo(10);
+        assertThat(response.isHasNext()).isFalse();
+        assertThat(response.getReplies()).singleElement().satisfies(replyResponse -> {
+            assertThat(replyResponse.isDeleted()).isTrue();
+            assertThat(replyResponse.getDeletedAt()).isNotNull();
         });
     }
 }

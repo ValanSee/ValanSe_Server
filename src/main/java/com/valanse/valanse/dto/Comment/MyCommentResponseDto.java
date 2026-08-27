@@ -20,6 +20,7 @@ public class MyCommentResponseDto {
     private String content;
     private Long memberId;
     private String memberName;
+    private Boolean isBot;
     private boolean isReply;
     private LocalDateTime createdAt;
     private LocalDateTime voteCreatedAt;    // 투표 생성 시간 추가
@@ -27,6 +28,29 @@ public class MyCommentResponseDto {
     private String voteOwnerNickname;     // 추가
     private String voteTitle;         // 추가
     private String voteOptionLabel;   // 추가
+
+    /**
+     * MyCommentResponseDto 의존성을 주입하거나 객체를 초기화하는 생성자입니다.
+     */
+    @QueryProjection
+    public MyCommentResponseDto(Long id, String title, String content, Long memberId, String memberName,
+                                Boolean isBot, Boolean isReply, LocalDateTime createdAt, LocalDateTime voteCreatedAt,
+                                Long voteOwnerId, String voteOwnerNickname, String voteTitle,
+                                String voteOptionLabel) {
+        this.id = id;
+        this.title = title;
+        this.content = content;
+        this.memberId = memberId;
+        this.memberName = memberName;
+        this.isBot = isBot != null && isBot;
+        this.isReply = Boolean.TRUE.equals(isReply);
+        this.createdAt = createdAt;
+        this.voteCreatedAt = voteCreatedAt;
+        this.voteOwnerId = voteOwnerId;
+        this.voteOwnerNickname = voteOwnerNickname;
+        this.voteTitle = voteTitle;
+        this.voteOptionLabel = voteOptionLabel;
+    }
 
     /**
      * MyCommentResponseDto의 fromEntity 기능을 수행하는 메서드입니다.
@@ -38,6 +62,7 @@ public class MyCommentResponseDto {
                 .content(comment.getContent())
                 .memberId(comment.getMember().getId())
                 .memberName(comment.getMember().getName())
+                .isBot(comment.getMember().isBot())
                 .isReply(comment.getParent() != null)
                 .createdAt(comment.getCreatedAt())  // 댓글 생성 시간
                 .voteCreatedAt(comment.getCommentGroup().getVote().getCreatedAt())  // 투표 생성 시간
@@ -56,7 +81,6 @@ public class MyCommentResponseDto {
                 .build();
     }
 }
-
 
 
 

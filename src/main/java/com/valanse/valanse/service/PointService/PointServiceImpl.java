@@ -13,6 +13,8 @@ import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberRepository;
 import com.valanse.valanse.repository.PointHistoryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,6 +59,10 @@ public class PointServiceImpl implements PointService {
     public void givePoint(Long memberId, PointType type) {
         Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
+
+        if (member.isBot()) {
+            return;
+        }
 
         MemberProfile profile = findMemberProfileForUpdate(memberId)
                 .orElseThrow(() -> new ApiException(ProfileErrorMessage.PROFILE_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
@@ -125,24 +131,19 @@ public class PointServiceImpl implements PointService {
      */
     @Override
     @Transactional(readOnly = true)
-    public PointHistoryResponse getPointHistory(Long memberId) {
+    public PointHistoryResponse getPointHistory(Long memberId, Pageable pageable) {
         // 회원 존재 여부 확인
         memberRepository.findByIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(MemberErrorMessage.MEMBER_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
-        // 포인트 히스토리 조회 (최신순으로 정렬)
-        List<PointHistory> histories = pointHistoryRepository.findByMemberId(memberId);
-        Map<Long, Long> fallbackRemainingPoints = calculateRemainingPoints(histories);
+        Slice<PointHistory> histories = pointHistoryRepository.findByMemberIdOrderByCreatedAtDescIdDesc(memberId, pageable);
+        Map<Long, Long> fallbackRemainingPoints = histories.getContent().stream()
+                .anyMatch(history -> history.getRemainingPoint() == null)
+                ? calculateRemainingPoints(pointHistoryRepository.findByMemberId(memberId))
+                : Map.of();
 
         // DTO로 변환
-        List<PointHistoryResponse.PointHistoryItem> historyItems = histories.stream()
-                .sorted((h1, h2) -> {
-                    // null 값 처리: null은 가장 오래된 것으로 간주
-                    if (h1.getCreatedAt() == null && h2.getCreatedAt() == null) return 0;
-                    if (h1.getCreatedAt() == null) return 1;
-                    if (h2.getCreatedAt() == null) return -1;
-                    return h2.getCreatedAt().compareTo(h1.getCreatedAt()); // 최신순 정렬
-                })
+        List<PointHistoryResponse.PointHistoryItem> historyItems = histories.getContent().stream()
                 .map(history -> new PointHistoryResponse.PointHistoryItem(
                         history.getId(),
                         history.getAmount(),
@@ -155,7 +156,12 @@ public class PointServiceImpl implements PointService {
                 ))
                 .toList();
 
-        return new PointHistoryResponse(historyItems);
+        return new PointHistoryResponse(
+                historyItems,
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                histories.hasNext()
+        );
     }
 
     private Map<Long, Long> calculateRemainingPoints(List<PointHistory> histories) {
