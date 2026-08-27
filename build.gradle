@@ -80,6 +80,9 @@ dependencies {
     implementation 'net.javacrumbs.shedlock:shedlock-spring:7.7.0'
     implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.7.0'
 
+    // Anthropic Claude SDK 설정
+    implementation 'com.anthropic:anthropic-java:2.57.0'
+
 }
 
 // QueryDSL 설정
