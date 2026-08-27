@@ -30,8 +30,6 @@ jobs:
           test -n "$ADMIN_PASSWORD"
           perl -0pi -e 's/\$\{ADMIN_USERNAME:[^}]*\}/$ENV{ADMIN_USERNAME}/g' src/main/resources/application.yml
           perl -0pi -e 's/\$\{ADMIN_PASSWORD:[^}]*\}/$ENV{ADMIN_PASSWORD}/g' src/main/resources/application.yml
-          printf 'spring:\n  flyway:\n    out-of-order: true\n' > src/main/resources/application-prod.yml
-          grep -q '^    out-of-order: true$' src/main/resources/application-prod.yml
 
       - name: 테스트 및 빌드
         run: ./gradlew clean build
