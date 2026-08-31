@@ -113,7 +113,7 @@ jobs:
               echo "Development deployment succeeded: $IMAGE_TAG"
             else
               echo "Development deployment failed. Rolling back to: $PREVIOUS_IMAGE_TAG"
-              docker compose  --tail=100 valanse-dev-server || true
+              docker compose logs --tail=100 valanse-dev-server || true
 
               if [ -z "$PREVIOUS_IMAGE_TAG" ]; then
                 echo "Rollback image tag is not available."
