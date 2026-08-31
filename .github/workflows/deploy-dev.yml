@@ -21,11 +21,18 @@ jobs:
 
       - name: application.yml 파일 만들기
         env:
+          # APPLICATION_PROPERTIES를 env로 먼저 받은 뒤 "$APPLICATION_PROPERTIES"로 참조해야
+          # 안전하다. ${{ secrets.APPLICATION_PROPERTIES }}를 echo "..." 안에 직접 쓰면 그
+          # 값 자체가 스크립트 소스에 그대로 삽입되어, YAML의 ${ANTHROPIC_API_KEY:} 같은
+          # 표기를 bash가 자기 변수 치환 문법으로 잘못 해석해 "bad substitution"으로 죽는다.
+          # env로 감싸면 값이 프로세스 환경변수로 전달되고, "$VAR" 참조는 값을 그대로
+          # 삽입할 뿐 재해석하지 않는다.
+          APPLICATION_PROPERTIES: ${{ secrets.APPLICATION_PROPERTIES }}
           ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: |
           mkdir -p src/main/resources
-          echo "${{ secrets.APPLICATION_PROPERTIES }}" > src/main/resources/application.yml
+          echo "$APPLICATION_PROPERTIES" > src/main/resources/application.yml
           test -n "$ADMIN_USERNAME"
           test -n "$ADMIN_PASSWORD"
           perl -0pi -e 's/\$\{ADMIN_USERNAME:[^}]*\}/$ENV{ADMIN_USERNAME}/g' src/main/resources/application.yml
@@ -106,7 +113,7 @@ jobs:
               echo "Development deployment succeeded: $IMAGE_TAG"
             else
               echo "Development deployment failed. Rolling back to: $PREVIOUS_IMAGE_TAG"
-              docker compose  --tail=100 valanse-dev-server || true
+              docker compose logs --tail=100 valanse-dev-server || true
 
               if [ -z "$PREVIOUS_IMAGE_TAG" ]; then
                 echo "Rollback image tag is not available."
