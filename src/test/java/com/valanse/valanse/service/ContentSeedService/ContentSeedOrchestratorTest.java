@@ -100,6 +100,7 @@ class ContentSeedOrchestratorTest {
         assertThat(outcome.savedCount()).isEqualTo(1);
         assertThat(outcome.targetCount()).isEqualTo(1);
         assertThat(outcome.failures()).hasSize(1);
+        assertThat(result.savedPostIds()).containsExactly(100L);
         verify(persistenceService, never()).saveBotPost(eq(1L), eq(tooLongTitle));
     }
 
@@ -255,7 +256,7 @@ class ContentSeedOrchestratorTest {
                 new ContentSeedItemFailure("10", "제목 길이 위반(1~25자)"),
                 new ContentSeedItemFailure("11", "선택 옵션 누락")));
         ContentSeedRunResult result = new ContentSeedRunResult(
-                List.of(postOutcome), List.of(interactionOutcome), ContentSeedUsageSummary.empty());
+                List.of(postOutcome), List.of(interactionOutcome), ContentSeedUsageSummary.empty(), List.of());
 
         Map<String, Long> counts = result.rejectionReasonCounts();
 
