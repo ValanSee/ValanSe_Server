@@ -58,6 +58,15 @@ java -jar build/libs/valansee-server-0.0.1-SNAPSHOT.jar
 - 설정값 공유는 팀원 접근 권한이 제한된 공간에서만 진행하고, 외부 공유와 스크린샷 공유를 금지합니다.
 - 팀원 변경이나 권한 회수가 필요할 때는 저장소 접근 권한을 함께 정리합니다.
 - 운영 설정 변경 이력은 팀 문서에 남기고, 장기적으로는 환경변수 또는 secret manager 기반 주입으로 전환합니다.
+
+## 🤖 콘텐츠 자동 생성(봇 시드) 운영 가이드
+
+- 기본값은 모든 환경에서 비활성(`content-seed.enabled: false`)입니다. 코드 기본값이 `false`이고, `application.yml`의 dev/dev-server/prod 프로필 어디에도 이를 `true`로 재정의하는 설정이 없으므로 별도 조치 없이는 어떤 환경에서도 자동 실행되지 않습니다.
+- prod에서 활성화하려면 운영자가 수동 검수 후 (git에 커밋되지 않는) prod 프로필 `application.yml`에 `content-seed.enabled: true`를 명시적으로 추가해야 합니다. dev·dev-server는 계속 비활성 상태로 둡니다.
+- 필요한 환경변수: `ANTHROPIC_API_KEY`(Claude API 키). 값이 없으면 관리자 수동 실행 API(`POST /admin/content-seed/run`)는 즉시 503을 반환하고, 자동 스케줄은 생성 시점에 API 호출이 실패해 해당 봇/배치만 실패로 기록됩니다.
+- Discord 실행 결과 알림은 서버 오류 알림과 동일한 `alert.discord.*` 설정(웹훅)을 재사용합니다. 별도의 웹훅을 새로 설정할 필요는 없으며, `alert.discord.enabled`가 꺼져 있거나 웹훅 전송이 실패해도 콘텐츠 생성 자체에는 영향이 없습니다.
+- API Key와 웹훅 URL은 다른 민감 설정과 마찬가지로 저장소에 기록하지 않고 환경변수로만 주입합니다.
+
 ## 운영 DB 중복 데이터 점검 쿼리
 
 현재 프로젝트에는 별도 migration 도구가 없으므로 중복 방지 제약은 우선 JPA `@Table(uniqueConstraints = ...)`로 반영되어 있습니다. 운영 DB에 unique 제약을 직접 추가하기 전에는 아래 쿼리로 기존 중복 데이터를 먼저 점검하고 정리해야 합니다.
