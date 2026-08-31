@@ -9,9 +9,11 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.ResourceAccessException;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class DiscordWebhookClient {
 
@@ -33,6 +35,14 @@ public class DiscordWebhookClient {
     }
 
     public void send(ServerErrorEvent event) {
+        sendWithRetry(event.traceId(), payload(event));
+    }
+
+    public void send(ContentSeedRunEvent event) {
+        sendWithRetry(correlationId(event), payload(event));
+    }
+
+    private void sendWithRetry(String correlationId, Map<String, Object> payload) {
         if (!StringUtils.hasText(properties.getWebhookUrl())) {
             throw new IllegalStateException("Discord webhook URL is not configured.");
         }
@@ -40,32 +50,36 @@ public class DiscordWebhookClient {
         int maxAttempts = Math.max(1, properties.getMaxAttempts());
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                sendOnce(event);
+                sendOnce(payload);
                 return;
             } catch (RestClientResponseException exception) {
                 if (!isRetryableStatus(exception) || attempt == maxAttempts) {
                     throw exception;
                 }
                 Duration delay = retryDelay(exception, attempt);
-                logRetry(event, attempt, maxAttempts, delay, "HTTP " + exception.getStatusCode().value());
+                logRetry(correlationId, attempt, maxAttempts, delay, "HTTP " + exception.getStatusCode().value());
                 sleep(delay);
             } catch (ResourceAccessException exception) {
                 if (attempt == maxAttempts) {
                     throw exception;
                 }
                 Duration delay = exponentialBackoff(attempt);
-                logRetry(event, attempt, maxAttempts, delay, exception.getClass().getSimpleName());
+                logRetry(correlationId, attempt, maxAttempts, delay, exception.getClass().getSimpleName());
                 sleep(delay);
             }
         }
     }
 
-    private void sendOnce(ServerErrorEvent event) {
+    private void sendOnce(Map<String, Object> payload) {
         restClient.post()
                 .uri(webhookUri())
-                .body(payload(event))
+                .body(payload)
                 .retrieve()
                 .toBodilessEntity();
+    }
+
+    private String correlationId(ContentSeedRunEvent event) {
+        return "content-seed:" + event.trigger() + ":" + event.occurredAt();
     }
 
     private boolean isRetryableStatus(RestClientResponseException exception) {
@@ -116,15 +130,15 @@ public class DiscordWebhookClient {
     }
 
     private void logRetry(
-            ServerErrorEvent event,
+            String correlationId,
             int attempt,
             int maxAttempts,
             Duration delay,
             String failure
     ) {
         log.warn(
-                "Retrying Discord server error alert. traceId={}, nextAttempt={}/{}, delayMs={}, failure={}",
-                event.traceId(),
+                "Retrying Discord alert. correlationId={}, nextAttempt={}/{}, delayMs={}, failure={}",
+                correlationId,
                 attempt + 1,
                 maxAttempts,
                 delay.toMillis(),
@@ -164,6 +178,83 @@ public class DiscordWebhookClient {
                 "embeds", List.of(embed),
                 "allowed_mentions", Map.of("parse", List.of())
         );
+    }
+
+    private Map<String, Object> payload(ContentSeedRunEvent event) {
+        Map<String, Object> embed = event.isFatal() ? fatalEmbed(event) : summaryEmbed(event);
+        return Map.of(
+                "username", "ValanSe Content Seed",
+                "embeds", List.of(embed),
+                "allowed_mentions", Map.of("parse", List.of())
+        );
+    }
+
+    private Map<String, Object> fatalEmbed(ContentSeedRunEvent event) {
+        return Map.of(
+                "title", "콘텐츠 시드 실행 실패",
+                "color", 0xE74C3C,
+                "fields", List.of(
+                        field("트리거", event.trigger(), true),
+                        field("환경", event.environment(), true),
+                        field("오류", safe(event.fatalErrorType()) + ": " + safe(event.fatalErrorMessage()), false),
+                        field("소요 시간", durationText(event.durationMs()), true)
+                ),
+                "timestamp", event.occurredAt().toString()
+        );
+    }
+
+    private Map<String, Object> summaryEmbed(ContentSeedRunEvent event) {
+        var result = event.result();
+        boolean fullySaved = result.savedPostCount() >= result.targetPostCount()
+                && result.savedInteractionCount() >= result.targetInteractionCount();
+
+        List<Map<String, Object>> fields = new ArrayList<>(List.of(
+                field("트리거", event.trigger(), true),
+                field("환경", event.environment(), true),
+                field("게시글", result.savedPostCount() + "/" + result.targetPostCount(), true),
+                field("상호작용", result.savedInteractionCount() + "/" + result.targetInteractionCount(), true),
+                field("API 호출", result.usage().apiCallCount() + "회", true),
+                field("토큰 사용량", "입력 " + result.usage().inputTokens() + " · 출력 " + result.usage().outputTokens(), true),
+                field("예상 비용", "$" + result.usage().estimatedCostUsd(), true),
+                field("소요 시간", durationText(event.durationMs()), true)
+        ));
+
+        String links = postLinks(event);
+        if (StringUtils.hasText(links)) {
+            fields.add(field("생성된 게시글", links, false));
+        }
+
+        String rejectionSummary = rejectionSummary(result.rejectionReasonCounts());
+        if (StringUtils.hasText(rejectionSummary)) {
+            fields.add(field("품질 거절 사유", rejectionSummary, false));
+        }
+
+        return Map.of(
+                "title", fullySaved ? "콘텐츠 시드 실행 완료" : "콘텐츠 시드 실행 부분 완료",
+                "color", fullySaved ? 0x2ECC71 : 0xF1C40F,
+                "fields", fields,
+                "timestamp", event.occurredAt().toString()
+        );
+    }
+
+    private String postLinks(ContentSeedRunEvent event) {
+        if (event.result().savedPostIds().isEmpty() || !StringUtils.hasText(event.frontendBaseUrl())) {
+            return "";
+        }
+        return event.result().savedPostIds().stream()
+                .map(id -> event.frontendBaseUrl() + "/votes/" + id)
+                .collect(Collectors.joining("\n"));
+    }
+
+    private String rejectionSummary(Map<String, Long> rejectionReasonCounts) {
+        return rejectionReasonCounts.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .map(entry -> entry.getKey() + " (" + entry.getValue() + "건)")
+                .collect(Collectors.joining("\n"));
+    }
+
+    private String durationText(long durationMs) {
+        return (durationMs / 1000) + "." + (durationMs % 1000 / 100) + "초";
     }
 
     private Map<String, Object> field(String name, String value, boolean inline) {
