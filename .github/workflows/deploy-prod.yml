@@ -23,13 +23,17 @@ jobs:
         env:
           ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           mkdir -p src/main/resources
           echo "${{ secrets.APPLICATION_PROPERTIES }}" > src/main/resources/application.yml
           test -n "$ADMIN_USERNAME"
           test -n "$ADMIN_PASSWORD"
+          # ANTHROPIC_API_KEY는 content-seed.enabled가 아직 모든 프로필에서 false라 필수는
+          # 아니다 - 시크릿이 비어 있어도 배포가 막히지 않게 test -n으로 강제하지 않는다.
           perl -0pi -e 's/\$\{ADMIN_USERNAME:[^}]*\}/$ENV{ADMIN_USERNAME}/g' src/main/resources/application.yml
           perl -0pi -e 's/\$\{ADMIN_PASSWORD:[^}]*\}/$ENV{ADMIN_PASSWORD}/g' src/main/resources/application.yml
+          perl -0pi -e 's/\$\{ANTHROPIC_API_KEY:[^}]*\}/$ENV{ANTHROPIC_API_KEY}/g' src/main/resources/application.yml
 
       - name: 테스트 및 빌드
         run: ./gradlew clean build
