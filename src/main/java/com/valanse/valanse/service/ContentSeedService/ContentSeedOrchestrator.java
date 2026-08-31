@@ -50,10 +50,11 @@ public class ContentSeedOrchestrator {
         List<Member> bots = botAccountSelector.selectActiveBots();
         Set<Long> thisRunBotMemberIds = bots.stream().map(Member::getId).collect(Collectors.toSet());
         UsageAccumulator usage = new UsageAccumulator();
+        List<Long> savedPostIds = new ArrayList<>();
 
         List<ContentSeedBatchOutcome> postOutcomes = new ArrayList<>();
         for (Member bot : bots) {
-            postOutcomes.add(generatePostsForBot(bot, usage));
+            postOutcomes.add(generatePostsForBot(bot, usage, savedPostIds));
         }
 
         List<ContentSeedBatchOutcome> interactionOutcomes = new ArrayList<>();
@@ -61,10 +62,11 @@ public class ContentSeedOrchestrator {
             interactionOutcomes.add(generateInteractionsForBot(bot, thisRunBotMemberIds, usage));
         }
 
-        return new ContentSeedRunResult(postOutcomes, interactionOutcomes, usage.toSummary(properties.getPricing()));
+        return new ContentSeedRunResult(
+                postOutcomes, interactionOutcomes, usage.toSummary(properties.getPricing()), List.copyOf(savedPostIds));
     }
 
-    private ContentSeedBatchOutcome generatePostsForBot(Member bot, UsageAccumulator usage) {
+    private ContentSeedBatchOutcome generatePostsForBot(Member bot, UsageAccumulator usage, List<Long> savedPostIds) {
         int target = properties.getPostsPerBot();
         List<ContentSeedItemFailure> failures = new ArrayList<>();
         int saved = 0;
@@ -76,6 +78,7 @@ public class ContentSeedOrchestrator {
             AttemptOutcome first = attemptPosts(bot, target, recentPosts, recentTitles);
             saved += first.savedDelta();
             failures.addAll(first.failures());
+            savedPostIds.addAll(first.savedIds());
             usage.record(first.inputTokens(), first.outputTokens());
 
             int shortfall = target - saved;
@@ -83,6 +86,7 @@ public class ContentSeedOrchestrator {
                 AttemptOutcome retry = attemptPosts(bot, shortfall, recentPosts, recentTitles);
                 saved += retry.savedDelta();
                 failures.addAll(retry.failures());
+                savedPostIds.addAll(retry.savedIds());
                 usage.record(retry.inputTokens(), retry.outputTokens());
             }
         } catch (Exception e) {
@@ -96,6 +100,7 @@ public class ContentSeedOrchestrator {
             Member bot, int count, List<RecentPost> recentPosts, List<String> recentTitles) {
         GenerationResult<GeneratedPostBatch> result = contentGenerator.generatePosts(toPersona(bot), count, recentPosts);
         List<ContentSeedItemFailure> failures = new ArrayList<>();
+        List<Long> savedIds = new ArrayList<>();
         int saved = 0;
 
         for (GeneratedPost post : result.content().posts()) {
@@ -106,14 +111,14 @@ public class ContentSeedOrchestrator {
                 continue;
             }
             try {
-                persistenceService.saveBotPost(bot.getId(), post);
+                savedIds.add(persistenceService.saveBotPost(bot.getId(), post));
                 saved++;
             } catch (Exception e) {
                 failures.add(new ContentSeedItemFailure(detail, describe(e)));
             }
         }
 
-        return new AttemptOutcome(saved, failures, result.inputTokens(), result.outputTokens());
+        return new AttemptOutcome(saved, savedIds, failures, result.inputTokens(), result.outputTokens());
     }
 
     private ContentSeedBatchOutcome generateInteractionsForBot(
@@ -181,7 +186,7 @@ public class ContentSeedOrchestrator {
             }
         }
 
-        return new AttemptOutcome(saved, failures, result.inputTokens(), result.outputTokens());
+        return new AttemptOutcome(saved, List.of(), failures, result.inputTokens(), result.outputTokens());
     }
 
     private BotPersonaContext toPersona(Member bot) {
@@ -198,7 +203,9 @@ public class ContentSeedOrchestrator {
     }
 
     // Claude 호출 1회 시도(최초 또는 재시도)의 결과.
-    private record AttemptOutcome(int savedDelta, List<ContentSeedItemFailure> failures, long inputTokens, long outputTokens) {
+    // savedIds는 게시글 생성에서만 채워진다 - 상호작용은 기존 게시글을 대상으로 하므로 빈 목록을 넘긴다.
+    private record AttemptOutcome(
+            int savedDelta, List<Long> savedIds, List<ContentSeedItemFailure> failures, long inputTokens, long outputTokens) {
     }
 
     // 실행 1회 동안의 API 호출 수·토큰 사용량을 누적하는 내부 집계기.
