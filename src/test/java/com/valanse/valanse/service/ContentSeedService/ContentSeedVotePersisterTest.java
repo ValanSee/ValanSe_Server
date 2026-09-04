@@ -37,9 +37,8 @@ import java.util.function.Supplier;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * PR3-2 "부작용 없는 봇 투표 저장"의 규칙(MemberVoteOption만 저장, 공개 카운트
- * 미증가, 포인트 미지급, 댓글 선택 옵션 표시 유지)이 실제로 지켜지는지 검증하는
- * 통합 테스트입니다.
+ * 봇 투표 저장 규칙(MemberVoteOption 저장, 공개 투표 카운트 증가, 포인트 미지급,
+ * 댓글 선택 옵션 표시 유지)이 실제로 지켜지는지 검증하는 통합 테스트입니다.
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -68,8 +67,8 @@ class ContentSeedVotePersisterTest {
     }
 
     @Test
-    @DisplayName("MemberVoteOption 관계만 저장하고 공개 투표 카운트는 증가시키지 않는다")
-    void saveVote_SavesMemberVoteOptionWithoutIncrementingPublicCounts() {
+    @DisplayName("MemberVoteOption 관계를 저장하고 공개 투표 카운트도 함께 증가시킨다")
+    void saveVote_SavesMemberVoteOptionAndIncrementsPublicCounts() {
         Member author = saveMember("vote-persist-author", false);
         Vote vote = saveVoteWithOptions(author, "vote-persist-title");
         VoteOption optionA = vote.getVoteOptions().get(0);
@@ -84,9 +83,9 @@ class ContentSeedVotePersisterTest {
         assertThat(saved.get().getVoteOption().getId()).isEqualTo(optionA.getId());
 
         Vote reloadedVote = voteRepository.findById(vote.getId()).orElseThrow();
-        assertThat(reloadedVote.getTotalVoteCount()).isZero();
+        assertThat(reloadedVote.getTotalVoteCount()).isEqualTo(1);
         VoteOption reloadedOption = voteOptionRepository.findById(optionA.getId()).orElseThrow();
-        assertThat(reloadedOption.getVoteCount()).isZero();
+        assertThat(reloadedOption.getVoteCount()).isEqualTo(1);
     }
 
     @Test
