@@ -52,8 +52,17 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Docker 이미지 생성
-        run: docker build -t valanse-docker-images .
+      - name: Docker Buildx 설정
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker 이미지 생성 (레이어 캐시 적용)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          tags: valanse-docker-images
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Docker 이미지에 Tag 붙이기 (dev)
         run: |
