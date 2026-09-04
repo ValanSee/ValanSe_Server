@@ -80,8 +80,8 @@ class ContentSeedPersistenceServiceTest {
     }
 
     @Test
-    @DisplayName("봇 상호작용(투표+댓글) 1건을 저장하고, 투표는 공개 카운트를 늘리지 않는다")
-    void saveBotInteraction_PersistsVoteAndCommentWithoutPublicVoteCount() {
+    @DisplayName("봇 상호작용(투표+댓글) 1건을 저장하고, 투표는 공개 카운트도 함께 늘린다")
+    void saveBotInteraction_PersistsVoteAndCommentAndIncrementsPublicVoteCount() {
         Member author = saveMember("interaction-author", false);
         Vote vote = saveVoteWithOptions(author, "interaction-title");
         VoteOption optionA = vote.getVoteOptions().get(0);
@@ -97,9 +97,9 @@ class ContentSeedPersistenceServiceTest {
         assertThat(commentRepository.findById(commentId).orElseThrow().getContent()).isEqualTo("저는 A가 좋아요");
 
         Vote reloadedVote = voteRepository.findById(vote.getId()).orElseThrow();
-        assertThat(reloadedVote.getTotalVoteCount()).isZero();
+        assertThat(reloadedVote.getTotalVoteCount()).isEqualTo(1);
         VoteOption reloadedOption = voteOptionRepository.findById(optionA.getId()).orElseThrow();
-        assertThat(reloadedOption.getVoteCount()).isZero();
+        assertThat(reloadedOption.getVoteCount()).isEqualTo(1);
     }
 
     @Test
