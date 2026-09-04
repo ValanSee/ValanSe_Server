@@ -12,6 +12,7 @@ import com.valanse.valanse.repository.ActivityEventRepository;
 import com.valanse.valanse.repository.AnonymousUserLinkRepository;
 import com.valanse.valanse.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -92,10 +93,15 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     private void linkAnonymousIdToMember(String anonymousId, Member member) {
         if (!anonymousUserLinkRepository.existsByAnonymousId(anonymousId)) {
-            anonymousUserLinkRepository.save(AnonymousUserLink.builder()
-                    .anonymousId(anonymousId)
-                    .member(member)
-                    .build());
+            try {
+                anonymousUserLinkRepository.save(AnonymousUserLink.builder()
+                        .anonymousId(anonymousId)
+                        .member(member)
+                        .build());
+                anonymousUserLinkRepository.flush();
+            } catch (DataIntegrityViolationException e) {
+                // 동시 요청으로 다른 트랜잭션이 먼저 연결을 저장한 경우: 이미 연결된 것으로 간주하고 무시
+            }
         }
         activityEventRepository.linkAnonymousEventsToMember(anonymousId, member);
     }
