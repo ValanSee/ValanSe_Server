@@ -181,13 +181,15 @@ public class SecurityConfig {
         if (isProdProfile()) {
             return List.of(
                     "https://valanse.kr",
-                    "https://www.valanse.kr"
+                    "https://www.valanse.kr",
+                    "https://valanse-cms.vercel.app"
             );
         }
 
         return Arrays.asList(
                 "http://localhost:3000",
-                "https://develop.valanse.kr"
+                "https://develop.valanse.kr",
+                "https://develop-valanse-cms.vercel.app"
         );
     }
 

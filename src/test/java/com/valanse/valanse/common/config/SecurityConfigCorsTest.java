@@ -20,10 +20,13 @@ class SecurityConfigCorsTest {
 
         assertThat(configuration.checkOrigin("https://valanse.kr")).isEqualTo("https://valanse.kr");
         assertThat(configuration.checkOrigin("https://www.valanse.kr")).isEqualTo("https://www.valanse.kr");
+        assertThat(configuration.checkOrigin("https://valanse-cms.vercel.app"))
+                .isEqualTo("https://valanse-cms.vercel.app");
         assertThat(configuration.checkOrigin(
                 "https://valanse-origin-repo-git-feature-125onb-97e2be-emithens-projects.vercel.app"
         )).isNull();
         assertThat(configuration.checkOrigin("https://develop.valanse.kr")).isNull();
+        assertThat(configuration.checkOrigin("https://develop-valanse-cms.vercel.app")).isNull();
     }
 
     @Test
@@ -33,11 +36,14 @@ class SecurityConfigCorsTest {
 
         assertThat(configuration.checkOrigin("http://localhost:3000")).isEqualTo("http://localhost:3000");
         assertThat(configuration.checkOrigin("https://develop.valanse.kr")).isEqualTo("https://develop.valanse.kr");
+        assertThat(configuration.checkOrigin("https://develop-valanse-cms.vercel.app"))
+                .isEqualTo("https://develop-valanse-cms.vercel.app");
         assertThat(configuration.checkOrigin(
                 "https://valanse-origin-repo-git-feature-125onb-97e2be-emithens-projects.vercel.app"
         )).isEqualTo(
                 "https://valanse-origin-repo-git-feature-125onb-97e2be-emithens-projects.vercel.app"
         );
+        assertThat(configuration.checkOrigin("https://valanse-cms.vercel.app")).isNull();
         assertThat(configuration.checkOrigin("https://attacker-project.vercel.app")).isNull();
         assertThat(configuration.checkOrigin("https://test-front-security.netlify.app")).isNull();
     }
