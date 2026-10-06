@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -114,6 +115,16 @@ public class GlobalExceptionHandler {
         error.put("error", "요청한 API를 찾을 수 없습니다.");
         error.put("status", HttpStatus.NOT_FOUND.value());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Map<String, Object>> handleHttpRequestMethodNotSupportedException(
+            HttpRequestMethodNotSupportedException e
+    ) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("error", "지원하지 않는 HTTP 메서드입니다.");
+        error.put("status", HttpStatus.METHOD_NOT_ALLOWED.value());
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(error);
     }
 
     /**

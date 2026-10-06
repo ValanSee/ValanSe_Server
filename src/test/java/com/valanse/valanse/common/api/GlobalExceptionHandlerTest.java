@@ -9,6 +9,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -114,6 +115,20 @@ class GlobalExceptionHandlerTest {
         verify(eventPublisher, never()).publishEvent(any());
     }
 
+    @Test
+    @DisplayName("지원하지 않는 HTTP 메서드는 405를 반환한다")
+    void handleHttpRequestMethodNotSupportedException_ReturnsMethodNotAllowed() throws Exception {
+        MockMvc mockMvc = mockMvc("prod");
+
+        mockMvc.perform(get("/post-only"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.error").value("지원하지 않는 HTTP 메서드입니다."))
+                .andExpect(jsonPath("$.status").value(405))
+                .andExpect(header().doesNotExist("X-Trace-Id"));
+
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
     private MockMvc mockMvc(String activeProfiles) {
         GlobalExceptionHandler handler = new GlobalExceptionHandler(eventPublisher);
         ReflectionTestUtils.setField(handler, "activeProfiles", activeProfiles);
@@ -139,6 +154,10 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/controlled-client-error")
         void controlledClientError() {
             throw new ApiException("bad request", HttpStatus.BAD_REQUEST);
+        }
+
+        @PostMapping("/post-only")
+        void postOnly() {
         }
     }
 }
