@@ -71,6 +71,7 @@ public class CommentLikeServiceImpl implements CommentLikeService {
         return CommentLikeResponseDto.builder()
                 .commentId(commentId)
                 .likeCount(comment.getLikeCount())
+                .liked(liked.get())
                 .message(liked.get() ? "좋아요 성공" : "좋아요 취소")
                 .build();
     }
