@@ -9,6 +9,8 @@ import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.dto.Comment.BestCommentResponseDto;
 import com.valanse.valanse.dto.Comment.CommentPostRequest;
 import com.valanse.valanse.dto.Comment.CommentReplyResponseDto;
+import com.valanse.valanse.dto.Comment.CommentResponseDto;
+import com.valanse.valanse.dto.Comment.PagedCommentResponse;
 import com.valanse.valanse.dto.Comment.PagedCommentReplyResponse;
 import com.valanse.valanse.repository.*;
 import com.valanse.valanse.service.PointService.PointService;
@@ -50,6 +52,8 @@ class CommentServiceImplTest {
     private MemberProfileRepository memberProfileRepository;
     @Mock
     private MemberProfileTitleRepository memberProfileTitleRepository;
+    @Mock
+    private CommentLikeRepository commentLikeRepository;
     @Mock
     private PointService pointService;
 
@@ -563,5 +567,82 @@ class CommentServiceImplTest {
             assertThat(replyResponse.isDeleted()).isTrue();
             assertThat(replyResponse.getDeletedAt()).isNotNull();
         });
+    }
+
+    @Test
+    @DisplayName("로그인 사용자의 댓글 목록 조회 시 좋아요한 댓글만 liked=true (좋아요 id는 한 번에 조회)")
+    void 댓글목록_로그인_liked() {
+        CommentResponseDto liked = commentDto(100L);
+        CommentResponseDto notLiked = commentDto(101L);
+        when(commentRepository.findCommentsByVoteIdSlice(eq(1L), eq("latest"), any(), eq(1L), eq(false)))
+                .thenReturn(new SliceImpl<>(List.of(liked, notLiked), PageRequest.of(0, 10), false));
+        when(commentLikeRepository.findCommentIdsByUserIdAndCommentIdIn(1L, List.of(100L, 101L)))
+                .thenReturn(List.of(100L));
+
+        PagedCommentResponse response =
+                commentService.getCommentsByVoteId(1L, "latest", PageRequest.of(0, 10), 1L, false);
+
+        assertThat(response.getComments()).extracting(CommentResponseDto::isLiked).containsExactly(true, false);
+        verify(commentLikeRepository, times(1)).findCommentIdsByUserIdAndCommentIdIn(anyLong(), anyList());
+    }
+
+    @Test
+    @DisplayName("비로그인 댓글 목록 조회 시 liked=false 이고 좋아요 조회 쿼리를 실행하지 않는다")
+    void 댓글목록_비로그인_liked_false() {
+        when(commentRepository.findCommentsByVoteIdSlice(eq(1L), eq("latest"), any(), isNull(), eq(false)))
+                .thenReturn(new SliceImpl<>(List.of(commentDto(100L)), PageRequest.of(0, 10), false));
+
+        PagedCommentResponse response =
+                commentService.getCommentsByVoteId(1L, "latest", PageRequest.of(0, 10), null, false);
+
+        assertThat(response.getComments()).extracting(CommentResponseDto::isLiked).containsExactly(false);
+        verifyNoInteractions(commentLikeRepository);
+    }
+
+    @Test
+    @DisplayName("로그인 사용자의 대댓글 조회 시 좋아요한 대댓글만 liked=true")
+    void 대댓글_로그인_liked() {
+        Comment parent = Comment.builder()
+                .id(10L)
+                .member(member)
+                .commentGroup(commentGroup)
+                .build();
+        when(voteRepository.findById(1L)).thenReturn(Optional.of(vote));
+        when(commentRepository.findById(10L)).thenReturn(Optional.of(parent));
+        CommentReplyResponseDto liked = CommentReplyResponseDto.builder().id(11L).build();
+        CommentReplyResponseDto notLiked = CommentReplyResponseDto.builder().id(12L).build();
+        when(commentRepository.findRepliesByParentIdSlice(eq(1L), eq(10L), any(), eq(1L), eq(false)))
+                .thenReturn(new SliceImpl<>(List.of(liked, notLiked), PageRequest.of(0, 10), false));
+        when(commentLikeRepository.findCommentIdsByUserIdAndCommentIdIn(1L, List.of(11L, 12L)))
+                .thenReturn(List.of(11L));
+
+        PagedCommentReplyResponse response = commentService.getReplies(member, 1L, 10L, PageRequest.of(0, 10));
+
+        assertThat(response.getReplies()).extracting(CommentReplyResponseDto::isLiked).containsExactly(true, false);
+    }
+
+    @Test
+    @DisplayName("비로그인 대댓글 조회 시 liked=false 이고 좋아요 조회 쿼리를 실행하지 않는다")
+    void 대댓글_비로그인_liked_false() {
+        Comment parent = Comment.builder()
+                .id(10L)
+                .member(member)
+                .commentGroup(commentGroup)
+                .build();
+        when(voteRepository.findById(1L)).thenReturn(Optional.of(vote));
+        when(commentRepository.findById(10L)).thenReturn(Optional.of(parent));
+        when(commentRepository.findRepliesByParentIdSlice(eq(1L), eq(10L), any(), isNull(), eq(false)))
+                .thenReturn(new SliceImpl<>(List.of(CommentReplyResponseDto.builder().id(11L).build()),
+                        PageRequest.of(0, 10), false));
+
+        PagedCommentReplyResponse response = commentService.getReplies(null, 1L, 10L, PageRequest.of(0, 10));
+
+        assertThat(response.getReplies()).extracting(CommentReplyResponseDto::isLiked).containsExactly(false);
+        verifyNoInteractions(commentLikeRepository);
+    }
+
+    private CommentResponseDto commentDto(Long commentId) {
+        return new CommentResponseDto(commentId, 1L, "닉네임", false, null,
+                null, null, "내용", 0, 0, null, null, 0L, 0L, false);
     }
 }

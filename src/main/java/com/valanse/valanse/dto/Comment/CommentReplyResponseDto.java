@@ -28,6 +28,8 @@ public class CommentReplyResponseDto {
     private Long daysAgo;
     private Long hoursAgo;
     private boolean canDelete;
+    // 현재 요청자(로그인 사용자)가 이 대댓글에 좋아요를 눌렀는지 여부. 비로그인이면 항상 false
+    private boolean liked;
 
     /**
      * CommentReplyResponseDto 의존성을 주입하거나 객체를 초기화하는 생성자입니다.
@@ -37,6 +39,17 @@ public class CommentReplyResponseDto {
                                    String content, Integer likeCount, Integer replyCount,
                                    Boolean isDeleted, LocalDateTime deletedAt, VoteLabel label,
                                    Long daysAgo, Long hoursAgo, Boolean canDelete) {
+        this(id, nickname, isBot, title, createdAt, content, likeCount, replyCount, isDeleted, deletedAt, label,
+                daysAgo, hoursAgo, canDelete, false);
+    }
+
+    /**
+     * liked 값을 포함한 전체 필드 생성자입니다. (@Builder 용)
+     */
+    public CommentReplyResponseDto(Long id, String nickname, Boolean isBot, String title, LocalDateTime createdAt,
+                                   String content, Integer likeCount, Integer replyCount,
+                                   Boolean isDeleted, LocalDateTime deletedAt, VoteLabel label,
+                                   Long daysAgo, Long hoursAgo, Boolean canDelete, boolean liked) {
         this.id = id;
         this.nickname = nickname != null ? nickname : "탈퇴한 사용자";
         this.isBot = isBot != null && isBot;
@@ -51,5 +64,13 @@ public class CommentReplyResponseDto {
         this.daysAgo = daysAgo;
         this.hoursAgo = hoursAgo;
         this.canDelete = Boolean.TRUE.equals(canDelete);
+        this.liked = liked;
+    }
+
+    /**
+     * 현재 요청자의 좋아요 여부를 반영하는 메서드입니다.
+     */
+    public void updateLiked(boolean liked) {
+        this.liked = liked;
     }
 }

@@ -11,5 +11,7 @@ import lombok.Getter;
 public class CommentLikeResponseDto {
     private Long commentId;
     private int likeCount;
+    // 토글 이후 현재 요청자의 좋아요 상태 (true: 좋아요 됨, false: 취소됨)
+    private boolean liked;
     private String message;
 }

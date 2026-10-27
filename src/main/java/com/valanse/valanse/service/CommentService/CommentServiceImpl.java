@@ -20,8 +20,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,6 +38,7 @@ public class CommentServiceImpl implements CommentService {
     private final VoteRepository voteRepository;
     private final CommentGroupRepository commentGroupRepository;
     private final CommentRepository commentRepository;
+    private final CommentLikeRepository commentLikeRepository;
     private final PointService pointService;
 
     /**
@@ -162,6 +165,9 @@ public class CommentServiceImpl implements CommentService {
     public PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable, Long loginId, Boolean isAdmin) {
 
         Slice<CommentResponseDto> slice = commentRepository.findCommentsByVoteIdSlice(voteId, sort, pageable, loginId, isAdmin);
+        Set<Long> likedIds = findLikedCommentIds(loginId,
+                slice.getContent().stream().map(CommentResponseDto::getCommentId).toList());
+        slice.getContent().forEach(c -> c.updateLiked(likedIds.contains(c.getCommentId())));
         return PagedCommentResponse.builder() // 인덱스 , 쿼리
                 .comments(slice.getContent())
                 .page(pageable.getPageNumber())
@@ -219,6 +225,9 @@ public class CommentServiceImpl implements CommentService {
         boolean isAdmin = loginUser != null && loginUser.getRole() == Role.ADMIN;
         Slice<CommentReplyResponseDto> replies =
                 commentRepository.findRepliesByParentIdSlice(voteId, parentCommentId, pageable, loginId, isAdmin);
+        Set<Long> likedIds = findLikedCommentIds(loginId,
+                replies.getContent().stream().map(CommentReplyResponseDto::getId).toList());
+        replies.getContent().forEach(r -> r.updateLiked(likedIds.contains(r.getId())));
 
         return PagedCommentReplyResponse.builder()
                 .replies(replies.getContent())
@@ -226,6 +235,17 @@ public class CommentServiceImpl implements CommentService {
                 .size(pageable.getPageSize())
                 .hasNext(replies.hasNext())
                 .build();
+    }
+
+    /**
+     * 로그인 사용자가 좋아요를 누른 댓글 id를 한 번의 쿼리로 조회하는 메서드입니다. (N+1 방지)
+     * 비로그인이거나 조회 대상이 없으면 쿼리 없이 빈 집합을 반환합니다.
+     */
+    private Set<Long> findLikedCommentIds(Long loginId, List<Long> commentIds) {
+        if (loginId == null || commentIds.isEmpty()) {
+            return Set.of();
+        }
+        return new HashSet<>(commentLikeRepository.findCommentIdsByUserIdAndCommentIdIn(loginId, commentIds));
     }
 
     private void validateParentCommentBelongsToVote(Comment parent, Long voteId) {
