@@ -44,6 +44,12 @@ public class AuthController {
     @Value("${jwt.refresh-token-expiration}")
     private int refreshTokenExpirationMinutes;
 
+    @Value("${jwt.admin-access-token-expiration}")
+    private int adminAccessTokenExpirationMinutes;
+
+    @Value("${jwt.admin-refresh-token-expiration}")
+    private int adminRefreshTokenExpirationMinutes;
+
     @Value("${admin.username:admin}")
     private String adminUsername;
 
@@ -51,6 +57,7 @@ public class AuthController {
     private String adminPassword;
 
     private long refreshTokenExpirationMillis;
+    private long adminRefreshTokenExpirationMillis;
 
     /**
      * AuthController의 init 기능을 수행하는 메서드입니다.
@@ -58,6 +65,7 @@ public class AuthController {
     @PostConstruct
     public void init() {
         this.refreshTokenExpirationMillis = refreshTokenExpirationMinutes * 60L * 1000L;
+        this.adminRefreshTokenExpirationMillis = adminRefreshTokenExpirationMinutes * 60L * 1000L;
     }
 
     @PostMapping("/admin/login")
@@ -67,8 +75,13 @@ public class AuthController {
             throw new ApiException(AuthErrorMessage.ADMIN_ONLY.message(), HttpStatus.UNAUTHORIZED);
         }
 
-        Map<String, String> jwtToken = jwtTokenProvider.createTokenPair(0L, Role.ADMIN.toString());
-        refreshTokenService.saveRefreshToken("0", jwtToken.get("refreshToken"), refreshTokenExpirationMillis);
+        Map<String, String> jwtToken = jwtTokenProvider.createTokenPair(
+                0L,
+                Role.ADMIN.toString(),
+                adminAccessTokenExpirationMinutes,
+                adminRefreshTokenExpirationMinutes
+        );
+        refreshTokenService.saveRefreshToken("0", jwtToken.get("refreshToken"), adminRefreshTokenExpirationMillis);
 
         Map<String, Object> loginInfo = new HashMap<>();
         loginInfo.put("id", 0L);
