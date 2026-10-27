@@ -67,6 +67,7 @@ class CommentLikeServiceImplTest {
 
         assertThat(result.getLikeCount()).isEqualTo(1);
         assertThat(result.getMessage()).isEqualTo("좋아요 성공");
+        assertThat(result.isLiked()).isTrue();
     }
 
     @Test
@@ -88,6 +89,7 @@ class CommentLikeServiceImplTest {
 
         assertThat(result.getLikeCount()).isEqualTo(0);
         assertThat(result.getMessage()).isEqualTo("좋아요 취소");
+        assertThat(result.isLiked()).isFalse();
     }
 
     @Test
