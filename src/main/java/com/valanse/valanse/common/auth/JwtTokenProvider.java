@@ -42,13 +42,21 @@ public class JwtTokenProvider {
      * 사용자 식별자와 role claim을 담은 access token을 생성하는 메서드입니다.
      */
     public String createAccessToken(Long userId, String role) {
+        return createAccessToken(userId, role, accessTokenExpiration);
+    }
+
+    // Access Token 생성 (만료 시간 직접 지정 — 관리자 등 별도 정책이 필요할 때 사용)
+    /**
+     * 사용자 식별자와 role claim을 담은 access token을 지정된 만료 시간(분)으로 생성하는 메서드입니다.
+     */
+    public String createAccessToken(Long userId, String role, int expirationMinutes) {
         Claims claims = Jwts.claims().setSubject(String.valueOf(userId)); // subject에 userId 저장
         claims.put("role", role); // role 클레임 추가 (권한 확인용)
         Date now = new Date();
         return Jwts.builder()
                 .setClaims(claims) // 사용자 정보 넣기
                 .setIssuedAt(now) // 발급 시간
-                .setExpiration(new Date(now.getTime() + accessTokenExpiration * 60 * 1000L))
+                .setExpiration(new Date(now.getTime() + expirationMinutes * 60 * 1000L))
                 .signWith(secretKey) // 시그니처
                 .compact();  // 최종 JWT 문자열로 직렬화
     }
@@ -58,11 +66,19 @@ public class JwtTokenProvider {
      * 사용자 식별자를 담은 refresh token을 생성하는 메서드입니다.
      */
     public String createRefreshToken(Long userId) {
+        return createRefreshToken(userId, refreshTokenExpiration);
+    }
+
+    // Refresh Token 생성 (만료 시간 직접 지정 — 관리자 등 별도 정책이 필요할 때 사용)
+    /**
+     * 사용자 식별자를 담은 refresh token을 지정된 만료 시간(분)으로 생성하는 메서드입니다.
+     */
+    public String createRefreshToken(Long userId, int expirationMinutes) {
         Date now = new Date();
         return Jwts.builder()
                 .setSubject(String.valueOf(userId)) // 유저 식별
                 .setIssuedAt(now)
-                .setExpiration(new Date(now.getTime() + refreshTokenExpiration * 60 * 1000L))
+                .setExpiration(new Date(now.getTime() + expirationMinutes * 60 * 1000L))
                 .signWith(secretKey)
                 .compact();
     }
@@ -74,6 +90,19 @@ public class JwtTokenProvider {
     public Map<String, String> createTokenPair(Long userId, String role) {
         String accessToken = createAccessToken(userId, role);
         String refreshToken = createRefreshToken(userId);  // 👈 수정된 버전 사용
+        return Map.of(
+                "accessToken", accessToken,
+                "refreshToken", refreshToken
+        );
+    }
+
+    // 액세스 + 리프레시 토큰을 한 번에 발급 (만료 시간 직접 지정 — 관리자 등 별도 정책이 필요할 때 사용)
+    /**
+     * access token과 refresh token을 지정된 만료 시간(분)으로 한 번에 생성하는 메서드입니다.
+     */
+    public Map<String, String> createTokenPair(Long userId, String role, int accessExpirationMinutes, int refreshExpirationMinutes) {
+        String accessToken = createAccessToken(userId, role, accessExpirationMinutes);
+        String refreshToken = createRefreshToken(userId, refreshExpirationMinutes);
         return Map.of(
                 "accessToken", accessToken,
                 "refreshToken", refreshToken
