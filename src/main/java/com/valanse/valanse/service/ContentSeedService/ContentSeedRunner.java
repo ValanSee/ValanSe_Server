@@ -8,6 +8,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.function.Supplier;
 
 // 주간 자동 스케줄과 관리자 수동 실행이 공유하는 실행 본체.
 // 오케스트레이터를 호출하고, 결과(또는 치명적 오류)를 로그와 Discord 알림으로 남긴다.
@@ -35,12 +36,22 @@ public class ContentSeedRunner {
     }
 
     public void runAndNotify(String trigger) {
+        runAndNotify(trigger, orchestrator::run);
+    }
+
+    // 관리자 댓글 전용 수동 실행(이슈 #322) 전용 진입점. 실행 본체(로그/Discord 알림)는
+    // runAndNotify(String)과 동일하게 공유하고, 오케스트레이터 호출만 runCommentsOnly()로 바꾼다.
+    public void runCommentsOnlyAndNotify(String trigger) {
+        runAndNotify(trigger, orchestrator::runCommentsOnly);
+    }
+
+    private void runAndNotify(String trigger, Supplier<ContentSeedRunResult> execution) {
         Instant startedAt = Instant.now();
         long startedNanos = System.nanoTime();
         log.info("CONTENT_SEED_STARTED trigger={}", trigger);
 
         try {
-            ContentSeedRunResult result = orchestrator.run();
+            ContentSeedRunResult result = execution.get();
             long durationMs = elapsedMillis(startedNanos);
             log.info(
                     "CONTENT_SEED_COMPLETED trigger={} posts={}/{} interactions={}/{} durationMs={}",

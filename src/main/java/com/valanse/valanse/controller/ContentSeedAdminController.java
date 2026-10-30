@@ -68,6 +68,23 @@ public class ContentSeedAdminController {
                     + "이미 실행 중이면 409를 반환합니다."
     )
     public ResponseEntity<Map<String, Object>> run() {
+        return runAsync(() -> runner.runAndNotify("ADMIN"));
+    }
+
+    @PostMapping("/comments/run")
+    @Operation(
+            summary = "AI 댓글 전용 수동 실행",
+            description = "새 게시글은 생성하지 않고, 기존 대상 선정 정책에 따라 선정된 게시글에 AI 투표·댓글만 "
+                    + "즉시 비동기로 실행합니다. 자동 스케줄·전체 수동 실행과 같은 락을 사용하므로 "
+                    + "이미 실행 중이면 409를 반환합니다."
+    )
+    public ResponseEntity<Map<String, Object>> runComments() {
+        return runAsync(() -> runner.runCommentsOnlyAndNotify("ADMIN_COMMENTS"));
+    }
+
+    // /run과 /comments/run이 공유하는 "API Key 확인 -> 락 획득 -> 비동기 실행 -> 락 해제" 절차.
+    // action만 실행 경로(전체/댓글 전용)에 따라 다르다.
+    private ResponseEntity<Map<String, Object>> runAsync(Runnable action) {
         if (!StringUtils.hasText(anthropicProperties.getApiKey())) {
             return errorResponse(HttpStatus.SERVICE_UNAVAILABLE, "Anthropic API Key가 설정되어 있지 않습니다.");
         }
@@ -81,7 +98,7 @@ public class ContentSeedAdminController {
         SimpleLock acquiredLock = lock.get();
         executor.execute(() -> {
             try {
-                runner.runAndNotify("ADMIN");
+                action.run();
             } catch (RuntimeException e) {
                 // ContentSeedRunner가 이미 로그·Discord 알림을 남겼으므로 여기서는 조용히 흡수한다.
                 log.debug("Admin content seed run finished with an exception already handled.", e);
