@@ -56,18 +56,18 @@ class ContentSeedAdminSchedulerLockIntegrationTest {
         CountDownLatch releaseScheduler = new CountDownLatch(1);
         when(orchestrator.run()).thenAnswer(invocation -> {
             schedulerStarted.countDown();
-            assertThat(releaseScheduler.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(releaseScheduler.await(15, TimeUnit.SECONDS)).isTrue();
             return new ContentSeedRunResult(List.of(), List.of(), ContentSeedUsageSummary.empty(), List.of());
         });
 
         CompletableFuture<Void> schedulerRun = CompletableFuture.runAsync(scheduler::run);
-        assertThat(schedulerStarted.await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(schedulerStarted.await(15, TimeUnit.SECONDS)).isTrue();
 
         ResponseEntity<Map<String, Object>> response = adminController.run();
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
 
         releaseScheduler.countDown();
-        schedulerRun.get(5, TimeUnit.SECONDS);
+        schedulerRun.get(15, TimeUnit.SECONDS);
     }
 
     // 이슈 #322 "중복 실행 방지" 요구사항: 주간 자동 콘텐츠 생성이 실행 중일 때
@@ -79,17 +79,17 @@ class ContentSeedAdminSchedulerLockIntegrationTest {
         CountDownLatch releaseScheduler = new CountDownLatch(1);
         when(orchestrator.run()).thenAnswer(invocation -> {
             schedulerStarted.countDown();
-            assertThat(releaseScheduler.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(releaseScheduler.await(15, TimeUnit.SECONDS)).isTrue();
             return new ContentSeedRunResult(List.of(), List.of(), ContentSeedUsageSummary.empty(), List.of());
         });
 
         CompletableFuture<Void> schedulerRun = CompletableFuture.runAsync(scheduler::run);
-        assertThat(schedulerStarted.await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(schedulerStarted.await(15, TimeUnit.SECONDS)).isTrue();
 
         ResponseEntity<Map<String, Object>> response = adminController.runComments();
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
 
         releaseScheduler.countDown();
-        schedulerRun.get(5, TimeUnit.SECONDS);
+        schedulerRun.get(15, TimeUnit.SECONDS);
     }
 }

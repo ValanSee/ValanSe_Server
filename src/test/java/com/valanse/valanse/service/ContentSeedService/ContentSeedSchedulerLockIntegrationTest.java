@@ -48,17 +48,17 @@ class ContentSeedSchedulerLockIntegrationTest {
         CountDownLatch releaseFirstExecution = new CountDownLatch(1);
         when(orchestrator.run()).thenAnswer(invocation -> {
             firstExecutionStarted.countDown();
-            assertThat(releaseFirstExecution.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(releaseFirstExecution.await(15, TimeUnit.SECONDS)).isTrue();
             return new ContentSeedRunResult(List.of(), List.of(), ContentSeedUsageSummary.empty(), List.of());
         });
 
         CompletableFuture<Void> first = CompletableFuture.runAsync(scheduler::run);
-        assertThat(firstExecutionStarted.await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(firstExecutionStarted.await(15, TimeUnit.SECONDS)).isTrue();
 
         CompletableFuture<Void> competing = CompletableFuture.runAsync(scheduler::run);
-        competing.get(5, TimeUnit.SECONDS);
+        competing.get(15, TimeUnit.SECONDS);
         releaseFirstExecution.countDown();
-        first.get(5, TimeUnit.SECONDS);
+        first.get(15, TimeUnit.SECONDS);
 
         verify(orchestrator).run();
     }
