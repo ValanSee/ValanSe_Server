@@ -69,4 +69,27 @@ class ContentSeedAdminSchedulerLockIntegrationTest {
         releaseScheduler.countDown();
         schedulerRun.get(5, TimeUnit.SECONDS);
     }
+
+    // 이슈 #322 "중복 실행 방지" 요구사항: 주간 자동 콘텐츠 생성이 실행 중일 때
+    // 관리자 댓글 전용 수동 실행(/admin/content-seed/comments/run)도 같은 락을 두고
+    // 경쟁해 409를 반환해야 한다.
+    @Test
+    void 자동_스케줄이_실행_중이면_관리자_댓글_전용_수동_실행은_409를_반환한다() throws Exception {
+        CountDownLatch schedulerStarted = new CountDownLatch(1);
+        CountDownLatch releaseScheduler = new CountDownLatch(1);
+        when(orchestrator.run()).thenAnswer(invocation -> {
+            schedulerStarted.countDown();
+            assertThat(releaseScheduler.await(5, TimeUnit.SECONDS)).isTrue();
+            return new ContentSeedRunResult(List.of(), List.of(), ContentSeedUsageSummary.empty(), List.of());
+        });
+
+        CompletableFuture<Void> schedulerRun = CompletableFuture.runAsync(scheduler::run);
+        assertThat(schedulerStarted.await(5, TimeUnit.SECONDS)).isTrue();
+
+        ResponseEntity<Map<String, Object>> response = adminController.runComments();
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+        releaseScheduler.countDown();
+        schedulerRun.get(5, TimeUnit.SECONDS);
+    }
 }

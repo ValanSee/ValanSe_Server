@@ -66,6 +66,22 @@ public class ContentSeedOrchestrator {
                 postOutcomes, interactionOutcomes, usage.toSummary(properties.getPricing()), List.copyOf(savedPostIds));
     }
 
+    // 댓글(투표+댓글) 전용 실행 경로. run()과 봇 선정·대상 선정 정책은 그대로 재사용하되,
+    // 게시글 생성 단계(generatePostsForBot)는 호출하지 않는다.
+    public ContentSeedRunResult runCommentsOnly() {
+        List<Member> bots = botAccountSelector.selectActiveBots();
+        Set<Long> thisRunBotMemberIds = bots.stream().map(Member::getId).collect(Collectors.toSet());
+        UsageAccumulator usage = new UsageAccumulator();
+
+        List<ContentSeedBatchOutcome> interactionOutcomes = new ArrayList<>();
+        for (Member bot : bots) {
+            interactionOutcomes.add(generateInteractionsForBot(bot, thisRunBotMemberIds, usage));
+        }
+
+        return new ContentSeedRunResult(
+                List.of(), interactionOutcomes, usage.toSummary(properties.getPricing()), List.of());
+    }
+
     private ContentSeedBatchOutcome generatePostsForBot(Member bot, UsageAccumulator usage, List<Long> savedPostIds) {
         int target = properties.getPostsPerBot();
         List<ContentSeedItemFailure> failures = new ArrayList<>();
