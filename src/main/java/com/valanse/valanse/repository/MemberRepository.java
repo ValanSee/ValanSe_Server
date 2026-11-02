@@ -1,6 +1,7 @@
 package com.valanse.valanse.repository;
 
 import com.valanse.valanse.domain.Member;
+import com.valanse.valanse.domain.enums.SocialType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -13,6 +14,8 @@ import java.util.Optional;
  */
 public interface MemberRepository extends JpaRepository<Member, Long> {
     Optional<Member> findBySocialIdAndDeletedAtIsNull(String socialId);
+
+    Optional<Member> findBySocialTypeAndSocialIdAndDeletedAtIsNull(SocialType socialType, String socialId);
 
     Optional<Member> findByIdAndDeletedAtIsNull(Long id);
 

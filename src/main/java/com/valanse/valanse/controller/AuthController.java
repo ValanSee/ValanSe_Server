@@ -5,11 +5,15 @@ import com.valanse.valanse.common.auth.JwtTokenProvider;
 import com.valanse.valanse.common.message.AuthErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.Role;
+import com.valanse.valanse.domain.enums.SocialType;
 import com.valanse.valanse.dto.Login.AccessTokenDto;
 import com.valanse.valanse.dto.Login.AdminLoginRequest;
+import com.valanse.valanse.dto.Login.AppleIdentity;
+import com.valanse.valanse.dto.Login.AppleLoginRequest;
 import com.valanse.valanse.dto.Login.KakaoProfileDto;
 import com.valanse.valanse.dto.Login.RedirectDto;
 import com.valanse.valanse.dto.Login.ReissueRequestDto;
+import com.valanse.valanse.service.AppleService.AppleService;
 import com.valanse.valanse.service.AuthService.AuthServiceImpl;
 import com.valanse.valanse.service.KakaoService.KakaoServiceImpl;
 import com.valanse.valanse.service.MemberService.MemberService;
@@ -21,17 +25,18 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
 
-@Tag(name = "로그인 API", description = "카카오 로그인, 로그아웃, 토큰 재발급 관련 API")
+@Tag(name = "로그인 API", description = "카카오·Apple 로그인, 로그아웃, 토큰 재발급 관련 API")
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 /**
- * 카카오 로그인, JWT 재발급, 로그아웃, 회원 탈퇴 요청을 처리하는 인증 컨트롤러 코드입니다.
+ * 카카오·Apple 로그인, JWT 재발급, 로그아웃, 회원 탈퇴 요청을 처리하는 인증 컨트롤러 코드입니다.
  */
 public class AuthController {
 
@@ -40,6 +45,7 @@ public class AuthController {
     private final MemberService memberService;
     private final JwtTokenProvider jwtTokenProvider;
     private final KakaoServiceImpl kakaoService;
+    private final AppleService appleService;
 
     @Value("${jwt.refresh-token-expiration}")
     private int refreshTokenExpirationMinutes;
@@ -127,24 +133,61 @@ public class AuthController {
             );
         }
 
+        return ResponseEntity.ok(createLoginInfo(originalMember));
+    }
+
+    @Operation(
+            summary = "Apple 로그인",
+            description = "Apple 로그인으로 받은 identityToken 을 검증해 로그인합니다. 회원이 없으면 authorizationCode 를 Apple refresh token(탈퇴 시 연결 해제용)으로 교환한 뒤 자동 회원가입합니다. "
+                    + "iOS 앱은 redirectUri 없이, 웹(Apple JS)은 authorize 에 쓴 redirectUri 를 함께 보냅니다. 응답은 카카오 로그인과 같습니다."
+    )
+    /**
+     * Apple identity token 을 JWT 로그인 응답으로 교환하는 메서드입니다.
+     */
+    @PostMapping("/apple/login")
+    public ResponseEntity<?> appleLogin(@RequestBody AppleLoginRequest request) {
+        AppleIdentity identity = appleService.verifyIdentityToken(request.getIdentityToken());
+
+        Member member = memberService.getMemberBySocial(SocialType.APPLE, identity.userId());
+        if (member == null) {
+            String appleRefreshToken = appleService.issueRefreshToken(
+                    request.getAuthorizationCode(),
+                    identity.clientId(),
+                    request.getRedirectUri()
+            );
+            member = memberService.createAppleMember(
+                    identity.userId(),
+                    identity.email(),
+                    request.getName(),
+                    appleRefreshToken,
+                    identity.clientId()
+            );
+        }
+
+        return ResponseEntity.ok(createLoginInfo(member));
+    }
+
+    /**
+     * 회원 JWT 를 발급하고 refresh token 을 저장한 로그인 응답을 만드는 메서드입니다.
+     */
+    private Map<String, Object> createLoginInfo(Member member) {
         Map<String, String> jwtToken = jwtTokenProvider.createTokenPair(
-                originalMember.getId(),
-                originalMember.getRole().toString()
+                member.getId(),
+                member.getRole().toString()
         );
 
         // jwt refresh token 저장
         refreshTokenService.saveRefreshToken(
-                originalMember.getId().toString(),
+                member.getId().toString(),
                 jwtToken.get("refreshToken"),
                 refreshTokenExpirationMillis
         );
 
         Map<String, Object> loginInfo = new HashMap<>();
-        loginInfo.put("id", originalMember.getId());
+        loginInfo.put("id", member.getId());
         loginInfo.put("accessToken", jwtToken.get("accessToken"));
         loginInfo.put("refreshToken", jwtToken.get("refreshToken"));
-
-        return ResponseEntity.ok(loginInfo);
+        return loginInfo;
     }
 
     /**
@@ -174,19 +217,26 @@ public class AuthController {
 
     @Operation(
             summary = "회원 탈퇴 처리",
-            description = "refresh token을 redis로부터 삭제해서 토큰 재발급 방지, 카카오 로그인 연결끊기, 그리고 사용자 데이터베이스 삭제를 진행합니다."
+            description = "refresh token을 redis로부터 삭제해서 토큰 재발급 방지, 카카오·Apple 로그인 연결끊기, 그리고 사용자 데이터베이스 삭제를 진행합니다."
     )
     /**
-     * 카카오 연결 해제, refresh token 삭제, 회원 소프트 삭제를 수행하는 탈퇴 메서드입니다.
+     * 소셜 연결 해제, refresh token 삭제, 회원 소프트 삭제를 수행하는 탈퇴 메서드입니다.
      */
     @PostMapping("/withdraw")
     public ResponseEntity<Void> withdraw() {
-        // 카카오 연결 끊기 시도 (실패해도 무시)
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        Member member = memberService.findById(userId);
+
+        // 소셜 연결 끊기 시도 (실패해도 무시)
         try {
-            kakaoService.unLink();
+            if (member.getSocialType() == SocialType.APPLE) {
+                appleService.revoke(member);
+            } else {
+                kakaoService.unLink();
+            }
         } catch (Exception e) {
-            // 카카오 refresh token 만료 등으로 연결 끊기 실패해도 탈퇴는 계속 진행
-            System.out.println("카카오 연결 끊기 실패 (무시): " + e.getMessage());
+            // refresh token 만료 등으로 연결 끊기 실패해도 탈퇴는 계속 진행
+            System.out.println("소셜 연결 끊기 실패 (무시): " + e.getMessage());
         }
 
         authService.logout(); // refresh token을 redis로부터 삭제
