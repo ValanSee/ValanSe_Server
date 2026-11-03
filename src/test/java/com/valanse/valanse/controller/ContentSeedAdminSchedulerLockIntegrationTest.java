@@ -12,6 +12,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
@@ -28,9 +29,14 @@ import static org.mockito.Mockito.when;
 // 실제로 자동 스케줄(@SchedulerLock 애노테이션 방식)과 관리자 수동 실행(직접 LockProvider
 // 호출 방식)이 같은 DB 락 행을 두고 경쟁하는지 검증한다. 두 경로가 서로 다른 락 획득
 // 메커니즘을 쓰기 때문에, 이름만 같다고 실제로 상호 배제가 되는지는 별도로 확인해야 한다.
+// 두 @Test 메서드가 각각 스케줄러를 비동기로 띄워 같은 ShedLock 행을 두고 경쟁시키므로,
+// 하나의 ApplicationContext(스케줄러 빈, 락 상태 포함)를 공유하면 앞선 테스트의 실행
+// 흔적이 뒤 테스트로 새어나가 두 번째 테스트가 항상 타임아웃한다(재현 확인됨). 테스트마다
+// 컨텍스트를 새로 띄워 완전히 격리한다.
 @SpringBootTest
 @ActiveProfiles("test")
 @TestPropertySource(properties = {"content-seed.enabled=true", "anthropic.api-key=test-key"})
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class ContentSeedAdminSchedulerLockIntegrationTest {
     @Autowired private ContentSeedScheduler scheduler;
     @Autowired private ContentSeedAdminController adminController;
@@ -56,17 +62,40 @@ class ContentSeedAdminSchedulerLockIntegrationTest {
         CountDownLatch releaseScheduler = new CountDownLatch(1);
         when(orchestrator.run()).thenAnswer(invocation -> {
             schedulerStarted.countDown();
-            assertThat(releaseScheduler.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(releaseScheduler.await(15, TimeUnit.SECONDS)).isTrue();
             return new ContentSeedRunResult(List.of(), List.of(), ContentSeedUsageSummary.empty(), List.of());
         });
 
         CompletableFuture<Void> schedulerRun = CompletableFuture.runAsync(scheduler::run);
-        assertThat(schedulerStarted.await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(schedulerStarted.await(15, TimeUnit.SECONDS)).isTrue();
 
         ResponseEntity<Map<String, Object>> response = adminController.run();
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
 
         releaseScheduler.countDown();
-        schedulerRun.get(5, TimeUnit.SECONDS);
+        schedulerRun.get(15, TimeUnit.SECONDS);
+    }
+
+    // 이슈 #322 "중복 실행 방지" 요구사항: 주간 자동 콘텐츠 생성이 실행 중일 때
+    // 관리자 댓글 전용 수동 실행(/admin/content-seed/comments/run)도 같은 락을 두고
+    // 경쟁해 409를 반환해야 한다.
+    @Test
+    void 자동_스케줄이_실행_중이면_관리자_댓글_전용_수동_실행은_409를_반환한다() throws Exception {
+        CountDownLatch schedulerStarted = new CountDownLatch(1);
+        CountDownLatch releaseScheduler = new CountDownLatch(1);
+        when(orchestrator.run()).thenAnswer(invocation -> {
+            schedulerStarted.countDown();
+            assertThat(releaseScheduler.await(15, TimeUnit.SECONDS)).isTrue();
+            return new ContentSeedRunResult(List.of(), List.of(), ContentSeedUsageSummary.empty(), List.of());
+        });
+
+        CompletableFuture<Void> schedulerRun = CompletableFuture.runAsync(scheduler::run);
+        assertThat(schedulerStarted.await(15, TimeUnit.SECONDS)).isTrue();
+
+        ResponseEntity<Map<String, Object>> response = adminController.runComments();
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+        releaseScheduler.countDown();
+        schedulerRun.get(15, TimeUnit.SECONDS);
     }
 }

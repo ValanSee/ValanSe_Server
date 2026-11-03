@@ -13,6 +13,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -63,6 +64,32 @@ class ContentSeedRunnerTest {
         assertThat(event.trigger()).isEqualTo("ADMIN");
         assertThat(event.fatalErrorType()).isEqualTo("IllegalStateException");
         assertThat(event.fatalErrorMessage()).isEqualTo("API Key 없음");
+    }
+
+    @Test
+    void 댓글_전용_실행이_성공하면_게시글_수가_0인_완료_이벤트를_발행한다() {
+        ContentSeedOrchestrator orchestrator = mock(ContentSeedOrchestrator.class);
+        ContentSeedProperties properties = new ContentSeedProperties();
+        ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+        ContentSeedRunner runner = new ContentSeedRunner(orchestrator, properties, eventPublisher);
+
+        ContentSeedRunResult result = new ContentSeedRunResult(
+                List.of(),
+                List.of(new ContentSeedBatchOutcome(1L, 1, 1, List.of())),
+                new ContentSeedUsageSummary(1, 10, 5, BigDecimal.ZERO),
+                List.of());
+        when(orchestrator.runCommentsOnly()).thenReturn(result);
+
+        runner.runCommentsOnlyAndNotify("ADMIN_COMMENTS");
+
+        ArgumentCaptor<ContentSeedRunEvent> captor = ArgumentCaptor.forClass(ContentSeedRunEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        ContentSeedRunEvent event = captor.getValue();
+        assertThat(event.isFatal()).isFalse();
+        assertThat(event.trigger()).isEqualTo("ADMIN_COMMENTS");
+        assertThat(event.result().targetPostCount()).isZero();
+        assertThat(event.result().savedPostCount()).isZero();
+        verify(orchestrator, never()).run();
     }
 
     @Test

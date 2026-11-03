@@ -102,4 +102,54 @@ class ContentSeedAdminControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
         verify(simpleLock).unlock();
     }
+
+    @Test
+    void 댓글_전용_실행_API_Key가_없으면_503을_반환하고_아무것도_실행하지_않는다() {
+        anthropicProperties.setApiKey("");
+
+        ResponseEntity<Map<String, Object>> response = controller.runComments();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        verifyNoInteractions(lockProvider);
+        verifyNoInteractions(executor);
+    }
+
+    @Test
+    void 댓글_전용_실행_다른_콘텐츠_시드_작업이_실행_중이면_409를_반환한다() {
+        when(lockProvider.lock(any(LockConfiguration.class))).thenReturn(Optional.empty());
+
+        ResponseEntity<Map<String, Object>> response = controller.runComments();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        verifyNoInteractions(executor);
+        verify(runner, never()).runCommentsOnlyAndNotify(any());
+    }
+
+    @Test
+    void 댓글_전용_실행_락_획득에_성공하면_202를_반환하고_댓글_전용_실행기를_호출한다() {
+        SimpleLock simpleLock = mock(SimpleLock.class);
+        ArgumentCaptor<LockConfiguration> configCaptor = ArgumentCaptor.forClass(LockConfiguration.class);
+        when(lockProvider.lock(configCaptor.capture())).thenReturn(Optional.of(simpleLock));
+
+        ResponseEntity<Map<String, Object>> response = controller.runComments();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        assertThat(configCaptor.getValue().getName()).isEqualTo(ContentSeedScheduler.LOCK_NAME);
+        verify(runner).runCommentsOnlyAndNotify("ADMIN_COMMENTS");
+        verify(runner, never()).runAndNotify(any());
+        verify(simpleLock).unlock();
+    }
+
+    @Test
+    void 댓글_전용_실행_중_예외가_발생해도_락은_해제된다() {
+        SimpleLock simpleLock = mock(SimpleLock.class);
+        when(lockProvider.lock(any(LockConfiguration.class))).thenReturn(Optional.of(simpleLock));
+        doAnswer(invocation -> { throw new IllegalStateException("boom"); })
+                .when(runner).runCommentsOnlyAndNotify("ADMIN_COMMENTS");
+
+        ResponseEntity<Map<String, Object>> response = controller.runComments();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        verify(simpleLock).unlock();
+    }
 }

@@ -249,6 +249,44 @@ class ContentSeedOrchestratorTest {
     }
 
     @Test
+    void 댓글_전용_실행은_게시글_생성을_호출하지_않는다() {
+        Member bot = bot(1L, "한입만판사");
+        when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot));
+        when(candidateQueryService.findInteractionCandidates(eq(1L), any())).thenReturn(List.of());
+
+        ContentSeedRunResult result = orchestrator.runCommentsOnly();
+
+        verify(contentGenerator, never()).generatePosts(any(), anyInt(), any());
+        assertThat(result.postOutcomes()).isEmpty();
+        assertThat(result.targetPostCount()).isZero();
+        assertThat(result.savedPostCount()).isZero();
+        assertThat(result.savedPostIds()).isEmpty();
+    }
+
+    @Test
+    void 댓글_전용_실행도_기존_대상_선정_정책으로_투표와_댓글을_저장한다() {
+        properties.setInteractionsPerBot(1);
+        Member bot = bot(1L, "한입만판사");
+        when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot));
+
+        CandidatePost candidate = new CandidatePost(10L, "제목", "본문", "A", "B", List.of());
+        when(candidateQueryService.findInteractionCandidates(eq(1L), any())).thenReturn(List.of(candidate));
+        GeneratedInteraction interaction =
+                new GeneratedInteraction(10L, GeneratedInteraction.SelectedOption.A, "댓글");
+        when(contentGenerator.generateInteractions(any(), anyInt(), any()))
+                .thenReturn(new GenerationResult<>(new GeneratedInteractionBatch(List.of(interaction)), 10, 5));
+        when(persistenceService.saveBotInteraction(eq(1L), eq(interaction))).thenReturn(500L);
+
+        ContentSeedRunResult result = orchestrator.runCommentsOnly();
+
+        verify(candidateQueryService).findInteractionCandidates(eq(1L), any());
+        verify(persistenceService).saveBotInteraction(eq(1L), eq(interaction));
+        ContentSeedBatchOutcome outcome = result.interactionOutcomes().get(0);
+        assertThat(outcome.savedCount()).isEqualTo(1);
+        assertThat(outcome.targetCount()).isEqualTo(1);
+    }
+
+    @Test
     void 실패_사유별_개수를_집계한다() {
         ContentSeedBatchOutcome postOutcome = new ContentSeedBatchOutcome(1L, 2, 1, List.of(
                 new ContentSeedItemFailure("제목1", "제목 길이 위반(1~25자)")));
