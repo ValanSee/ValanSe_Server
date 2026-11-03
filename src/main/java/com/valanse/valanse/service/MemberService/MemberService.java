@@ -8,7 +8,6 @@ import com.valanse.valanse.domain.enums.SocialType;
  */
 public interface MemberService {
 
-    Member getMemberBySocialId(String socialId);
     Member getMemberBySocial(SocialType socialType, String socialId);
     Member createOauth(String socialId, String email, String name, String profile_image_url, String access_token, String refresh_token);
     Member createAppleMember(String appleUserId, String email, String name, String appleRefreshToken, String appleClientId);

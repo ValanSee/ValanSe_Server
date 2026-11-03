@@ -16,8 +16,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.RestClient;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -30,11 +33,17 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 class AppleServiceImplTest {
 
     private static final String BUNDLE_ID = "com.valanse";
     private static final String SERVICES_ID = "com.valanse.web";
+    private static final String APPLE_USER_ID = "001234.abcdef.0123";
+    private static final String TOKEN_URI = AppleServiceImpl.APPLE_ISSUER + "/auth/token";
+    private static final String REVOKE_URI = AppleServiceImpl.APPLE_ISSUER + "/auth/revoke";
 
     private AppleServiceImpl appleService;
     private KeyPair rsaKeyPair;
@@ -67,11 +76,11 @@ class AppleServiceImplTest {
         ReflectionTestUtils.setField(appleService, "jwtDecoder", decoder);
     }
 
-    private String identityToken(String issuer, String audience, Instant expiresAt) throws JOSEException {
+    private String identityToken(String issuer, String audience, String subject, Instant expiresAt) throws JOSEException {
         JWTClaimsSet claims = new JWTClaimsSet.Builder()
                 .issuer(issuer)
                 .audience(audience)
-                .subject("001234.abcdef.0123")
+                .subject(subject)
                 .claim("email", "abc@privaterelay.appleid.com")
                 .issueTime(Date.from(Instant.now()))
                 .expirationTime(Date.from(expiresAt))
@@ -79,6 +88,32 @@ class AppleServiceImplTest {
         SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), claims);
         jwt.sign(new RSASSASigner(rsaKeyPair.getPrivate()));
         return jwt.serialize();
+    }
+
+    private String identityToken(String issuer, String audience, Instant expiresAt) throws JOSEException {
+        return identityToken(issuer, audience, APPLE_USER_ID, expiresAt);
+    }
+
+    /**
+     * RestClient 호출을 MockRestServiceServer 로 가로채도록 appleService.restClient 필드를 교체한다.
+     */
+    private MockRestServiceServer bindMockServer() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        ReflectionTestUtils.setField(appleService, "restClient", builder.build());
+        return server;
+    }
+
+    private String tokenResponseJson(String refreshToken, String idToken) {
+        StringBuilder json = new StringBuilder("{\"access_token\":\"apple-access\"");
+        if (refreshToken != null) {
+            json.append(",\"refresh_token\":\"").append(refreshToken).append('"');
+        }
+        if (idToken != null) {
+            json.append(",\"id_token\":\"").append(idToken).append('"');
+        }
+        json.append('}');
+        return json.toString();
     }
 
     @Test
@@ -151,7 +186,9 @@ class AppleServiceImplTest {
     @Test
     @DisplayName("화이트리스트에 없는 redirect URI 는 Apple 요청 전에 거부한다")
     void issueRefreshToken_NotAllowedRedirectUri_ThrowsBadRequest() {
-        assertThatThrownBy(() -> appleService.issueRefreshToken("code", SERVICES_ID, "https://evil.example/callback"))
+        AppleIdentity expectedIdentity = new AppleIdentity(APPLE_USER_ID, null, SERVICES_ID);
+
+        assertThatThrownBy(() -> appleService.issueRefreshToken("code", expectedIdentity, "https://evil.example/callback"))
                 .isInstanceOfSatisfying(ApiException.class,
                         e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST));
     }
@@ -174,5 +211,103 @@ class AppleServiceImplTest {
         assertThatThrownBy(() -> appleService.revoke(member))
                 .isInstanceOfSatisfying(ApiException.class,
                         e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST));
+    }
+
+    @Test
+    @DisplayName("교환 응답의 id_token 이 최초 identity 와 같은 사용자면 refresh token 을 반환한다")
+    void issueRefreshToken_MatchingExchangeIdentity_ReturnsRefreshToken() throws Exception {
+        AppleIdentity expectedIdentity = new AppleIdentity(APPLE_USER_ID, "user@privaterelay.appleid.com", BUNDLE_ID);
+        String exchangeIdToken = identityToken(AppleServiceImpl.APPLE_ISSUER, BUNDLE_ID, Instant.now().plusSeconds(600));
+
+        MockRestServiceServer server = bindMockServer();
+        server.expect(requestTo(TOKEN_URI))
+                .andRespond(withSuccess(tokenResponseJson("apple-refresh-token", exchangeIdToken), MediaType.APPLICATION_JSON));
+
+        String refreshToken = appleService.issueRefreshToken("auth-code", expectedIdentity, null);
+
+        assertThat(refreshToken).isEqualTo("apple-refresh-token");
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("교환 응답에 id_token 이 없으면 거부한다")
+    void issueRefreshToken_MissingIdToken_ThrowsUnauthorized() {
+        AppleIdentity expectedIdentity = new AppleIdentity(APPLE_USER_ID, null, BUNDLE_ID);
+
+        bindMockServer().expect(requestTo(TOKEN_URI))
+                .andRespond(withSuccess(tokenResponseJson("apple-refresh-token", null), MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> appleService.issueRefreshToken("auth-code", expectedIdentity, null))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED));
+    }
+
+    @Test
+    @DisplayName("교환 응답에 refresh_token 이 없으면 거부한다")
+    void issueRefreshToken_MissingRefreshToken_ThrowsUnauthorized() throws Exception {
+        AppleIdentity expectedIdentity = new AppleIdentity(APPLE_USER_ID, null, BUNDLE_ID);
+        String exchangeIdToken = identityToken(AppleServiceImpl.APPLE_ISSUER, BUNDLE_ID, Instant.now().plusSeconds(600));
+
+        bindMockServer().expect(requestTo(TOKEN_URI))
+                .andRespond(withSuccess(tokenResponseJson(null, exchangeIdToken), MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> appleService.issueRefreshToken("auth-code", expectedIdentity, null))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED));
+    }
+
+    @Test
+    @DisplayName("교환 응답의 id_token 서명이 잘못되면 거부한다")
+    void issueRefreshToken_InvalidIdTokenSignature_ThrowsUnauthorized() throws Exception {
+        AppleIdentity expectedIdentity = new AppleIdentity(APPLE_USER_ID, null, BUNDLE_ID);
+        // Apple 이 아닌 발급자 -> verifyIdentityToken 이 거부한다.
+        String invalidIdToken = identityToken("https://evil.example", BUNDLE_ID, Instant.now().plusSeconds(600));
+
+        bindMockServer().expect(requestTo(TOKEN_URI))
+                .andRespond(withSuccess(tokenResponseJson("apple-refresh-token", invalidIdToken), MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> appleService.issueRefreshToken("auth-code", expectedIdentity, null))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED));
+    }
+
+    @Test
+    @DisplayName("교환 응답 identity 의 sub 가 최초 identity 와 다르면 거부한다")
+    void issueRefreshToken_SubMismatch_ThrowsUnauthorized() throws Exception {
+        AppleIdentity expectedIdentity = new AppleIdentity(APPLE_USER_ID, null, BUNDLE_ID);
+        String otherUserIdToken = identityToken(AppleServiceImpl.APPLE_ISSUER, BUNDLE_ID, "999999.other.user", Instant.now().plusSeconds(600));
+
+        bindMockServer().expect(requestTo(TOKEN_URI))
+                .andRespond(withSuccess(tokenResponseJson("apple-refresh-token", otherUserIdToken), MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> appleService.issueRefreshToken("auth-code", expectedIdentity, null))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED));
+    }
+
+    @Test
+    @DisplayName("교환 응답 identity 의 clientId 가 최초 identity 와 다르면 거부한다")
+    void issueRefreshToken_ClientIdMismatch_ThrowsUnauthorized() throws Exception {
+        // 최초 identity 는 앱 번들 ID 로 로그인했지만, 교환 응답 id_token 은 웹 Services ID 로 발급된 경우.
+        AppleIdentity expectedIdentity = new AppleIdentity(APPLE_USER_ID, null, BUNDLE_ID);
+        String otherClientIdToken = identityToken(AppleServiceImpl.APPLE_ISSUER, SERVICES_ID, Instant.now().plusSeconds(600));
+
+        bindMockServer().expect(requestTo(TOKEN_URI))
+                .andRespond(withSuccess(tokenResponseJson("apple-refresh-token", otherClientIdToken), MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> appleService.issueRefreshToken("auth-code", expectedIdentity, null))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED));
+    }
+
+    @Test
+    @DisplayName("refresh token·clientId 로 직접 revoke 하는 메서드는 Apple 호출이 실패하면 503 을 반환한다")
+    void revoke_ByRefreshTokenAndClientId_AppleApiFails_ThrowsServiceUnavailable() {
+        bindMockServer().expect(requestTo(REVOKE_URI))
+                .andRespond(withServerError());
+
+        assertThatThrownBy(() -> appleService.revoke("apple-refresh-token", BUNDLE_ID))
+                .isInstanceOfSatisfying(ApiException.class,
+                        e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE));
     }
 }

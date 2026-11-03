@@ -12,9 +12,12 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.SocialType;
+import com.valanse.valanse.dto.Login.AccessTokenDto;
 import com.valanse.valanse.dto.Login.AppleIdentity;
+import com.valanse.valanse.dto.Login.KakaoProfileDto;
 import com.valanse.valanse.repository.MemberRepository;
 import com.valanse.valanse.service.AppleService.AppleService;
+import com.valanse.valanse.service.KakaoService.KakaoServiceImpl;
 import com.valanse.valanse.service.RefreshTokenService.RefreshTokenServiceImpl;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,6 +44,9 @@ class AuthControllerTest {
 
     @MockBean
     private AppleService appleService;
+
+    @MockBean
+    private KakaoServiceImpl kakaoService;
 
     @Autowired
     private MemberRepository memberRepository;
@@ -81,9 +87,9 @@ class AuthControllerTest {
     @DisplayName("처음 Apple 로그인하면 refresh token 을 교환해 APPLE 회원을 만들고 JWT 를 발급한다")
     void appleLogin_NewUser_CreatesAppleMember() throws Exception {
         String appleUserId = "001234.newuser.0001";
-        when(appleService.verifyIdentityToken("id-token"))
-                .thenReturn(new AppleIdentity(appleUserId, "new@privaterelay.appleid.com", "com.valanse"));
-        when(appleService.issueRefreshToken("auth-code", "com.valanse", null)).thenReturn("apple-refresh");
+        AppleIdentity identity = new AppleIdentity(appleUserId, "new@privaterelay.appleid.com", "com.valanse");
+        when(appleService.verifyIdentityToken("id-token")).thenReturn(identity);
+        when(appleService.issueRefreshToken("auth-code", identity, null)).thenReturn("apple-refresh");
 
         mockMvc.perform(post("/auth/apple/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -132,6 +138,56 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(saved.getId()));
 
+        verify(appleService, never()).issueRefreshToken(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("같은 socialId를 가진 KAKAO 회원과 APPLE 회원은 각자의 공급자로만 로그인된다")
+    void kakaoAndAppleLogin_SameSocialId_ResolveToDifferentMembers() throws Exception {
+        String sharedSocialId = "shared-social-id-0001";
+        Member kakaoMember = memberRepository.save(Member.builder()
+                .socialType(SocialType.KAKAO)
+                .socialId(sharedSocialId)
+                .build());
+        Member appleMember = memberRepository.save(Member.builder()
+                .socialType(SocialType.APPLE)
+                .socialId(sharedSocialId)
+                .appleRefreshToken("stored-refresh")
+                .appleClientId("com.valanse")
+                .build());
+
+        when(kakaoService.getAccessToken(any(), any()))
+                .thenReturn(new AccessTokenDto("kakao-access", "kakao-refresh", "3600", "scope", null));
+        KakaoProfileDto.Profile profile = new KakaoProfileDto.Profile("닉네임", null);
+        KakaoProfileDto.KakaoAccount account = new KakaoProfileDto.KakaoAccount("kakao@example.com", profile);
+        when(kakaoService.getKakaoProfile("kakao-access"))
+                .thenReturn(new KakaoProfileDto(sharedSocialId, account));
+
+        mockMvc.perform(post("/auth/kakao/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code": "kakao-code"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(kakaoMember.getId()));
+
+        when(appleService.verifyIdentityToken("apple-id-token"))
+                .thenReturn(new AppleIdentity(sharedSocialId, null, "com.valanse"));
+
+        mockMvc.perform(post("/auth/apple/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "identityToken": "apple-id-token",
+                                  "authorizationCode": "auth-code"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(appleMember.getId()));
+
+        assertThat(kakaoMember.getId()).isNotEqualTo(appleMember.getId());
         verify(appleService, never()).issueRefreshToken(any(), any(), any());
     }
 }

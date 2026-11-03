@@ -71,6 +71,9 @@ public class AppleServiceImpl implements AppleService {
 
     private volatile JwtDecoder jwtDecoder;
 
+    // 테스트에서 MockRestServiceServer로 교체할 수 있도록 필드로 둔다.
+    private RestClient restClient = RestClient.create();
+
     /**
      * Apple 공개키(JWKS)로 identity token 의 서명·발급자·대상·만료를 검증하는 메서드입니다.
      */
@@ -100,14 +103,16 @@ public class AppleServiceImpl implements AppleService {
     /**
      * authorization code 를 Apple refresh token 으로 교환하는 메서드입니다. (탈퇴 시 revoke 에 필요)
      * 웹에서 받은 code 는 authorize 단계와 같은 redirect_uri 를 함께 보내야 합니다.
+     * 교환 응답의 id_token 을 검증해 expectedIdentity(최초 identity token 검증 결과)와 같은 사용자(sub)·같은 clientId(aud)인지 대조한 뒤에만 refresh token 을 반환한다.
      */
     @Override
-    public String issueRefreshToken(String authorizationCode, String clientId, String redirectUri) {
+    public String issueRefreshToken(String authorizationCode, AppleIdentity expectedIdentity, String redirectUri) {
         ensureConfigured();
         if (!StringUtils.hasText(authorizationCode)) {
             throw new ApiException(AuthErrorMessage.APPLE_TOKEN_ISSUE_FAILED.message(), HttpStatus.UNAUTHORIZED);
         }
 
+        String clientId = expectedIdentity.clientId();
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("client_id", clientId);
         params.add("client_secret", createClientSecret(clientId));
@@ -119,7 +124,7 @@ public class AppleServiceImpl implements AppleService {
 
         Map<?, ?> response;
         try {
-            response = RestClient.create().post()
+            response = restClient.post()
                     .uri(TOKEN_URI)
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                     .body(params)
@@ -129,11 +134,24 @@ public class AppleServiceImpl implements AppleService {
             throw new ApiException(AuthErrorMessage.APPLE_TOKEN_ISSUE_FAILED.message(), HttpStatus.UNAUTHORIZED);
         }
 
-        Object refreshToken = response == null ? null : response.get("refresh_token");
-        if (!(refreshToken instanceof String token) || token.isBlank()) {
+        Object refreshTokenValue = response == null ? null : response.get("refresh_token");
+        if (!(refreshTokenValue instanceof String refreshToken) || refreshToken.isBlank()) {
             throw new ApiException(AuthErrorMessage.APPLE_TOKEN_ISSUE_FAILED.message(), HttpStatus.UNAUTHORIZED);
         }
-        return token;
+
+        Object idTokenValue = response.get("id_token");
+        if (!(idTokenValue instanceof String idToken) || idToken.isBlank()) {
+            throw new ApiException(AuthErrorMessage.APPLE_TOKEN_EXCHANGE_IDENTITY_MISMATCH.message(), HttpStatus.UNAUTHORIZED);
+        }
+
+        // 서명·발급자·만료·aud 는 identity token 과 동일한 검증 로직을 그대로 재사용한다.
+        AppleIdentity exchangedIdentity = verifyIdentityToken(idToken);
+        if (!exchangedIdentity.userId().equals(expectedIdentity.userId())
+                || !exchangedIdentity.clientId().equals(expectedIdentity.clientId())) {
+            throw new ApiException(AuthErrorMessage.APPLE_TOKEN_EXCHANGE_IDENTITY_MISMATCH.message(), HttpStatus.UNAUTHORIZED);
+        }
+
+        return refreshToken;
     }
 
     /**
@@ -144,20 +162,36 @@ public class AppleServiceImpl implements AppleService {
         if (!StringUtils.hasText(member.getAppleRefreshToken()) || !StringUtils.hasText(member.getAppleClientId())) {
             throw new ApiException(AuthErrorMessage.APPLE_REFRESH_TOKEN_NOT_FOUND.message(), HttpStatus.BAD_REQUEST);
         }
+        revoke(member.getAppleRefreshToken(), member.getAppleClientId());
+    }
+
+    /**
+     * 회원 엔티티 없이 refresh token·clientId 만으로 revoke 한다. (회원 저장 실패 시 보상 revoke 용도)
+     * Apple 쪽 호출이 실패하면 일반 500 이 아니라 503(APPLE_REVOKE_FAILED) 으로 변환해, 재시도 가능한 상태임을 명확히 한다.
+     */
+    @Override
+    public void revoke(String refreshToken, String clientId) {
+        if (!StringUtils.hasText(refreshToken) || !StringUtils.hasText(clientId)) {
+            throw new ApiException(AuthErrorMessage.APPLE_REFRESH_TOKEN_NOT_FOUND.message(), HttpStatus.BAD_REQUEST);
+        }
         ensureConfigured();
 
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-        params.add("client_id", member.getAppleClientId());
-        params.add("client_secret", createClientSecret(member.getAppleClientId()));
-        params.add("token", member.getAppleRefreshToken());
+        params.add("client_id", clientId);
+        params.add("client_secret", createClientSecret(clientId));
+        params.add("token", refreshToken);
         params.add("token_type_hint", "refresh_token");
 
-        RestClient.create().post()
-                .uri(REVOKE_URI)
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(params)
-                .retrieve()
-                .toBodilessEntity();
+        try {
+            restClient.post()
+                    .uri(REVOKE_URI)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(params)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException e) {
+            throw new ApiException(AuthErrorMessage.APPLE_REVOKE_FAILED.message(), HttpStatus.SERVICE_UNAVAILABLE);
+        }
     }
 
     /**
