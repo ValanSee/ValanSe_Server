@@ -32,6 +32,7 @@ import java.util.Date;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
@@ -204,13 +205,15 @@ class AppleServiceImplTest {
     }
 
     @Test
-    @DisplayName("Apple refresh token 이 없는 회원은 revoke 요청 없이 400 을 반환한다")
-    void revoke_MissingRefreshToken_ThrowsBadRequest() {
+    @DisplayName("Apple refresh token 이 없는 회원은 Apple 쪽에 아무 요청도 보내지 않고 조용히 통과한다 (탈퇴를 막지 않기 위함)")
+    void revoke_MissingRefreshToken_SkipsApiCallWithoutError() {
         Member member = Member.builder().appleClientId(BUNDLE_ID).build();
 
-        assertThatThrownBy(() -> appleService.revoke(member))
-                .isInstanceOfSatisfying(ApiException.class,
-                        e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST));
+        // revoke 대상 URI 에 expectation 을 걸지 않는다 — 구현이 실수로 호출을 시도하면
+        // MockRestServiceServer 가 "예상하지 못한 요청"으로 예외를 던져 테스트가 실패한다.
+        bindMockServer();
+
+        assertThatCode(() -> appleService.revoke(member)).doesNotThrowAnyException();
     }
 
     @Test

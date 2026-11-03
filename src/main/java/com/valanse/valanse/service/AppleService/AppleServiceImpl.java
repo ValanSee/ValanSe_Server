@@ -156,11 +156,14 @@ public class AppleServiceImpl implements AppleService {
 
     /**
      * 회원의 Apple refresh token 을 폐기해 앱과 Apple ID 연결을 끊는 메서드입니다. (App Store 심사 5.1.1(v) 요구사항)
+     * credential(refresh token·clientId) 자체가 없으면 revoke 할 대상이 없다는 뜻이므로 조용히 통과한다 —
+     * 데이터 이상 등으로 이런 회원이라도 탈퇴(데이터 삭제)는 막지 않고, Apple 쪽 연결 해제는 사용자가
+     * Apple 설정(Apple ID > 암호 및 보안 > 이 앱 연결 해제)에서 직접 하도록 남겨둔다.
      */
     @Override
     public void revoke(Member member) {
         if (!StringUtils.hasText(member.getAppleRefreshToken()) || !StringUtils.hasText(member.getAppleClientId())) {
-            throw new ApiException(AuthErrorMessage.APPLE_REFRESH_TOKEN_NOT_FOUND.message(), HttpStatus.BAD_REQUEST);
+            return;
         }
         revoke(member.getAppleRefreshToken(), member.getAppleClientId());
     }

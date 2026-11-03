@@ -165,13 +165,17 @@ public class AuthController {
                         identity.clientId()
                 );
             } catch (DataIntegrityViolationException e) {
-                // 동시 요청으로 같은 Apple 계정이 먼저 가입된 경우: 기존 활성 회원으로 로그인하고,
-                // 이번 요청에서 발급받았지만 저장되지 못한 refresh token은 보상 revoke 한다.
                 Member existing = memberService.getMemberBySocial(SocialType.APPLE, identity.userId());
-                revokeOrphanAppleRefreshToken(appleRefreshToken, identity.clientId());
                 if (existing == null) {
-                    throw e; // 활성 회원이 없다면 중복 충돌이 아닌 실제 DB 오류이므로 그대로 전파한다.
+                    // 활성 회원이 없다면 중복 충돌이 아닌 실제 DB 오류이므로, 발급받은 refresh token을
+                    // 보상 revoke 하고 원래 오류를 그대로 전파한다.
+                    revokeOrphanAppleRefreshToken(appleRefreshToken, identity.clientId());
+                    throw e;
                 }
+                // 동시 요청으로 같은 Apple 계정이 먼저 가입된 경우: 승자가 이미 저장한 회원으로 로그인한다.
+                // 이번 요청에서 발급받은 토큰은 revoke 하지 않는다 — Apple revoke는 토큰 1개가 아니라
+                // 같은 사용자·clientId 의 인가(authorization) 전체를 무효화하므로, 패자 토큰을 revoke하면
+                // 승자가 막 저장한 토큰까지 함께 무효화될 수 있다.
                 member = existing;
             } catch (RuntimeException e) {
                 // 중복 충돌이 아닌 일반 저장 실패에도, 발급받은 refresh token은 보상 revoke 한다.
@@ -256,8 +260,10 @@ public class AuthController {
         Member member = memberService.findById(userId);
 
         if (member.getSocialType() == SocialType.APPLE) {
-            // Apple은 revoke가 성공해야만 탈퇴를 진행한다. 실패 시 ApiException(503)이 그대로 전파되어
-            // 회원·Apple credential·Redis refresh token이 모두 보존되고, 이후 재시도가 가능하다.
+            // credential(refresh token·clientId)이 있는데 Apple API 호출이 실패하면 ApiException(503)이
+            // 그대로 전파되어 회원·credential·Redis refresh token이 모두 보존되고, 이후 재시도가 가능하다.
+            // credential 자체가 없으면 revoke는 조용히 통과하고(appleService.revoke 참고) 탈퇴는 계속 진행한다 —
+            // Apple 쪽 연결 해제는 사용자가 Apple 설정에서 직접 하도록 안내가 필요하다.
             appleService.revoke(member);
         } else {
             // 카카오는 기존 정책 그대로 연결 끊기 실패를 무시하고 탈퇴를 계속 진행한다.

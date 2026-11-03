@@ -26,6 +26,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -66,8 +67,8 @@ class AuthControllerAppleConflictTest {
     }
 
     @Test
-    @DisplayName("동시 가입 충돌 시 기존 활성 회원으로 로그인하고, 저장되지 못한 refresh token은 보상 revoke 한다")
-    void appleLogin_ConcurrentConflict_UsesExistingMemberAndRevokesOrphanToken() {
+    @DisplayName("동시 가입 충돌 시 기존 활성 회원(승자)으로 로그인하고, 패자 토큰은 revoke 하지 않는다")
+    void appleLogin_ConcurrentConflict_UsesExistingMemberWithoutRevokingWinnerToken() {
         Member existing = Member.builder()
                 .id(10L).role(Role.USER).socialType(SocialType.APPLE)
                 .socialId(identity.userId())
@@ -87,7 +88,9 @@ class AuthControllerAppleConflictTest {
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         Map<?, ?> body = (Map<?, ?>) response.getBody();
         assertThat(body.get("id")).isEqualTo(10L);
-        verify(appleService).revoke("orphan-refresh", "com.valanse");
+        // Apple revoke는 토큰 1개가 아니라 같은 사용자·clientId의 인가 전체를 무효화하므로,
+        // 패자 토큰을 revoke하면 승자가 막 저장한 토큰까지 함께 끊길 수 있다 — 호출되면 안 된다.
+        verify(appleService, never()).revoke("orphan-refresh", "com.valanse");
         verify(memberService, times(2)).getMemberBySocial(SocialType.APPLE, identity.userId());
     }
 
