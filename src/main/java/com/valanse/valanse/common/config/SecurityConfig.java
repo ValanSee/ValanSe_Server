@@ -82,6 +82,7 @@ public class SecurityConfig {
                         // 공개 API
                         .requestMatchers(
                                 "/auth/kakao/login",
+                                "/auth/apple/login",
                                 "/auth/admin/login",
                                 "/auth/reissue",
                                 "/health"

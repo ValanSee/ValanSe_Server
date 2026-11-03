@@ -49,6 +49,10 @@ public class Member extends BaseEntity {
 
     private String kakaoRefreshToken; // AccessToken 갱신용
 
+    private String appleRefreshToken; // 탈퇴 시 Apple 연결 해제(revoke)용
+
+    private String appleClientId; // refresh token 을 발급받은 client_id (앱 번들 ID 또는 웹 Services ID)
+
     private String nickname;
 
     @Builder.Default
@@ -80,5 +84,7 @@ public class Member extends BaseEntity {
     public void revokeCredentials() {
         this.kakaoAccessToken = null;
         this.kakaoRefreshToken = null;
+        this.appleRefreshToken = null;
+        this.appleClientId = null;
     }
 }

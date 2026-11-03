@@ -4,6 +4,7 @@ import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.common.message.MemberErrorMessage;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.enums.PointType;
+import com.valanse.valanse.domain.enums.SocialType;
 import com.valanse.valanse.repository.MemberRepository;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.service.PointService.PointService;
@@ -27,13 +28,12 @@ public class MemberServiceImpl implements MemberService {
     private final RefreshTokenService refreshTokenService;
 
     /**
-     * MemberBySocialId 정보를 조회하는 메서드입니다.
+     * 소셜 타입과 소셜 ID로 탈퇴하지 않은 회원을 조회하는 메서드입니다.
      */
     @Transactional(readOnly = true)
     @Override
-    public Member getMemberBySocialId(String socialId) {
-        Member member = memberRepository.findBySocialIdAndDeletedAtIsNull(socialId).orElse(null);
-        return member;
+    public Member getMemberBySocial(SocialType socialType, String socialId) {
+        return memberRepository.findBySocialTypeAndSocialIdAndDeletedAtIsNull(socialType, socialId).orElse(null);
     }
 
     /**
@@ -55,6 +55,24 @@ public class MemberServiceImpl implements MemberService {
         // 실제 포인트는 프로필 저장 시점에 지급 (MemberProfileServiceImpl 참고)
 
         return member;
+    }
+
+    /**
+     * Apple 로그인 회원을 생성하는 메서드입니다.
+     * Apple 은 프로필 이미지를 주지 않고, 이름은 최초 동의 시에만 클라이언트로 전달됩니다.
+     */
+    @Override
+    public Member createAppleMember(String appleUserId, String email, String name, String appleRefreshToken, String appleClientId) {
+        Member member = Member.builder()
+                .socialType(SocialType.APPLE)
+                .socialId(appleUserId)
+                .email(email)
+                .name(name)
+                .appleRefreshToken(appleRefreshToken)
+                .appleClientId(appleClientId)
+                .build();
+        // saveAndFlush로 insert를 메서드 실행 시점에 즉시 확인한다 (동시 가입 시 unique 제약 위반을 이 안에서 감지하기 위함).
+        return memberRepository.saveAndFlush(member);
     }
 
     /**
