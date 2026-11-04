@@ -154,6 +154,74 @@ class ContentSeedCandidateQueryServiceTest {
                 .contains(voteCountLastId(voteCount));
     }
 
+    @Test
+    @DisplayName("상한에 걸리는 최신 N건이 모두 부적격(선택지 2개 아님)이어도 더 오래된 적격 게시글을 찾는다")
+    void findInteractionCandidates_WithRecencyLimitDisabled_FindsOlderEligibleVoteBeyondCap() {
+        // 상한을 ID 조회 단계(최신순)에서 먼저 적용하면, 상한 안에 든 후보가 전부
+        // 부적격이어도 그보다 오래된 적격 후보를 아예 조회하지 못해 후보가 0건이 될 수
+        // 있다 - 적격성(선택지 정확히 2개) 검사를 먼저 적용한 뒤 상한을 둬야 한다.
+        Member creator = saveMember("cap-ineligible-creator", false);
+        for (int i = 0; i < ContentSeedCandidateQueryService.MAX_INTERACTION_CANDIDATES; i++) {
+            Vote ineligible = saveVoteWithOptions(creator, "ineligible-" + i, VoteCategory.FOOD, 3);
+            setVoteCreatedAt(ineligible.getId(), LocalDateTime.now().minusMinutes(i));
+        }
+        Vote olderEligible = saveVoteWithOptions(creator, "older-eligible", VoteCategory.FOOD, 2);
+        setVoteCreatedAt(olderEligible.getId(), LocalDateTime.now().minusDays(1));
+
+        Member bot = saveMember("content-seed-bot-110", true);
+
+        List<CandidatePost> result =
+                candidateQueryService.findInteractionCandidates(bot.getId(), Set.of(bot.getId()), false);
+
+        assertThat(result).extracting(CandidatePost::id).containsExactly(olderEligible.getId());
+    }
+
+    @Test
+    @DisplayName("상한을 적용해도 오래된 실사용자 글이 최신 봇 글보다 우선된다")
+    void findInteractionCandidates_WithRecencyLimitDisabled_PrioritizesOldHumanVoteOverRecentBotVotes() {
+        // 상한을 ID 조회 단계(최신순)에서 먼저 적용하면, 실사용자 글이 아무리 오래됐어도
+        // 최신 봇 글 N개에 밀려 상한 밖으로 잘릴 수 있다 - 우선순위(실사용자 > 봇) 정렬을
+        // 먼저 적용한 뒤 상한을 둬야, 오래된 실사용자 글이 항상 살아남는다.
+        Member human = saveMember("cap-priority-human", false);
+        Vote oldHumanVote = saveVoteWithOptions(human, "old-human-vote", VoteCategory.FOOD, 2);
+        setVoteCreatedAt(oldHumanVote.getId(), LocalDateTime.now().minusDays(100));
+
+        int extraBotVotes = ContentSeedCandidateQueryService.MAX_INTERACTION_CANDIDATES + 9;
+        for (int i = 0; i < extraBotVotes; i++) {
+            Member otherBot = saveMember("cap-priority-other-bot-" + i, true);
+            Vote botVote = saveVoteWithOptions(otherBot, "recent-bot-vote-" + i, VoteCategory.FOOD, 2);
+            setVoteCreatedAt(botVote.getId(), LocalDateTime.now().minusMinutes(i));
+        }
+
+        Member bot = saveMember("content-seed-bot-111", true);
+
+        List<CandidatePost> result =
+                candidateQueryService.findInteractionCandidates(bot.getId(), Set.of(bot.getId()), false);
+
+        assertThat(result).hasSize(ContentSeedCandidateQueryService.MAX_INTERACTION_CANDIDATES);
+        assertThat(result.get(0).id()).isEqualTo(oldHumanVote.getId());
+    }
+
+    @Test
+    @DisplayName("자동 생성(applyRecencyLimit=true)은 상한 없이 7일 내 모든 적격 후보를 조회한다")
+    void findInteractionCandidates_AutoRun_IsNotCappedByMaxInteractionCandidates() {
+        // 상한을 ID 조회 단계에서 무조건 적용하면, 7일 제한이 그대로 유지되는 주간
+        // 자동 생성(applyRecencyLimit=true)의 기존 동작까지 바뀐다 - 상한은 관리자
+        // 댓글 전용 수동 실행(applyRecencyLimit=false)에만 적용해야 한다.
+        Member creator = saveMember("auto-run-no-cap-creator", false);
+        int voteCount = ContentSeedCandidateQueryService.MAX_INTERACTION_CANDIDATES + 5;
+        for (int i = 0; i < voteCount; i++) {
+            Vote v = saveVoteWithOptions(creator, "auto-run-vote-" + i, VoteCategory.FOOD, 2);
+            setVoteCreatedAt(v.getId(), LocalDateTime.now().minusDays(1));
+        }
+
+        Member bot = saveMember("content-seed-bot-112", true);
+
+        List<CandidatePost> result = candidateQueryService.findInteractionCandidates(bot.getId(), Set.of(bot.getId()));
+
+        assertThat(result).hasSize(voteCount);
+    }
+
     private Long voteCountLastId(int voteCount) {
         return voteRepository.findAll().stream()
                 .filter(v -> ("cap-vote-" + (voteCount - 1)).equals(v.getTitle()))
