@@ -423,6 +423,70 @@ public class VoteControllerTest {
     }
 
     @Test
+    @DisplayName("isBot 파라미터가 없으면 봇 게시글과 일반 회원 게시글을 모두 조회한다.")
+    void getVotes_WithoutIsBotParam_ReturnsAllVotes() throws Exception {
+        saveBotVote("bot-vote-no-filter");
+
+        mockMvc.perform(get("/votes")
+                        .param("category", "ALL")
+                        .param("sort", "latest")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.votes.length()").value(3));
+    }
+
+    @Test
+    @DisplayName("isBot=true면 봇이 작성한 투표만 조회한다.")
+    void getVotes_IsBotTrue_ReturnsOnlyBotVotes() throws Exception {
+        Vote botVote = saveBotVote("bot-vote-true");
+
+        mockMvc.perform(get("/votes")
+                        .param("category", "ALL")
+                        .param("sort", "latest")
+                        .param("size", "10")
+                        .param("isBot", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.votes.length()").value(1))
+                .andExpect(jsonPath("$.votes[0].id").value(botVote.getId()))
+                .andExpect(jsonPath("$.votes[0].isBot").value(true));
+    }
+
+    @Test
+    @DisplayName("isBot=false면 일반 회원이 작성한 투표만 조회한다.")
+    void getVotes_IsBotFalse_ReturnsOnlyHumanVotes() throws Exception {
+        saveBotVote("bot-vote-false");
+
+        mockMvc.perform(get("/votes")
+                        .param("category", "ALL")
+                        .param("sort", "latest")
+                        .param("size", "10")
+                        .param("isBot", "false"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.votes.length()").value(2))
+                .andExpect(jsonPath("$.votes[*].isBot", org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is(false))));
+    }
+
+    private Vote saveBotVote(String socialId) {
+        Member bot = memberRepository.save(Member.builder()
+                .socialId(socialId).email(socialId + "@example.com").name(socialId)
+                .nickname(socialId).isBot(true).build());
+        memberProfileRepository.save(MemberProfile.builder()
+                .member(bot).nickname(socialId)
+                .gender(Gender.FEMALE).age(Age.THIRTY).mbti("ISTJ").build());
+
+        Vote botVote = voteRepository.save(Vote.builder()
+                .category(VoteCategory.FOOD).title(socialId + "-title")
+                .totalVoteCount(0).reactivityScore(0).reactivityUpdatedAt(LocalDateTime.now())
+                .member(bot).pinType(PinType.NONE).build());
+        commentGroupRepository.save(CommentGroup.builder().vote(botVote).totalCommentCount(0).build());
+        VoteOption optionA = VoteOption.builder().vote(botVote).content("A").voteCount(0).label(VoteLabel.A).build();
+        VoteOption optionB = VoteOption.builder().vote(botVote).content("B").voteCount(0).label(VoteLabel.B).build();
+        botVote.getVoteOptions().addAll(Arrays.asList(optionA, optionB));
+        voteOptionRepository.saveAll(Arrays.asList(optionA, optionB));
+        return botVote;
+    }
+
+    @Test
     @WithMockUser(username = "0", roles = "ADMIN")
     @DisplayName("관리자 토큰 subject가 0이어도 투표 핀 설정에 성공한다.")
     void updatePinStatus_AdminSubjectZero_Success() throws Exception {
