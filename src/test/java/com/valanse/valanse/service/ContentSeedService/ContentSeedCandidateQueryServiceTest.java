@@ -222,6 +222,91 @@ class ContentSeedCandidateQueryServiceTest {
         assertThat(result).hasSize(voteCount);
     }
 
+    @Test
+    @DisplayName("탈퇴/퍼지로 member_id가 null인 게시글도 실사용자 우선순위(tier 0)로 후보에 포함된다")
+    void findInteractionCandidates_WithRecencyLimitDisabled_IncludesWithdrawnMemberVoteAtTopPriority() {
+        // vote.member.isBot처럼 member를 명시적으로 leftJoin하지 않고 경로로만 참조하면
+        // Hibernate가 암묵적 INNER JOIN을 만들어, member_id가 null인(탈퇴/퍼지) 게시글이
+        // CASE의 null 체크에 도달하기도 전에 결과에서 통째로 제거될 수 있다.
+        Vote withdrawnVote = saveVoteWithoutMember("withdrawn-vote");
+        setVoteCreatedAt(withdrawnVote.getId(), LocalDateTime.now().minusDays(100));
+
+        int extraBotVotes = ContentSeedCandidateQueryService.MAX_INTERACTION_CANDIDATES + 9;
+        for (int i = 0; i < extraBotVotes; i++) {
+            Member otherBot = saveMember("withdrawn-priority-other-bot-" + i, true);
+            Vote botVote = saveVoteWithOptions(otherBot, "withdrawn-recent-bot-vote-" + i, VoteCategory.FOOD, 2);
+            setVoteCreatedAt(botVote.getId(), LocalDateTime.now().minusMinutes(i));
+        }
+
+        Member bot = saveMember("content-seed-bot-113", true);
+
+        List<CandidatePost> result =
+                candidateQueryService.findInteractionCandidates(bot.getId(), Set.of(bot.getId()), false);
+
+        assertThat(result).hasSize(ContentSeedCandidateQueryService.MAX_INTERACTION_CANDIDATES);
+        assertThat(result.get(0).id()).isEqualTo(withdrawnVote.getId());
+    }
+
+    @Test
+    @DisplayName("상한에 걸리는 최신 N건이 선택지 개수만 2개이고 라벨이 A/B가 아니어도, 더 오래된 진짜 A/B 적격 게시글을 찾는다")
+    void findInteractionCandidates_WithRecencyLimitDisabled_FindsOlderTrueAbEligibleVoteBeyondMislabeledCap() {
+        // 선택지 "개수"가 2개인지만 SQL에서 확인하면, 라벨이 A+C/A+A처럼 A/B 조합이
+        // 아닌 게시글도 상한(LIMIT) 슬롯을 차지해 더 오래된 진짜 A/B 적격 게시글을
+        // 밀어낼 수 있다 - 라벨 A 존재·라벨 B 존재까지 SQL에서 함께 확인해야 한다.
+        Member creator = saveMember("mislabeled-creator", false);
+        for (int i = 0; i < ContentSeedCandidateQueryService.MAX_INTERACTION_CANDIDATES; i++) {
+            Vote mislabeled = saveVoteWithLabels(creator, "mislabeled-" + i, VoteCategory.FOOD, VoteLabel.A, VoteLabel.C);
+            setVoteCreatedAt(mislabeled.getId(), LocalDateTime.now().minusMinutes(i));
+        }
+        Vote olderTrueAb = saveVoteWithOptions(creator, "older-true-ab", VoteCategory.FOOD, 2);
+        setVoteCreatedAt(olderTrueAb.getId(), LocalDateTime.now().minusDays(1));
+
+        Member bot = saveMember("content-seed-bot-114", true);
+
+        List<CandidatePost> result =
+                candidateQueryService.findInteractionCandidates(bot.getId(), Set.of(bot.getId()), false);
+
+        assertThat(result).extracting(CandidatePost::id).containsExactly(olderTrueAb.getId());
+    }
+
+    private Vote saveVoteWithoutMember(String title) {
+        return inTransaction(() -> {
+            Vote vote = Vote.builder()
+                    .member(null)
+                    .title(title)
+                    .content("content")
+                    .category(VoteCategory.FOOD)
+                    .totalVoteCount(0)
+                    .pinType(com.valanse.valanse.domain.enums.PinType.NONE)
+                    .build();
+            vote.addVoteOption(VoteOption.builder().content("option-A").label(VoteLabel.A).voteCount(0).build());
+            vote.addVoteOption(VoteOption.builder().content("option-B").label(VoteLabel.B).voteCount(0).build());
+            return voteRepository.saveAndFlush(vote);
+        });
+    }
+
+    private Vote saveVoteWithLabels(Member member, String title, VoteCategory category, VoteLabel... labels) {
+        return inTransaction(() -> {
+            Member managedMember = memberRepository.findById(member.getId()).orElseThrow();
+            Vote vote = Vote.builder()
+                    .member(managedMember)
+                    .title(title)
+                    .content("content")
+                    .category(category)
+                    .totalVoteCount(0)
+                    .pinType(com.valanse.valanse.domain.enums.PinType.NONE)
+                    .build();
+            for (VoteLabel label : labels) {
+                vote.addVoteOption(VoteOption.builder()
+                        .content("option-" + label)
+                        .label(label)
+                        .voteCount(0)
+                        .build());
+            }
+            return voteRepository.saveAndFlush(vote);
+        });
+    }
+
     private Long voteCountLastId(int voteCount) {
         return voteRepository.findAll().stream()
                 .filter(v -> ("cap-vote-" + (voteCount - 1)).equals(v.getTitle()))

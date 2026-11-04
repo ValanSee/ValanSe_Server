@@ -138,17 +138,23 @@ public class ContentSeedCandidateQueryService {
     // MAX_INTERACTION_CANDIDATES로 LIMIT한다 - "전체 게시글 ID를 담은 거대한 IN(...)",
     // 전체 후보 엔티티/댓글 조회, 애플리케이션 메모리 전체 정렬을 모두 피하기 위함이다.
     private List<Long> findCandidateVoteIds(Long botMemberId, Set<Long> thisRunBotMemberIds, boolean applyRecencyLimit) {
-        QVoteOption subVoteOption = new QVoteOption("subVoteOption");
+        QVoteOption subVoteOptionCount = new QVoteOption("subVoteOptionCount");
+        QVoteOption subVoteOptionA = new QVoteOption("subVoteOptionA");
+        QVoteOption subVoteOptionB = new QVoteOption("subVoteOptionB");
         QComment subVotedComment = new QComment("subVotedComment");
         QComment subBotComment = new QComment("subBotComment");
         QMember subCommentAuthor = new QMember("subCommentAuthor");
 
+        // vote.member를 경로 표현식으로만 참조하면(명시적 leftJoin 없이) Hibernate가
+        // 암묵적 INNER JOIN을 만들어, member_id가 null인(탈퇴/퍼지) 게시글이 결과에서
+        // 통째로 빠질 수 있다 - "실제 사용자(탈퇴 포함)" 정책을 지키려면 반드시 명시적
+        // leftJoin을 선언하고, 아래 모든 member 참조를 그 조인 별칭으로 통일해야 한다.
         BooleanBuilder where = new BooleanBuilder();
         if (applyRecencyLimit) {
             LocalDateTime since = LocalDateTime.now(clock).minusDays(properties.getTargetVoteLookbackDays());
             where.and(vote.createdAt.goe(since));
         }
-        where.and(vote.member.isNull().or(vote.member.id.ne(botMemberId)));
+        where.and(member.isNull().or(member.id.ne(botMemberId)));
 
         // 이 봇이 이미 투표한 게시글 제외.
         where.and(JPAExpressions
@@ -168,13 +174,24 @@ public class ContentSeedCandidateQueryService {
                 )
                 .notExists());
 
-        // 선택지가 정확히 2개(A, B)인 게시글만 - 선택지는 항상 A부터 순서대로 부여되므로
-        // 개수 2는 라벨 {A, B}와 동치다(findOptionByLabel의 전제와 동일).
+        // 선택지가 정확히 2개이고, 그 중 하나는 라벨 A, 다른 하나는 라벨 B인 게시글만.
+        // 개수만 보면 A+C, A+A 같은 조합도 통과하므로 라벨 존재 여부를 각각 확인한다
+        // (findOptionByLabel이 요구하는 조건과 동일).
         where.and(JPAExpressions
-                .select(subVoteOption.count())
-                .from(subVoteOption)
-                .where(subVoteOption.vote.id.eq(vote.id))
+                .select(subVoteOptionCount.count())
+                .from(subVoteOptionCount)
+                .where(subVoteOptionCount.vote.id.eq(vote.id))
                 .eq(2L));
+        where.and(JPAExpressions
+                .selectOne()
+                .from(subVoteOptionA)
+                .where(subVoteOptionA.vote.id.eq(vote.id), subVoteOptionA.label.eq(VoteLabel.A))
+                .exists());
+        where.and(JPAExpressions
+                .selectOne()
+                .from(subVoteOptionB)
+                .where(subVoteOptionB.vote.id.eq(vote.id), subVoteOptionB.label.eq(VoteLabel.B))
+                .exists());
 
         // 게시글당 봇 댓글(최상위, 활성) 수가 상한 미달인 게시글만.
         where.and(JPAExpressions
@@ -192,6 +209,7 @@ public class ContentSeedCandidateQueryService {
         var query = queryFactory
                 .select(vote.id)
                 .from(vote)
+                .leftJoin(vote.member, member)
                 .where(where)
                 .orderBy(priorityTierExpression(thisRunBotMemberIds).asc(), vote.createdAt.desc(), vote.id.desc());
 
@@ -203,11 +221,12 @@ public class ContentSeedCandidateQueryService {
     }
 
     // 실제 사용자(탈퇴 포함) 글은 0, 이번 실행 봇 글은 1, 기존 봇 글은 2 - priorityTier(Vote, Set)와 동일한 규칙.
+    // member는 findCandidateVoteIds가 명시적으로 leftJoin한 별칭을 그대로 사용한다.
     private NumberExpression<Integer> priorityTierExpression(Set<Long> thisRunBotMemberIds) {
         CaseBuilder.Cases<Integer, NumberExpression<Integer>> cases = new CaseBuilder()
-                .when(vote.member.isNull().or(vote.member.isBot.isFalse())).then(0);
+                .when(member.isNull().or(member.isBot.isFalse())).then(0);
         if (!thisRunBotMemberIds.isEmpty()) {
-            cases = cases.when(vote.member.id.in(thisRunBotMemberIds)).then(1);
+            cases = cases.when(member.id.in(thisRunBotMemberIds)).then(1);
         }
         return cases.otherwise(2);
     }
