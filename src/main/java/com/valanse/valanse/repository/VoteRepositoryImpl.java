@@ -48,8 +48,12 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
         if (!"ALL".equalsIgnoreCase(category)) {
             whereConditions.add(vote.category.eq(VoteCategory.valueOf(category.toUpperCase())));
         }
-        if (isBot != null) {
-            whereConditions.add(member.isBot.eq(isBot));
+        if (Boolean.TRUE.equals(isBot)) {
+            whereConditions.add(member.isBot.isTrue());
+        } else if (Boolean.FALSE.equals(isBot)) {
+            // 퍼지(SoftDeletePurgeService)로 member_id가 null이 된 투표는 일반 회원
+            // 작성 투표로 취급한다 - member가 없으면(leftJoin 매칭 없음) isBot도 제외하지 않는다.
+            whereConditions.add(member.isNull().or(member.isBot.isFalse()));
         }
 
         // 1. orderBy를 먼저 설정하여 어떤 정렬 기준을 사용할지 결정

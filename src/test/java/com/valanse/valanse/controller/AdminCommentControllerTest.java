@@ -182,6 +182,25 @@ class AdminCommentControllerTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
+    @DisplayName("isBot=false면 회원 정보가 null로 정리된(탈퇴/퍼지된) 댓글도 포함한다")
+    void getAdminComments_IsBotFalse_IncludesWithdrawnMemberComments() throws Exception {
+        // SoftDeletePurgeService.purgeMembers()가 14일 보존기간 후 member_id를 null로
+        // 정리한다 - 이 상태를 commentRepository.save(... .member(null) ...)로 재현한다.
+        Comment withdrawnComment = commentRepository.save(Comment.builder()
+                .content("탈퇴 회원 댓글").member(null).commentGroup(commentGroup)
+                .likeCount(0).replyCount(0).build());
+        saveComment(botAuthor, null, "봇 댓글");
+
+        mockMvc.perform(get("/admin/comments").param("isBot", "false"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.comments.length()").value(1))
+                .andExpect(jsonPath("$.comments[0].commentId").value(withdrawnComment.getId()))
+                .andExpect(jsonPath("$.comments[0].isBot").value(false))
+                .andExpect(jsonPath("$.comments[0].nickname").value("탈퇴한 사용자"));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("page/size로 페이지네이션하고 다음 페이지 여부를 반환한다")
     void getAdminComments_SupportsPagination() throws Exception {
         for (int i = 0; i < 3; i++) {

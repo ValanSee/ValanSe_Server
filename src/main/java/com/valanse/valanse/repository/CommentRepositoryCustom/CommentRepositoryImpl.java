@@ -276,8 +276,12 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
 
         BooleanBuilder where = new BooleanBuilder();
         where.and(comment.deletedAt.isNull());
-        if (isBot != null) {
-            where.and(member.isBot.eq(isBot));
+        if (Boolean.TRUE.equals(isBot)) {
+            where.and(member.isBot.isTrue());
+        } else if (Boolean.FALSE.equals(isBot)) {
+            // 퍼지(SoftDeletePurgeService)로 member_id가 null이 된 댓글은 일반 회원
+            // 작성 댓글로 취급한다 - member가 없으면(leftJoin 매칭 없음) isBot도 제외하지 않는다.
+            where.and(member.isNull().or(member.isBot.isFalse()));
         }
 
         List<AdminCommentResponseDto> result = queryFactory

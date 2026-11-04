@@ -466,6 +466,31 @@ public class VoteControllerTest {
                 .andExpect(jsonPath("$.votes[*].isBot", org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is(false))));
     }
 
+    @Test
+    @DisplayName("isBot=false면 작성자 정보가 null로 정리된(탈퇴/퍼지된) 투표도 포함한다.")
+    void getVotes_IsBotFalse_IncludesWithdrawnMemberVotes() throws Exception {
+        // SoftDeletePurgeService.purgeMembers()가 14일 보존기간 후 member_id를 null로
+        // 정리한다 - 이 상태를 voteRepository.save(... .member(null) ...)로 재현한다.
+        Vote withdrawnVote = voteRepository.save(Vote.builder()
+                .category(VoteCategory.FOOD).title("withdrawn-vote")
+                .totalVoteCount(0).reactivityScore(0).reactivityUpdatedAt(LocalDateTime.now())
+                .member(null).pinType(PinType.NONE).build());
+        commentGroupRepository.save(CommentGroup.builder().vote(withdrawnVote).totalCommentCount(0).build());
+        VoteOption optionA = VoteOption.builder().vote(withdrawnVote).content("A").voteCount(0).label(VoteLabel.A).build();
+        VoteOption optionB = VoteOption.builder().vote(withdrawnVote).content("B").voteCount(0).label(VoteLabel.B).build();
+        withdrawnVote.getVoteOptions().addAll(Arrays.asList(optionA, optionB));
+        voteOptionRepository.saveAll(Arrays.asList(optionA, optionB));
+
+        mockMvc.perform(get("/votes")
+                        .param("category", "ALL")
+                        .param("sort", "latest")
+                        .param("size", "10")
+                        .param("isBot", "false"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.votes.length()").value(3))
+                .andExpect(jsonPath("$.votes[*].isBot", org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is(false))));
+    }
+
     private Vote saveBotVote(String socialId) {
         Member bot = memberRepository.save(Member.builder()
                 .socialId(socialId).email(socialId + "@example.com").name(socialId)
