@@ -2,6 +2,9 @@ package com.valanse.valanse.service.ContentSeedService;
 
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
+import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.NumberExpression;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.valanse.valanse.common.config.ContentSeedProperties;
 import com.valanse.valanse.domain.Member;
@@ -36,13 +39,13 @@ import java.util.Set;
 public class ContentSeedCandidateQueryService {
 
     // 상호작용 후보 게시글 수의 상한. applyRecencyLimit=false(관리자 댓글 전용 수동
-    // 실행)에서 기간 제한이 없어도, 후보 전체가 Claude 프롬프트에 그대로 들어가므로
-    // (ClaudeContentGenerator.buildInteractionPrompt) 컨텍스트 초과/비용 증가로 이어질
-    // 수 있다. 적격성(선택지 정확히 2개, 게시글당 봇 댓글 한도)과 우선순위(실사용자 ->
-    // 이번 실행 봇 -> 기존 봇, 그 안에서는 최신순) 정렬을 모두 적용한 "다음"에만 이
-    // 개수로 자른다 - ID 조회 단계에서 먼저 자르면 상한 안의 후보가 전부 부적격이거나
-    // 전부 최신 봇 글일 때 더 오래된 적격/실사용자 후보를 영영 조회하지 못하게 된다.
-    // 주간 자동 생성(applyRecencyLimit=true, 7일 제한 유지)에는 적용하지 않는다.
+    // 실행)에서 기간 제한이 없으면 후보 전체가 Claude 프롬프트에 그대로 들어가므로
+    // (ClaudeContentGenerator.buildInteractionPrompt), findCandidateVoteIds의 ID 조회
+    // SQL 자체에서 적격성(선택지 정확히 2개, 게시글당 봇 댓글 한도)과 참여 이력 제외를
+    // 서브쿼리로, 우선순위(실사용자 -> 이번 실행 봇 -> 기존 봇, 그 안에서는 최신순)를
+    // ORDER BY로 모두 적용한 뒤 LIMIT한다 - 이렇게 해야 "거대한 IN(...)"·전체 후보
+    // 엔티티/댓글 조회·애플리케이션 메모리 전체 정렬을 모두 피할 수 있다. 주간 자동
+    // 생성(applyRecencyLimit=true, 7일 제한 유지)에는 LIMIT을 적용하지 않는다.
     static final int MAX_INTERACTION_CANDIDATES = 50;
 
     private static final QVote vote = QVote.vote;
@@ -82,7 +85,7 @@ public class ContentSeedCandidateQueryService {
     // targetVoteLookbackDays 제한 없이 전체 게시글을 후보로 조회한다.
     public List<CandidatePost> findInteractionCandidates(
             Long botMemberId, Set<Long> thisRunBotMemberIds, boolean applyRecencyLimit) {
-        List<Long> candidateVoteIds = findCandidateVoteIds(botMemberId, applyRecencyLimit);
+        List<Long> candidateVoteIds = findCandidateVoteIds(botMemberId, thisRunBotMemberIds, applyRecencyLimit);
         if (candidateVoteIds.isEmpty()) {
             return List.of();
         }
@@ -123,24 +126,22 @@ public class ContentSeedCandidateQueryService {
                 .comparingInt((CandidatePost c) -> priorityTier(voteById.get(c.id()), thisRunBotMemberIds))
                 .thenComparing(c -> voteById.get(c.id()).getCreatedAt(), Comparator.reverseOrder()));
 
-        if (!applyRecencyLimit && candidates.size() > MAX_INTERACTION_CANDIDATES) {
-            return candidates.subList(0, MAX_INTERACTION_CANDIDATES);
-        }
+        // candidateVoteIds가 이미 findCandidateVoteIds의 SQL LIMIT으로 상한 이하이므로
+        // (applyRecencyLimit=false일 때), 여기서 다시 자를 필요가 없다 - candidates는
+        // candidateVoteIds의 부분집합(적격성 재확인으로 줄어들기만 함)이기 때문이다.
         return candidates;
     }
 
-    private List<Long> findCandidateVoteIds(Long botMemberId, boolean applyRecencyLimit) {
-        List<Long> votedVoteIds = queryFactory
-                .select(memberVoteOption.vote.id)
-                .from(memberVoteOption)
-                .where(memberVoteOption.member.id.eq(botMemberId))
-                .fetch();
-
-        List<Long> commentedVoteIds = queryFactory
-                .select(comment.commentGroup.vote.id)
-                .from(comment)
-                .where(comment.member.id.eq(botMemberId), comment.deletedAt.isNull())
-                .fetch();
+    // 적격성(선택지 정확히 2개, 게시글당 봇 댓글 한도 미달)과 참여 이력 제외(자기 글,
+    // 이미 투표/댓글)을 모두 서브쿼리로 DB에서 거르고, 우선순위(실사용자 -> 이번 실행
+    // 봇 -> 기존 봇, 그 안에서는 최신순)로 정렬한 뒤 applyRecencyLimit=false일 때만
+    // MAX_INTERACTION_CANDIDATES로 LIMIT한다 - "전체 게시글 ID를 담은 거대한 IN(...)",
+    // 전체 후보 엔티티/댓글 조회, 애플리케이션 메모리 전체 정렬을 모두 피하기 위함이다.
+    private List<Long> findCandidateVoteIds(Long botMemberId, Set<Long> thisRunBotMemberIds, boolean applyRecencyLimit) {
+        QVoteOption subVoteOption = new QVoteOption("subVoteOption");
+        QComment subVotedComment = new QComment("subVotedComment");
+        QComment subBotComment = new QComment("subBotComment");
+        QMember subCommentAuthor = new QMember("subCommentAuthor");
 
         BooleanBuilder where = new BooleanBuilder();
         if (applyRecencyLimit) {
@@ -148,18 +149,67 @@ public class ContentSeedCandidateQueryService {
             where.and(vote.createdAt.goe(since));
         }
         where.and(vote.member.isNull().or(vote.member.id.ne(botMemberId)));
-        if (!votedVoteIds.isEmpty()) {
-            where.and(vote.id.notIn(votedVoteIds));
-        }
-        if (!commentedVoteIds.isEmpty()) {
-            where.and(vote.id.notIn(commentedVoteIds));
-        }
 
-        return queryFactory
+        // 이 봇이 이미 투표한 게시글 제외.
+        where.and(JPAExpressions
+                .selectOne()
+                .from(memberVoteOption)
+                .where(memberVoteOption.vote.id.eq(vote.id), memberVoteOption.member.id.eq(botMemberId))
+                .notExists());
+
+        // 이 봇이 이미 댓글을 남긴 게시글 제외.
+        where.and(JPAExpressions
+                .selectOne()
+                .from(subVotedComment)
+                .where(
+                        subVotedComment.commentGroup.vote.id.eq(vote.id),
+                        subVotedComment.member.id.eq(botMemberId),
+                        subVotedComment.deletedAt.isNull()
+                )
+                .notExists());
+
+        // 선택지가 정확히 2개(A, B)인 게시글만 - 선택지는 항상 A부터 순서대로 부여되므로
+        // 개수 2는 라벨 {A, B}와 동치다(findOptionByLabel의 전제와 동일).
+        where.and(JPAExpressions
+                .select(subVoteOption.count())
+                .from(subVoteOption)
+                .where(subVoteOption.vote.id.eq(vote.id))
+                .eq(2L));
+
+        // 게시글당 봇 댓글(최상위, 활성) 수가 상한 미달인 게시글만.
+        where.and(JPAExpressions
+                .select(subBotComment.count())
+                .from(subBotComment)
+                .innerJoin(subBotComment.member, subCommentAuthor)
+                .where(
+                        subBotComment.commentGroup.vote.id.eq(vote.id),
+                        subBotComment.parent.isNull(),
+                        subBotComment.deletedAt.isNull(),
+                        subCommentAuthor.isBot.isTrue()
+                )
+                .lt((long) properties.getMaxCommentsPerVote()));
+
+        var query = queryFactory
                 .select(vote.id)
                 .from(vote)
                 .where(where)
-                .fetch();
+                .orderBy(priorityTierExpression(thisRunBotMemberIds).asc(), vote.createdAt.desc(), vote.id.desc());
+
+        if (!applyRecencyLimit) {
+            query = query.limit(MAX_INTERACTION_CANDIDATES);
+        }
+
+        return query.fetch();
+    }
+
+    // 실제 사용자(탈퇴 포함) 글은 0, 이번 실행 봇 글은 1, 기존 봇 글은 2 - priorityTier(Vote, Set)와 동일한 규칙.
+    private NumberExpression<Integer> priorityTierExpression(Set<Long> thisRunBotMemberIds) {
+        CaseBuilder.Cases<Integer, NumberExpression<Integer>> cases = new CaseBuilder()
+                .when(vote.member.isNull().or(vote.member.isBot.isFalse())).then(0);
+        if (!thisRunBotMemberIds.isEmpty()) {
+            cases = cases.when(vote.member.id.in(thisRunBotMemberIds)).then(1);
+        }
+        return cases.otherwise(2);
     }
 
     // 후보 게시글들의 최상위(부모 없음) 활성 댓글을 한 번에 읽어, 봇 댓글 수와
