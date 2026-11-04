@@ -90,6 +90,7 @@ public class SecurityConfig {
 
                         .requestMatchers(HttpMethod.POST, "/analytics/events/page-view").permitAll()
                         .requestMatchers(HttpMethod.GET, "/admin/analytics/mau").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/admin/comments").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/admin/purge/preview").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/admin/content-seed/run").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/admin/content-seed/comments/run").hasRole("ADMIN")
