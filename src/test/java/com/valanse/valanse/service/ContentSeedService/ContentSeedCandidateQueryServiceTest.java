@@ -131,6 +131,38 @@ class ContentSeedCandidateQueryServiceTest {
     }
 
     @Test
+    @DisplayName("applyRecencyLimit=false여도 후보 풀 크기는 상한(MAX_INTERACTION_CANDIDATES) 이하로 제한된다")
+    void findInteractionCandidates_WithRecencyLimitDisabled_CapsCandidatePoolSize() {
+        // 전체 이력을 후보로 삼더라도(이슈 #328), Claude 프롬프트에 그대로 들어가므로
+        // 후보 수가 무한히 늘어나면 컨텍스트 초과/비용 증가/거대한 IN(...) 쿼리로
+        // 이어진다 - 상한을 두어 가장 최근 후보만 프롬프트에 전달해야 한다.
+        Member creator = saveMember("cap-creator", false);
+        int voteCount = ContentSeedCandidateQueryService.MAX_INTERACTION_CANDIDATES + 10;
+        for (int i = 0; i < voteCount; i++) {
+            Vote v = saveVoteWithOptions(creator, "cap-vote-" + i, VoteCategory.FOOD, 2);
+            setVoteCreatedAt(v.getId(), LocalDateTime.now().minusDays(voteCount - i));
+        }
+
+        Member bot = saveMember("content-seed-bot-109", true);
+
+        List<CandidatePost> result =
+                candidateQueryService.findInteractionCandidates(bot.getId(), Set.of(bot.getId()), false);
+
+        assertThat(result).hasSize(ContentSeedCandidateQueryService.MAX_INTERACTION_CANDIDATES);
+        // 상한에 걸리더라도 가장 최근(마지막으로 생성된) 게시글이 후보에 남아야 한다.
+        assertThat(result).extracting(CandidatePost::id)
+                .contains(voteCountLastId(voteCount));
+    }
+
+    private Long voteCountLastId(int voteCount) {
+        return voteRepository.findAll().stream()
+                .filter(v -> ("cap-vote-" + (voteCount - 1)).equals(v.getTitle()))
+                .findFirst()
+                .orElseThrow()
+                .getId();
+    }
+
+    @Test
     @DisplayName("봇 자신이 작성한 게시글은 후보에서 제외한다")
     void findInteractionCandidates_ExcludesSelfAuthoredVote() {
         Member bot = saveMember("content-seed-bot-102", true);

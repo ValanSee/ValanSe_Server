@@ -35,6 +35,12 @@ import java.util.Set;
 @Transactional(readOnly = true)
 public class ContentSeedCandidateQueryService {
 
+    // 상호작용 후보 게시글 ID 조회의 상한. applyRecencyLimit=false(관리자 댓글 전용
+    // 수동 실행)에서 기간 제한이 없어도, 후보 전체가 Claude 프롬프트에 그대로 들어가므로
+    // (ClaudeContentGenerator.buildInteractionPrompt) 컨텍스트 초과/비용 증가/거대한
+    // IN(...) 쿼리를 막기 위해 최근 생성순으로 이 개수만큼만 조회한다.
+    static final int MAX_INTERACTION_CANDIDATES = 50;
+
     private static final QVote vote = QVote.vote;
     private static final QMember member = QMember.member;
     private static final QVoteOption voteOption = QVoteOption.voteOption;
@@ -146,6 +152,8 @@ public class ContentSeedCandidateQueryService {
                 .select(vote.id)
                 .from(vote)
                 .where(where)
+                .orderBy(vote.createdAt.desc(), vote.id.desc())
+                .limit(MAX_INTERACTION_CANDIDATES)
                 .fetch();
     }
 
