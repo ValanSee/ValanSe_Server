@@ -112,6 +112,25 @@ class ContentSeedCandidateQueryServiceTest {
     }
 
     @Test
+    @DisplayName("applyRecencyLimit=false(관리자 댓글 전용 수동 실행)이면 targetVoteLookbackDays보다 오래된 게시글도 후보에 포함한다")
+    void findInteractionCandidates_WithRecencyLimitDisabled_IncludesOldVotes() {
+        Member creator = saveMember("recency-disabled-creator", false);
+        Vote recentVote = saveVoteWithOptions(creator, "recent", VoteCategory.FOOD, 2);
+        setVoteCreatedAt(recentVote.getId(), LocalDateTime.now().minusDays(3));
+
+        Vote oldVote = saveVoteWithOptions(creator, "old", VoteCategory.FOOD, 2);
+        setVoteCreatedAt(oldVote.getId(), LocalDateTime.now().minusDays(properties.getTargetVoteLookbackDays() + 1));
+
+        Member bot = saveMember("content-seed-bot-108", true);
+
+        List<CandidatePost> result =
+                candidateQueryService.findInteractionCandidates(bot.getId(), Set.of(bot.getId()), false);
+
+        assertThat(result).extracting(CandidatePost::id)
+                .containsExactlyInAnyOrder(recentVote.getId(), oldVote.getId());
+    }
+
+    @Test
     @DisplayName("봇 자신이 작성한 게시글은 후보에서 제외한다")
     void findInteractionCandidates_ExcludesSelfAuthoredVote() {
         Member bot = saveMember("content-seed-bot-102", true);

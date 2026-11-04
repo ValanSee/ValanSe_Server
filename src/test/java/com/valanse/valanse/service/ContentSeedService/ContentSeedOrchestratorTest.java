@@ -21,6 +21,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
@@ -252,7 +253,7 @@ class ContentSeedOrchestratorTest {
     void 댓글_전용_실행은_게시글_생성을_호출하지_않는다() {
         Member bot = bot(1L, "한입만판사");
         when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot));
-        when(candidateQueryService.findInteractionCandidates(eq(1L), any())).thenReturn(List.of());
+        when(candidateQueryService.findInteractionCandidates(eq(1L), any(), eq(false))).thenReturn(List.of());
 
         ContentSeedRunResult result = orchestrator.runCommentsOnly();
 
@@ -270,7 +271,7 @@ class ContentSeedOrchestratorTest {
         when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot));
 
         CandidatePost candidate = new CandidatePost(10L, "제목", "본문", "A", "B", List.of());
-        when(candidateQueryService.findInteractionCandidates(eq(1L), any())).thenReturn(List.of(candidate));
+        when(candidateQueryService.findInteractionCandidates(eq(1L), any(), eq(false))).thenReturn(List.of(candidate));
         GeneratedInteraction interaction =
                 new GeneratedInteraction(10L, GeneratedInteraction.SelectedOption.A, "댓글");
         when(contentGenerator.generateInteractions(any(), anyInt(), any()))
@@ -279,11 +280,41 @@ class ContentSeedOrchestratorTest {
 
         ContentSeedRunResult result = orchestrator.runCommentsOnly();
 
-        verify(candidateQueryService).findInteractionCandidates(eq(1L), any());
+        verify(candidateQueryService).findInteractionCandidates(eq(1L), any(), eq(false));
         verify(persistenceService).saveBotInteraction(eq(1L), eq(interaction));
         ContentSeedBatchOutcome outcome = result.interactionOutcomes().get(0);
         assertThat(outcome.savedCount()).isEqualTo(1);
         assertThat(outcome.targetCount()).isEqualTo(1);
+    }
+
+    @Test
+    void 댓글_전용_실행은_targetVoteLookbackDays_제한_없이_전체_게시글을_후보로_조회한다() {
+        // 이슈 #328: 관리자 댓글 전용 수동 실행은 최근 7일 제한을 적용하는 2-인자
+        // 메서드가 아니라, 제한을 끄는 3-인자(applyRecencyLimit=false) 메서드를 호출해야 한다.
+        Member bot = bot(1L, "한입만판사");
+        when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot));
+        when(candidateQueryService.findInteractionCandidates(eq(1L), any(), eq(false))).thenReturn(List.of());
+
+        orchestrator.runCommentsOnly();
+
+        verify(candidateQueryService, never()).findInteractionCandidates(any(), any());
+        verify(candidateQueryService).findInteractionCandidates(eq(1L), any(), eq(false));
+    }
+
+    @Test
+    void 전체_생성_실행은_여전히_최근_7일_제한_정책으로_후보를_조회한다() {
+        // 이슈 #328: 주간 자동 콘텐츠 생성(run())은 기존 2-인자(제한 적용) 메서드를
+        // 그대로 호출해야 한다 - 제한을 끄는 3-인자 메서드를 호출하면 안 된다.
+        Member bot = bot(1L, "한입만판사");
+        when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot));
+        when(contentGenerator.generatePosts(any(), anyInt(), any()))
+                .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of()), 1, 1));
+        when(candidateQueryService.findInteractionCandidates(eq(1L), any())).thenReturn(List.of());
+
+        orchestrator.run();
+
+        verify(candidateQueryService).findInteractionCandidates(eq(1L), any());
+        verify(candidateQueryService, never()).findInteractionCandidates(any(), any(), anyBoolean());
     }
 
     @Test

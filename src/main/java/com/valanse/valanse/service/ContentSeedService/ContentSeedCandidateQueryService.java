@@ -61,10 +61,18 @@ public class ContentSeedCandidateQueryService {
         return recentPosts;
     }
 
-    // 특정 봇이 투표+댓글을 남길 상호작용 후보 게시글 목록.
+    // 특정 봇이 투표+댓글을 남길 상호작용 후보 게시글 목록. 주간 자동 생성(기존 호출자)은
+    // 항상 이 2-인자 메서드를 사용해 targetVoteLookbackDays 제한을 유지한다.
     // 우선순위: 실제 사용자 글(탈퇴 회원 포함) -> 이번 실행 봇 글 -> 기존 봇 글, 그 안에서는 최신순.
     public List<CandidatePost> findInteractionCandidates(Long botMemberId, Set<Long> thisRunBotMemberIds) {
-        List<Long> candidateVoteIds = findCandidateVoteIds(botMemberId);
+        return findInteractionCandidates(botMemberId, thisRunBotMemberIds, true);
+    }
+
+    // 관리자 댓글 전용 수동 실행(이슈 #328) 전용 진입점. applyRecencyLimit=false면
+    // targetVoteLookbackDays 제한 없이 전체 게시글을 후보로 조회한다.
+    public List<CandidatePost> findInteractionCandidates(
+            Long botMemberId, Set<Long> thisRunBotMemberIds, boolean applyRecencyLimit) {
+        List<Long> candidateVoteIds = findCandidateVoteIds(botMemberId, applyRecencyLimit);
         if (candidateVoteIds.isEmpty()) {
             return List.of();
         }
@@ -108,9 +116,7 @@ public class ContentSeedCandidateQueryService {
         return candidates;
     }
 
-    private List<Long> findCandidateVoteIds(Long botMemberId) {
-        LocalDateTime since = LocalDateTime.now(clock).minusDays(properties.getTargetVoteLookbackDays());
-
+    private List<Long> findCandidateVoteIds(Long botMemberId, boolean applyRecencyLimit) {
         List<Long> votedVoteIds = queryFactory
                 .select(memberVoteOption.vote.id)
                 .from(memberVoteOption)
@@ -124,7 +130,10 @@ public class ContentSeedCandidateQueryService {
                 .fetch();
 
         BooleanBuilder where = new BooleanBuilder();
-        where.and(vote.createdAt.goe(since));
+        if (applyRecencyLimit) {
+            LocalDateTime since = LocalDateTime.now(clock).minusDays(properties.getTargetVoteLookbackDays());
+            where.and(vote.createdAt.goe(since));
+        }
         where.and(vote.member.isNull().or(vote.member.id.ne(botMemberId)));
         if (!votedVoteIds.isEmpty()) {
             where.and(vote.id.notIn(votedVoteIds));
