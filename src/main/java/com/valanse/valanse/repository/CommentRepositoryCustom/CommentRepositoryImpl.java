@@ -2,6 +2,7 @@ package com.valanse.valanse.repository.CommentRepositoryCustom;
 
 //import com.querydsl.core.types.dsl.CaseBuilder;
 //import static com.querydsl.core.types.dsl.Expressions.constant;
+import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberTemplate;
@@ -12,6 +13,8 @@ import com.valanse.valanse.domain.mapping.QMemberVoteOption;
 import com.valanse.valanse.dto.Comment.CommentReplyResponseDto;
 import com.valanse.valanse.dto.Comment.CommentResponseDto;
 import com.valanse.valanse.dto.Comment.MyCommentResponseDto;
+import com.valanse.valanse.dto.Comment.AdminCommentResponseDto;
+import com.valanse.valanse.dto.Comment.QAdminCommentResponseDto;
 import com.valanse.valanse.dto.Comment.QCommentReplyResponseDto;
 import com.valanse.valanse.dto.Comment.QCommentResponseDto;
 import com.valanse.valanse.dto.Comment.QMyCommentResponseDto;
@@ -258,6 +261,57 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                         .orderBy(comment.likeCount.desc())
                         .fetchFirst()
         );
+    }
+
+    /**
+     * 관리자(CMS) 콘텐츠 검수용 댓글 통합 목록(부모+대댓글, 최신순)을 조회하는 메서드입니다.
+     * 삭제된 댓글과 삭제된 투표(Vote의 @Where 전역 필터)에 속한 댓글은 제외된다.
+     */
+    @Override
+    public Slice<AdminCommentResponseDto> findAdminCommentsSlice(Boolean isBot, Pageable pageable) {
+        QComment comment = QComment.comment;
+        QMember member = QMember.member;
+        QMemberProfile profile = QMemberProfile.memberProfile;
+        QVote vote = QVote.vote;
+
+        BooleanBuilder where = new BooleanBuilder();
+        where.and(comment.deletedAt.isNull());
+        if (Boolean.TRUE.equals(isBot)) {
+            where.and(member.isBot.isTrue());
+        } else if (Boolean.FALSE.equals(isBot)) {
+            // 퍼지(SoftDeletePurgeService)로 member_id가 null이 된 댓글은 일반 회원
+            // 작성 댓글로 취급한다 - member가 없으면(leftJoin 매칭 없음) isBot도 제외하지 않는다.
+            where.and(member.isNull().or(member.isBot.isFalse()));
+        }
+
+        List<AdminCommentResponseDto> result = queryFactory
+                .select(new QAdminCommentResponseDto(
+                        comment.id,
+                        comment.content,
+                        profile.nickname,
+                        member.isBot,
+                        comment.createdAt,
+                        comment.parent.id.isNotNull(),
+                        comment.parent.id,
+                        vote.id,
+                        vote.title
+                ))
+                .from(comment)
+                .leftJoin(comment.member, member)
+                .leftJoin(member.profile, profile)
+                .join(comment.commentGroup.vote, vote)
+                .where(where)
+                .orderBy(comment.createdAt.desc(), comment.id.desc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize() + 1)
+                .fetch();
+
+        boolean hasNext = result.size() > pageable.getPageSize();
+        if (hasNext) {
+            result.remove(result.size() - 1);
+        }
+
+        return new SliceImpl<>(result, pageable, hasNext);
     }
 
     /**

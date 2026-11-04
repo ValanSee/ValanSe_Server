@@ -112,6 +112,210 @@ class ContentSeedCandidateQueryServiceTest {
     }
 
     @Test
+    @DisplayName("applyRecencyLimit=false(관리자 댓글 전용 수동 실행)이면 targetVoteLookbackDays보다 오래된 게시글도 후보에 포함한다")
+    void findInteractionCandidates_WithRecencyLimitDisabled_IncludesOldVotes() {
+        Member creator = saveMember("recency-disabled-creator", false);
+        Vote recentVote = saveVoteWithOptions(creator, "recent", VoteCategory.FOOD, 2);
+        setVoteCreatedAt(recentVote.getId(), LocalDateTime.now().minusDays(3));
+
+        Vote oldVote = saveVoteWithOptions(creator, "old", VoteCategory.FOOD, 2);
+        setVoteCreatedAt(oldVote.getId(), LocalDateTime.now().minusDays(properties.getTargetVoteLookbackDays() + 1));
+
+        Member bot = saveMember("content-seed-bot-108", true);
+
+        List<CandidatePost> result =
+                candidateQueryService.findInteractionCandidates(bot.getId(), Set.of(bot.getId()), false);
+
+        assertThat(result).extracting(CandidatePost::id)
+                .containsExactlyInAnyOrder(recentVote.getId(), oldVote.getId());
+    }
+
+    @Test
+    @DisplayName("applyRecencyLimit=false여도 후보 풀 크기는 상한(MAX_INTERACTION_CANDIDATES) 이하로 제한된다")
+    void findInteractionCandidates_WithRecencyLimitDisabled_CapsCandidatePoolSize() {
+        // 전체 이력을 후보로 삼더라도(이슈 #328), Claude 프롬프트에 그대로 들어가므로
+        // 후보 수가 무한히 늘어나면 컨텍스트 초과/비용 증가/거대한 IN(...) 쿼리로
+        // 이어진다 - 상한을 두어 가장 최근 후보만 프롬프트에 전달해야 한다.
+        Member creator = saveMember("cap-creator", false);
+        int voteCount = ContentSeedCandidateQueryService.MAX_INTERACTION_CANDIDATES + 10;
+        for (int i = 0; i < voteCount; i++) {
+            Vote v = saveVoteWithOptions(creator, "cap-vote-" + i, VoteCategory.FOOD, 2);
+            setVoteCreatedAt(v.getId(), LocalDateTime.now().minusDays(voteCount - i));
+        }
+
+        Member bot = saveMember("content-seed-bot-109", true);
+
+        List<CandidatePost> result =
+                candidateQueryService.findInteractionCandidates(bot.getId(), Set.of(bot.getId()), false);
+
+        assertThat(result).hasSize(ContentSeedCandidateQueryService.MAX_INTERACTION_CANDIDATES);
+        // 상한에 걸리더라도 가장 최근(마지막으로 생성된) 게시글이 후보에 남아야 한다.
+        assertThat(result).extracting(CandidatePost::id)
+                .contains(voteCountLastId(voteCount));
+    }
+
+    @Test
+    @DisplayName("상한에 걸리는 최신 N건이 모두 부적격(선택지 2개 아님)이어도 더 오래된 적격 게시글을 찾는다")
+    void findInteractionCandidates_WithRecencyLimitDisabled_FindsOlderEligibleVoteBeyondCap() {
+        // 상한을 ID 조회 단계(최신순)에서 먼저 적용하면, 상한 안에 든 후보가 전부
+        // 부적격이어도 그보다 오래된 적격 후보를 아예 조회하지 못해 후보가 0건이 될 수
+        // 있다 - 적격성(선택지 정확히 2개) 검사를 먼저 적용한 뒤 상한을 둬야 한다.
+        Member creator = saveMember("cap-ineligible-creator", false);
+        for (int i = 0; i < ContentSeedCandidateQueryService.MAX_INTERACTION_CANDIDATES; i++) {
+            Vote ineligible = saveVoteWithOptions(creator, "ineligible-" + i, VoteCategory.FOOD, 3);
+            setVoteCreatedAt(ineligible.getId(), LocalDateTime.now().minusMinutes(i));
+        }
+        Vote olderEligible = saveVoteWithOptions(creator, "older-eligible", VoteCategory.FOOD, 2);
+        setVoteCreatedAt(olderEligible.getId(), LocalDateTime.now().minusDays(1));
+
+        Member bot = saveMember("content-seed-bot-110", true);
+
+        List<CandidatePost> result =
+                candidateQueryService.findInteractionCandidates(bot.getId(), Set.of(bot.getId()), false);
+
+        assertThat(result).extracting(CandidatePost::id).containsExactly(olderEligible.getId());
+    }
+
+    @Test
+    @DisplayName("상한을 적용해도 오래된 실사용자 글이 최신 봇 글보다 우선된다")
+    void findInteractionCandidates_WithRecencyLimitDisabled_PrioritizesOldHumanVoteOverRecentBotVotes() {
+        // 상한을 ID 조회 단계(최신순)에서 먼저 적용하면, 실사용자 글이 아무리 오래됐어도
+        // 최신 봇 글 N개에 밀려 상한 밖으로 잘릴 수 있다 - 우선순위(실사용자 > 봇) 정렬을
+        // 먼저 적용한 뒤 상한을 둬야, 오래된 실사용자 글이 항상 살아남는다.
+        Member human = saveMember("cap-priority-human", false);
+        Vote oldHumanVote = saveVoteWithOptions(human, "old-human-vote", VoteCategory.FOOD, 2);
+        setVoteCreatedAt(oldHumanVote.getId(), LocalDateTime.now().minusDays(100));
+
+        int extraBotVotes = ContentSeedCandidateQueryService.MAX_INTERACTION_CANDIDATES + 9;
+        for (int i = 0; i < extraBotVotes; i++) {
+            Member otherBot = saveMember("cap-priority-other-bot-" + i, true);
+            Vote botVote = saveVoteWithOptions(otherBot, "recent-bot-vote-" + i, VoteCategory.FOOD, 2);
+            setVoteCreatedAt(botVote.getId(), LocalDateTime.now().minusMinutes(i));
+        }
+
+        Member bot = saveMember("content-seed-bot-111", true);
+
+        List<CandidatePost> result =
+                candidateQueryService.findInteractionCandidates(bot.getId(), Set.of(bot.getId()), false);
+
+        assertThat(result).hasSize(ContentSeedCandidateQueryService.MAX_INTERACTION_CANDIDATES);
+        assertThat(result.get(0).id()).isEqualTo(oldHumanVote.getId());
+    }
+
+    @Test
+    @DisplayName("자동 생성(applyRecencyLimit=true)은 상한 없이 7일 내 모든 적격 후보를 조회한다")
+    void findInteractionCandidates_AutoRun_IsNotCappedByMaxInteractionCandidates() {
+        // 상한을 ID 조회 단계에서 무조건 적용하면, 7일 제한이 그대로 유지되는 주간
+        // 자동 생성(applyRecencyLimit=true)의 기존 동작까지 바뀐다 - 상한은 관리자
+        // 댓글 전용 수동 실행(applyRecencyLimit=false)에만 적용해야 한다.
+        Member creator = saveMember("auto-run-no-cap-creator", false);
+        int voteCount = ContentSeedCandidateQueryService.MAX_INTERACTION_CANDIDATES + 5;
+        for (int i = 0; i < voteCount; i++) {
+            Vote v = saveVoteWithOptions(creator, "auto-run-vote-" + i, VoteCategory.FOOD, 2);
+            setVoteCreatedAt(v.getId(), LocalDateTime.now().minusDays(1));
+        }
+
+        Member bot = saveMember("content-seed-bot-112", true);
+
+        List<CandidatePost> result = candidateQueryService.findInteractionCandidates(bot.getId(), Set.of(bot.getId()));
+
+        assertThat(result).hasSize(voteCount);
+    }
+
+    @Test
+    @DisplayName("탈퇴/퍼지로 member_id가 null인 게시글도 실사용자 우선순위(tier 0)로 후보에 포함된다")
+    void findInteractionCandidates_WithRecencyLimitDisabled_IncludesWithdrawnMemberVoteAtTopPriority() {
+        // vote.member.isBot처럼 member를 명시적으로 leftJoin하지 않고 경로로만 참조하면
+        // Hibernate가 암묵적 INNER JOIN을 만들어, member_id가 null인(탈퇴/퍼지) 게시글이
+        // CASE의 null 체크에 도달하기도 전에 결과에서 통째로 제거될 수 있다.
+        Vote withdrawnVote = saveVoteWithoutMember("withdrawn-vote");
+        setVoteCreatedAt(withdrawnVote.getId(), LocalDateTime.now().minusDays(100));
+
+        int extraBotVotes = ContentSeedCandidateQueryService.MAX_INTERACTION_CANDIDATES + 9;
+        for (int i = 0; i < extraBotVotes; i++) {
+            Member otherBot = saveMember("withdrawn-priority-other-bot-" + i, true);
+            Vote botVote = saveVoteWithOptions(otherBot, "withdrawn-recent-bot-vote-" + i, VoteCategory.FOOD, 2);
+            setVoteCreatedAt(botVote.getId(), LocalDateTime.now().minusMinutes(i));
+        }
+
+        Member bot = saveMember("content-seed-bot-113", true);
+
+        List<CandidatePost> result =
+                candidateQueryService.findInteractionCandidates(bot.getId(), Set.of(bot.getId()), false);
+
+        assertThat(result).hasSize(ContentSeedCandidateQueryService.MAX_INTERACTION_CANDIDATES);
+        assertThat(result.get(0).id()).isEqualTo(withdrawnVote.getId());
+    }
+
+    @Test
+    @DisplayName("상한에 걸리는 최신 N건이 선택지 개수만 2개이고 라벨이 A/B가 아니어도, 더 오래된 진짜 A/B 적격 게시글을 찾는다")
+    void findInteractionCandidates_WithRecencyLimitDisabled_FindsOlderTrueAbEligibleVoteBeyondMislabeledCap() {
+        // 선택지 "개수"가 2개인지만 SQL에서 확인하면, 라벨이 A+C/A+A처럼 A/B 조합이
+        // 아닌 게시글도 상한(LIMIT) 슬롯을 차지해 더 오래된 진짜 A/B 적격 게시글을
+        // 밀어낼 수 있다 - 라벨 A 존재·라벨 B 존재까지 SQL에서 함께 확인해야 한다.
+        Member creator = saveMember("mislabeled-creator", false);
+        for (int i = 0; i < ContentSeedCandidateQueryService.MAX_INTERACTION_CANDIDATES; i++) {
+            Vote mislabeled = saveVoteWithLabels(creator, "mislabeled-" + i, VoteCategory.FOOD, VoteLabel.A, VoteLabel.C);
+            setVoteCreatedAt(mislabeled.getId(), LocalDateTime.now().minusMinutes(i));
+        }
+        Vote olderTrueAb = saveVoteWithOptions(creator, "older-true-ab", VoteCategory.FOOD, 2);
+        setVoteCreatedAt(olderTrueAb.getId(), LocalDateTime.now().minusDays(1));
+
+        Member bot = saveMember("content-seed-bot-114", true);
+
+        List<CandidatePost> result =
+                candidateQueryService.findInteractionCandidates(bot.getId(), Set.of(bot.getId()), false);
+
+        assertThat(result).extracting(CandidatePost::id).containsExactly(olderTrueAb.getId());
+    }
+
+    private Vote saveVoteWithoutMember(String title) {
+        return inTransaction(() -> {
+            Vote vote = Vote.builder()
+                    .member(null)
+                    .title(title)
+                    .content("content")
+                    .category(VoteCategory.FOOD)
+                    .totalVoteCount(0)
+                    .pinType(com.valanse.valanse.domain.enums.PinType.NONE)
+                    .build();
+            vote.addVoteOption(VoteOption.builder().content("option-A").label(VoteLabel.A).voteCount(0).build());
+            vote.addVoteOption(VoteOption.builder().content("option-B").label(VoteLabel.B).voteCount(0).build());
+            return voteRepository.saveAndFlush(vote);
+        });
+    }
+
+    private Vote saveVoteWithLabels(Member member, String title, VoteCategory category, VoteLabel... labels) {
+        return inTransaction(() -> {
+            Member managedMember = memberRepository.findById(member.getId()).orElseThrow();
+            Vote vote = Vote.builder()
+                    .member(managedMember)
+                    .title(title)
+                    .content("content")
+                    .category(category)
+                    .totalVoteCount(0)
+                    .pinType(com.valanse.valanse.domain.enums.PinType.NONE)
+                    .build();
+            for (VoteLabel label : labels) {
+                vote.addVoteOption(VoteOption.builder()
+                        .content("option-" + label)
+                        .label(label)
+                        .voteCount(0)
+                        .build());
+            }
+            return voteRepository.saveAndFlush(vote);
+        });
+    }
+
+    private Long voteCountLastId(int voteCount) {
+        return voteRepository.findAll().stream()
+                .filter(v -> ("cap-vote-" + (voteCount - 1)).equals(v.getTitle()))
+                .findFirst()
+                .orElseThrow()
+                .getId();
+    }
+
+    @Test
     @DisplayName("봇 자신이 작성한 게시글은 후보에서 제외한다")
     void findInteractionCandidates_ExcludesSelfAuthoredVote() {
         Member bot = saveMember("content-seed-bot-102", true);

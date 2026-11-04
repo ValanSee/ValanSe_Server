@@ -29,7 +29,8 @@ public interface VoteService {
     Long createVote(Long userId, VoteCreateRequest request, Map<String, MultipartFile> optionImageFiles);
     PagedVoteResponse getMyVotedVotes(Long memberId, String sort, VoteCategory category, Pageable pageable);
     // /votes get 메서드 cursor기반으로 변경
-    VoteListResponse getVotesByCategoryAndSort(Member loginUser, String category, String sort, String cursor, int size);
+    VoteListResponse getVotesByCategoryAndSort(
+            Member loginUser, String category, String sort, String cursor, int size, Boolean isBot);
     void deleteVote(Long userId, Long voteId);
     // 관리자의 고정 기능
     void updatePinStatus(Member member, Long voteId, PinType pinType);

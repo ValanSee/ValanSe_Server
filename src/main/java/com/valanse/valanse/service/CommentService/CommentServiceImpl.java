@@ -238,6 +238,21 @@ public class CommentServiceImpl implements CommentService {
     }
 
     /**
+     * 관리자(CMS) 콘텐츠 검수용 댓글 통합 목록(부모+대댓글, 최신순)을 조회하는 메서드입니다.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public PagedAdminCommentResponse getAdminComments(Boolean isBot, Pageable pageable) {
+        Slice<AdminCommentResponseDto> slice = commentRepository.findAdminCommentsSlice(isBot, pageable);
+        return PagedAdminCommentResponse.builder()
+                .comments(slice.getContent())
+                .page(pageable.getPageNumber())
+                .size(pageable.getPageSize())
+                .hasNext(slice.hasNext())
+                .build();
+    }
+
+    /**
      * 로그인 사용자가 좋아요를 누른 댓글 id를 한 번의 쿼리로 조회하는 메서드입니다. (N+1 방지)
      * 비로그인이거나 조회 대상이 없으면 쿼리 없이 빈 집합을 반환합니다.
      */

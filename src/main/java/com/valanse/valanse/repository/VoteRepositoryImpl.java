@@ -42,11 +42,18 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
      * 투표 목록 커서 페이지네이션에 필요한 ID 조회와 fetch join 조회를 수행하는 메서드입니다.
      */
     @Override
-    public List<Vote> findVotesByCursor(String category, String sort, String cursor, int size) {
+    public List<Vote> findVotesByCursor(String category, String sort, String cursor, int size, Boolean isBot) {
 
         List<Predicate> whereConditions = new ArrayList<>();
         if (!"ALL".equalsIgnoreCase(category)) {
             whereConditions.add(vote.category.eq(VoteCategory.valueOf(category.toUpperCase())));
+        }
+        if (Boolean.TRUE.equals(isBot)) {
+            whereConditions.add(member.isBot.isTrue());
+        } else if (Boolean.FALSE.equals(isBot)) {
+            // 퍼지(SoftDeletePurgeService)로 member_id가 null이 된 투표는 일반 회원
+            // 작성 투표로 취급한다 - member가 없으면(leftJoin 매칭 없음) isBot도 제외하지 않는다.
+            whereConditions.add(member.isNull().or(member.isBot.isFalse()));
         }
 
         // 1. orderBy를 먼저 설정하여 어떤 정렬 기준을 사용할지 결정
@@ -94,6 +101,7 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
         List<Long> voteIds = queryFactory
                 .select(vote.id)
                 .from(vote)
+                .leftJoin(vote.member, member)
                 .where(whereConditions.toArray(new Predicate[0]))
                 .orderBy(orderBy)
                 .limit(size + 1) // 다음 페이지 존재 여부 확인

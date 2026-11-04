@@ -645,10 +645,11 @@ public class VoteServiceImpl implements VoteService {
      * 커서 기반 페이지네이션으로 투표 목록을 조회하고 목록 응답 DTO를 구성하는 메서드입니다.
      */
     @Override
-    public VoteListResponse getVotesByCategoryAndSort(Member loginUser, String category, String sort, String cursor, int size) {
+    public VoteListResponse getVotesByCategoryAndSort(
+            Member loginUser, String category, String sort, String cursor, int size, Boolean isBot) {
         validateVoteListRequest(category, sort, cursor, size);
 
-        List<Vote> votes = voteRepository.findVotesByCursor(category, sort, cursor, size);
+        List<Vote> votes = voteRepository.findVotesByCursor(category, sort, cursor, size, isBot);
 
         boolean hasNext = votes.size() > size;
         String nextCursor = null;

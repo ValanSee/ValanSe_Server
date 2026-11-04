@@ -59,7 +59,7 @@ public class ContentSeedOrchestrator {
 
         List<ContentSeedBatchOutcome> interactionOutcomes = new ArrayList<>();
         for (Member bot : bots) {
-            interactionOutcomes.add(generateInteractionsForBot(bot, thisRunBotMemberIds, usage));
+            interactionOutcomes.add(generateInteractionsForBot(bot, thisRunBotMemberIds, usage, true));
         }
 
         return new ContentSeedRunResult(
@@ -70,13 +70,16 @@ public class ContentSeedOrchestrator {
     // 게시글 생성 단계(generatePostsForBot)는 호출하지 않는다. 이번 실행에서 새로 저장되는
     // 게시글이 없으므로 "이번 실행 봇 글" 우선순위 태그 대상도 없다 - 빈 집합을 넘겨 모든
     // 기존 봇 글이 "기존 봇 글" 우선순위로 정확히 분류되게 한다(priorityTier 참고).
+    // 이슈 #328: 관리자 댓글 전용 수동 실행은 targetVoteLookbackDays 제한 없이 전체
+    // 게시글을 후보로 조회한다(applyRecencyLimit=false) - 주간 자동 생성(run())만 7일
+    // 제한을 유지한다.
     public ContentSeedRunResult runCommentsOnly() {
         List<Member> bots = botAccountSelector.selectActiveBots();
         UsageAccumulator usage = new UsageAccumulator();
 
         List<ContentSeedBatchOutcome> interactionOutcomes = new ArrayList<>();
         for (Member bot : bots) {
-            interactionOutcomes.add(generateInteractionsForBot(bot, Set.of(), usage));
+            interactionOutcomes.add(generateInteractionsForBot(bot, Set.of(), usage, false));
         }
 
         return new ContentSeedRunResult(
@@ -139,13 +142,17 @@ public class ContentSeedOrchestrator {
     }
 
     private ContentSeedBatchOutcome generateInteractionsForBot(
-            Member bot, Set<Long> thisRunBotMemberIds, UsageAccumulator usage) {
+            Member bot, Set<Long> thisRunBotMemberIds, UsageAccumulator usage, boolean applyRecencyLimit) {
         int target = properties.getInteractionsPerBot();
         List<ContentSeedItemFailure> failures = new ArrayList<>();
         int saved = 0;
 
         try {
-            List<CandidatePost> candidates = candidateQueryService.findInteractionCandidates(bot.getId(), thisRunBotMemberIds);
+            // applyRecencyLimit=true(run())는 기존 2-인자 메서드를 그대로 호출해 호출
+            // 시그니처를 유지한다 - run()의 기존 동작·테스트에 영향을 주지 않기 위함.
+            List<CandidatePost> candidates = applyRecencyLimit
+                    ? candidateQueryService.findInteractionCandidates(bot.getId(), thisRunBotMemberIds)
+                    : candidateQueryService.findInteractionCandidates(bot.getId(), thisRunBotMemberIds, false);
             if (candidates.isEmpty()) {
                 return new ContentSeedBatchOutcome(bot.getId(), target, 0, failures);
             }
