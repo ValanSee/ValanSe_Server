@@ -226,7 +226,8 @@ public class VoteController {
         summary = "카테고리별/정렬 방식별 투표 목록 조회",
         description = "카테고리와 정렬 기준에 따라 투표 목록을 조회합니다. 'category' 파라미터는 'ALL', 'FOOD', 'LOVE', 'BUY', 'SPORT', 'WORRY', 'ETC' 중 하나를 받을 수 있으며, 'sort' 파라미터는 'popular' (인기순) 또는 'latest' (최신순) 중 하나를 받습니다. 페이징을 지원합니다. \n" +
                 " ALL은 대소문자 구분없이 String으로 내부에서 처리합니다. FOOD, LOVE, BUY, SPORT, WORRY, ETC는 enum 타입으로 내부에서 처리됩니다. 만약에 category와 sort 파라미터가 없다면 모두 기본값인 ALL 과 latest로 자동 처리됩니다.\n" +
-                " 그러나 category = , sort= 와 같이 =뒤에 비어있는 경우는 불가능합니다. 아예 존재하지 않을 경우만 기본값으로 설정됩니다."
+                " 그러나 category = , sort= 와 같이 =뒤에 비어있는 경우는 불가능합니다. 아예 존재하지 않을 경우만 기본값으로 설정됩니다.\n" +
+                " 'isBot' 파라미터를 지정하지 않으면 봇/일반 회원 게시글을 모두 조회하고, true/false로 지정하면 해당 작성자 유형만 조회합니다."
 )
 /**
  * Votes 정보를 조회하는 메서드입니다.
@@ -236,7 +237,8 @@ public ResponseEntity<VoteListResponse> getVotes(
         @RequestParam(value = "category", required = false, defaultValue = "ALL") String category,
         @RequestParam(value = "sort", required = false, defaultValue = "latest") String sort,
         @RequestParam(value = "cursor", required = false) String cursor, // 변경된 파라미터
-        @RequestParam(value = "size", defaultValue = "10") int size
+        @RequestParam(value = "size", defaultValue = "10") int size,
+        @RequestParam(value = "isBot", required = false) Boolean isBot
 ) {
     // Pageable 객체 대신 cursor, size를 직접 전달
     Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -253,7 +255,7 @@ public ResponseEntity<VoteListResponse> getVotes(
         }
     }
 
-    VoteListResponse response = voteService.getVotesByCategoryAndSort(member, category, sort, cursor, size);
+    VoteListResponse response = voteService.getVotesByCategoryAndSort(member, category, sort, cursor, size, isBot);
     return ResponseEntity.ok(response);
 }
 

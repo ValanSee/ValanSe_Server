@@ -19,4 +19,7 @@ public interface CommentService {
     PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable,Long userId, Boolean isAdmin);
     BestCommentResponseDto getBestCommentByVoteId(Long voteId);
     PagedCommentReplyResponse getReplies(Member loginUser, Long voteId, Long commentId, Pageable pageable);
+
+    // 관리자(CMS) 콘텐츠 검수용 댓글 통합 목록 조회.
+    PagedAdminCommentResponse getAdminComments(Boolean isBot, Pageable pageable);
 }
