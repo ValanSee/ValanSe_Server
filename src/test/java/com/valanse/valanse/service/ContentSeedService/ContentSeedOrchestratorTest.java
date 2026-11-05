@@ -348,6 +348,109 @@ class ContentSeedOrchestratorTest {
         assertThat(capturedPersona.interestHint()).isNotBlank();
     }
 
+    // M3/REQ-006/AC-013: "같은 봇 게시글 연속" 패턴이 생기지 않도록, 여러 봇의
+    // 게시글 생성 항목이 저장되는 순서가 봇 간에 교차되어야 한다 - 동일 봇의 저장
+    // 호출이 연속 2개를 넘지 않아야 한다.
+    @Test
+    void 여러_봇_게시글_생성에서_동일_봇_저장이_연속_2개를_넘지_않는다() {
+        properties.setPostsPerBot(2);
+        Member bot1 = bot(1L, "닉네임1");
+        Member bot2 = bot(2L, "닉네임2");
+        Member bot3 = bot(3L, "닉네임3");
+        when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot1, bot2, bot3));
+        when(candidateQueryService.findRecentActivePosts()).thenReturn(List.of());
+        when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
+
+        GeneratedPost itemA = new GeneratedPost("제목A", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost itemB = new GeneratedPost("제목B", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        when(contentGenerator.generatePosts(any(), eq(2), any()))
+                .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(itemA, itemB)), 1, 1));
+        when(persistenceService.saveBotPost(any(), any())).thenReturn(1L, 2L, 3L, 4L, 5L, 6L);
+
+        orchestrator.run();
+
+        ArgumentCaptor<Long> botIdCaptor = ArgumentCaptor.forClass(Long.class);
+        verify(persistenceService, times(6)).saveBotPost(botIdCaptor.capture(), any());
+        assertMaxConsecutiveRun(botIdCaptor.getAllValues(), 2);
+    }
+
+    // M3/REQ-006/AC-013/AC-016: run()의 상호작용 단계에서도 동일하게 동일 봇 저장이
+    // 연속 2개를 넘지 않아야 한다(봇과 후보 게시글 조합을 교차 배정).
+    @Test
+    void 여러_봇_상호작용_생성에서도_동일_봇_저장이_연속_2개를_넘지_않는다() {
+        properties.setPostsPerBot(0);
+        properties.setInteractionsPerBot(2);
+        Member bot1 = bot(1L, "닉네임1");
+        Member bot2 = bot(2L, "닉네임2");
+        Member bot3 = bot(3L, "닉네임3");
+        when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot1, bot2, bot3));
+        when(candidateQueryService.findRecentActivePosts()).thenReturn(List.of());
+        when(contentGenerator.generatePosts(any(), anyInt(), any()))
+                .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of()), 1, 1));
+
+        CandidatePost candidateA = new CandidatePost(10L, "제목A", "본문", "A", "B", List.of());
+        CandidatePost candidateB = new CandidatePost(11L, "제목B", "본문", "A", "B", List.of());
+        when(candidateQueryService.findInteractionCandidates(any(), any()))
+                .thenReturn(List.of(candidateA, candidateB));
+
+        GeneratedInteraction interactionA =
+                new GeneratedInteraction(10L, GeneratedInteraction.SelectedOption.A, "댓글A");
+        GeneratedInteraction interactionB =
+                new GeneratedInteraction(11L, GeneratedInteraction.SelectedOption.B, "댓글B");
+        when(contentGenerator.generateInteractions(any(), eq(2), any()))
+                .thenReturn(new GenerationResult<>(new GeneratedInteractionBatch(List.of(interactionA, interactionB)), 1, 1));
+
+        orchestrator.run();
+
+        ArgumentCaptor<Long> botIdCaptor = ArgumentCaptor.forClass(Long.class);
+        verify(persistenceService, times(6)).saveBotInteraction(botIdCaptor.capture(), any());
+        assertMaxConsecutiveRun(botIdCaptor.getAllValues(), 2);
+    }
+
+    // M3/REQ-006/AC-016: runCommentsOnly()에도 run()과 동일한 분산 규칙이 적용되어야
+    // 한다(게시글 생성 없이 상호작용만).
+    @Test
+    void 댓글_전용_실행에서도_동일_봇_저장이_연속_2개를_넘지_않는다() {
+        properties.setInteractionsPerBot(2);
+        Member bot1 = bot(1L, "닉네임1");
+        Member bot2 = bot(2L, "닉네임2");
+        Member bot3 = bot(3L, "닉네임3");
+        when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot1, bot2, bot3));
+
+        CandidatePost candidateA = new CandidatePost(10L, "제목A", "본문", "A", "B", List.of());
+        CandidatePost candidateB = new CandidatePost(11L, "제목B", "본문", "A", "B", List.of());
+        when(candidateQueryService.findInteractionCandidates(any(), any(), eq(false)))
+                .thenReturn(List.of(candidateA, candidateB));
+
+        GeneratedInteraction interactionA =
+                new GeneratedInteraction(10L, GeneratedInteraction.SelectedOption.A, "댓글A");
+        GeneratedInteraction interactionB =
+                new GeneratedInteraction(11L, GeneratedInteraction.SelectedOption.B, "댓글B");
+        when(contentGenerator.generateInteractions(any(), eq(2), any()))
+                .thenReturn(new GenerationResult<>(new GeneratedInteractionBatch(List.of(interactionA, interactionB)), 1, 1));
+
+        orchestrator.runCommentsOnly();
+
+        verify(contentGenerator, never()).generatePosts(any(), anyInt(), any());
+        ArgumentCaptor<Long> botIdCaptor = ArgumentCaptor.forClass(Long.class);
+        verify(persistenceService, times(6)).saveBotInteraction(botIdCaptor.capture(), any());
+        assertMaxConsecutiveRun(botIdCaptor.getAllValues(), 2);
+    }
+
+    private void assertMaxConsecutiveRun(List<Long> saveOrder, int maxAllowed) {
+        int run = 1;
+        for (int i = 1; i < saveOrder.size(); i++) {
+            if (saveOrder.get(i).equals(saveOrder.get(i - 1))) {
+                run++;
+            } else {
+                run = 1;
+            }
+            assertThat(run)
+                    .as("저장 순서 %s 중 인덱스 %d에서 동일 봇(%d) 연속 횟수", saveOrder, i, saveOrder.get(i))
+                    .isLessThanOrEqualTo(maxAllowed);
+        }
+    }
+
     @Test
     void 실패_사유별_개수를_집계한다() {
         ContentSeedBatchOutcome postOutcome = new ContentSeedBatchOutcome(1L, 2, 1, List.of(
