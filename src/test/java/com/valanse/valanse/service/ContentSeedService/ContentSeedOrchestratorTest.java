@@ -437,6 +437,75 @@ class ContentSeedOrchestratorTest {
         assertMaxConsecutiveRun(botIdCaptor.getAllValues(), 2);
     }
 
+    // 코드리뷰 지적: 봇별 유효 항목 수가 크게 다르면(예: 4건 vs 1건) 기존
+    // interleaveRoundRobin(라운드마다 모든 그룹의 round번째 인덱스를 순서대로 추가)이
+    // 짧은 그룹이 먼저 바닥나는 즉시 남은 긴 그룹의 나머지 전부를 꼬리에 몰아
+    // 연속 2개를 넘기는 사례(REQ-006/AC-013 위반)를 재현한다. [4,1]은 수학적으로
+    // 달성 가능한(feasible) 분포다 - maxCount=4, total=5, rest=1이고
+    // 4 <= 2*(5-4+1)=4 를 만족하므로, 올바른 알고리즘이면 연속 2개를 넘지 않는
+    // 배치(예: A,A,B,A,A)를 만들 수 있어야 한다.
+    @Test
+    void 봇별_유효_항목_수가_크게_달라도_feasible한_경우_동일_봇_저장이_연속_2개를_넘지_않는다() {
+        properties.setPostsPerBot(1); // target을 실제 달성량보다 낮게 둬 부족분 재시도가 끼어들지 않게 함
+        Member bot1 = bot(1L, "닉네임1");
+        Member bot2 = bot(2L, "닉네임2");
+        when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot1, bot2));
+        when(candidateQueryService.findRecentActivePosts()).thenReturn(List.of());
+        when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
+
+        GeneratedPost a0 = new GeneratedPost("제목A0", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost a1 = new GeneratedPost("제목A1", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost a2 = new GeneratedPost("제목A2", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost a3 = new GeneratedPost("제목A3", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost b0 = new GeneratedPost("제목B0", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        when(contentGenerator.generatePosts(any(), anyInt(), any()))
+                .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(a0, a1, a2, a3)), 1, 1))
+                .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(b0)), 1, 1));
+        when(persistenceService.saveBotPost(any(), any())).thenReturn(1L, 2L, 3L, 4L, 5L);
+
+        orchestrator.run();
+
+        ArgumentCaptor<Long> botIdCaptor = ArgumentCaptor.forClass(Long.class);
+        verify(persistenceService, times(5)).saveBotPost(botIdCaptor.capture(), any());
+        assertMaxConsecutiveRun(botIdCaptor.getAllValues(), 2);
+    }
+
+    // [5,1](maxCount=5, total=6, rest=1)은 5 <= 2*(6-5+1)=4가 거짓이므로 연속 2개
+    // 이하로는 어떤 알고리즘도 배치할 수 없는 수학적으로 불가능한(infeasible) 분포다.
+    // 이 경우 달성 가능한 최선은 "최소 가능한 최대 연속 길이" 공식
+    // ceil(maxCount / (total - maxCount + 1)) = ceil(5/2) = 3 이다 - 즉 올바른
+    // 탐욕 알고리즘이라면 연속 3개(그 이상은 아님)까지만 허용해야 한다. 기존
+    // interleaveRoundRobin은 이 사례에서 연속 4개(A,A,A,A)를 만들어 그 최적값보다도
+    // 나쁘다 - 이 테스트는 "feasible 영역이 아니라도 가능한 한 최선으로 분산"하는지
+    // 검증한다.
+    @Test
+    void 봇별_유효_항목_수_편차가_극단적인_infeasible_분포에서도_수학적_최선의_분산을_달성한다() {
+        properties.setPostsPerBot(1);
+        Member bot1 = bot(1L, "닉네임1");
+        Member bot2 = bot(2L, "닉네임2");
+        when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot1, bot2));
+        when(candidateQueryService.findRecentActivePosts()).thenReturn(List.of());
+        when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
+
+        GeneratedPost a0 = new GeneratedPost("제목A0", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost a1 = new GeneratedPost("제목A1", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost a2 = new GeneratedPost("제목A2", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost a3 = new GeneratedPost("제목A3", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost a4 = new GeneratedPost("제목A4", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost b0 = new GeneratedPost("제목B0", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        when(contentGenerator.generatePosts(any(), anyInt(), any()))
+                .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(a0, a1, a2, a3, a4)), 1, 1))
+                .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(b0)), 1, 1));
+        when(persistenceService.saveBotPost(any(), any())).thenReturn(1L, 2L, 3L, 4L, 5L, 6L);
+
+        orchestrator.run();
+
+        ArgumentCaptor<Long> botIdCaptor = ArgumentCaptor.forClass(Long.class);
+        verify(persistenceService, times(6)).saveBotPost(botIdCaptor.capture(), any());
+        // feasible 상한(2)이 아니라 infeasible 분포의 수학적 최적값(3)으로 검증한다.
+        assertMaxConsecutiveRun(botIdCaptor.getAllValues(), 3);
+    }
+
     private void assertMaxConsecutiveRun(List<Long> saveOrder, int maxAllowed) {
         int run = 1;
         for (int i = 1; i < saveOrder.size(); i++) {

@@ -75,7 +75,7 @@
 **AC-013** (stage: M3)
 - Given `ContentSeedOrchestrator.run()`이 여러 봇에 대해 게시글/상호작용 생성 작업을 배정할 때
 - When 생성 작업의 실행 순서를 테스트로 관찰하면
-- Then 동일 봇의 작업이 **연속 2개를 넘지 않도록**(3개 이상 연속 금지, REQ-006) 항목 단위로 분산되어 있음이 확인된다.
+- Then 동일 봇의 작업이 **연속 2개를 넘지 않도록**(3개 이상 연속 금지, REQ-006) 항목 단위로 분산되어 있음이 확인된다 — 단, 그 배치 내 봇별 유효 항목 수 분포 `[maxCount, rest...]`가 `maxCount <= 2 * (total - maxCount + 1)`(스케줄링 cooldown 하한)을 만족하는 수학적으로 가능한(feasible) 경우에 한한다. 이 부등식이 거짓인 극단적 편차에서는 수학적으로 가능한 최선(`ceil(maxCount / (total - maxCount + 1))` 연속)까지만 요구한다.
 
 **AC-014** (stage: M3)
 - Given 작성자 배정 분산 로직이 적용된 이후에도

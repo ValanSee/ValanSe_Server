@@ -28,11 +28,15 @@ import java.util.stream.Collectors;
 //
 // M3(REQ-006, plan.md Milestone M3): 생성(+품질검증)과 저장(persist)을 두 단계로
 // 나눈다 - 생성 단계는 기존처럼 봇별로 순차 처리하지만(재요청/실패 격리 로직은
-// 그대로), 실제 저장(saveBotPost/saveBotInteraction) 호출만 봇 간에 라운드로빈으로
-// 교차시킨다(interleaveRoundRobin). 같은 봇의 항목은 한 번에 최대 botCount-1칸
-// 간격으로만 다시 나타나므로, 같은 봇의 작업이 연속 2개를 넘어 이어지지 않는다
-// (AC-013). 목표량/부족분 재시도/실패 격리는 생성 단계 로직을 그대로 유지하므로
-// 기존과 동일하게 동작한다(AC-014/AC-015).
+// 그대로), 실제 저장(saveBotPost/saveBotInteraction) 호출만 봇 간에 탐욕(greedy)
+// 알고리즘으로 교차시킨다(interleaveRoundRobin). 남은 항목이 가장 많은 봇을
+// 우선 배치하고, 같은 봇이 연속 2개가 되면 다른 봇으로 강제 전환하므로, 그
+// 전환이 수학적으로 가능한 분포(그룹 크기 [maxCount, rest...]에서
+// maxCount <= 2*(total-maxCount+1))에서는 같은 봇의 작업이 연속 2개를 넘어
+// 이어지지 않는다(AC-013). 그 부등식이 거짓인 극단적 편차에서는 가능한 최선
+// (연속 ceil(maxCount/(total-maxCount+1))개)까지만 보장한다 - 상세는
+// interleaveRoundRobin의 @MX:DEBT 참고. 목표량/부족분 재시도/실패 격리는
+// 생성 단계 로직을 그대로 유지하므로 기존과 동일하게 동작한다(AC-014/AC-015).
 @Component
 @RequiredArgsConstructor
 public class ContentSeedOrchestrator {
@@ -282,22 +286,72 @@ public class ContentSeedOrchestrator {
         }
     }
 
-    // 봇별 목록들을 라운드로빈으로 교차시킨다(봇1의 0번째, 봇2의 0번째, ..., 봇1의
-    // 1번째, 봇2의 1번째, ...). 각 봇 내부의 순서는 그대로 유지된다. 봇 수가 N이면
-    // 같은 봇의 항목은 최소 N-1칸 간격으로만 다시 나타나므로, 거의 모든 경우에
-    // 동일 봇 연속이 2개를 넘지 않는다(한 봇의 항목 수가 다른 모든 봇보다 2개 넘게
-    // 많아 다른 봇의 목록이 먼저 바닥나는 극단적인 꼬리 구간은 예외).
+    // 봇별 목록들을 "남은 항목이 가장 많은 그룹을 우선 배치하되, 같은 그룹이
+    // 연속 2개를 넘기려는 순간에는 다른 비어있지 않은 그룹으로 강제 전환"하는
+    // 탐욕(greedy) 알고리즘으로 교차시킨다(Task Scheduler/Rearrange String k
+    // Distance Apart류와 동일한 계열). 각 그룹 내부의 순서는 그대로 유지된다.
+    //
+    // 봇별 유효 항목 수가 비슷할 때만 연속을 줄여주던 기존 "라운드마다 모든 그룹의
+    // round번째 인덱스를 추가" 방식과 달리, 그룹 크기가 크게 달라도(예: [4,1]) 동일
+    // 그룹 연속 2개 초과를 피할 수 있는 한 반드시 피한다.
+    //
+    // @MX:DEBT: 그룹 크기 분포 [maxCount, rest...]에서 연속 길이를 2 이하로 유지하는
+    // 배치가 가능한 것은 maxCount <= 2*(total-maxCount+1)일 때뿐이다(스케줄링
+    // "cooldown" 하한). 이 부등식이 거짓인 극단적 편차(예: [5,1], 5 <= 2*(6-5+1)=4가
+    // 거짓)에서는 어떤 알고리즘도 REQ-006(연속 2개 이하)을 완전히 만족시킬 수 없다 -
+    // 이 메서드는 그 경우 수학적으로 가능한 최선(ceil(maxCount/(total-maxCount+1))
+    // 연속)까지만 보장한다.
+    // @MX:CEILING: postsPerBot/interactionsPerBot은 모든 봇에 동일하게 적용되는
+    // 목표량이지만(ContentSeedProperties), 품질 검증 거부·후보 소진으로 인해 한
+    // 실행(firstAttempt 또는 retry 단계 각각)에서 실제로 저장 대기 중인 항목 수는
+    // 봇마다 0~target까지 벌어질 수 있다. 특히 botsPerRun=2로 한 봇의 배치가 전부
+    // 거부되는 극단적 상황에서는 위 부등식이 거짓이 되어 infeasible 영역에 들어갈
+    // 수 있다 - 즉 이 한계는 이론적 가능성이며 무시해도 되는 경계가 아니다.
+    // @MX:UPGRADE: postsPerBot/interactionsPerBot이 봇별로 다른 목표 비율(예: 2:1
+    // 초과)을 설정할 수 있도록 바뀌면, infeasible 영역에 들어갈 가능성이 구조적으로
+    // 높아지므로 이 메서드의 보장 범위를 다시 검토해야 한다.
     private static <T> List<T> interleaveRoundRobin(List<List<T>> perGroupItems) {
-        int maxLen = perGroupItems.stream().mapToInt(List::size).max().orElse(0);
-        List<T> merged = new ArrayList<>();
-        for (int round = 0; round < maxLen; round++) {
-            for (List<T> items : perGroupItems) {
-                if (round < items.size()) {
-                    merged.add(items.get(round));
-                }
-            }
+        int groupCount = perGroupItems.size();
+        int[] cursor = new int[groupCount];
+        int[] remaining = new int[groupCount];
+        int total = 0;
+        for (int i = 0; i < groupCount; i++) {
+            remaining[i] = perGroupItems.get(i).size();
+            total += remaining[i];
+        }
+
+        List<T> merged = new ArrayList<>(total);
+        int lastGroup = -1;
+        int lastRunLength = 0;
+        for (int placed = 0; placed < total; placed++) {
+            int chosen = pickNextGroup(remaining, lastGroup, lastRunLength);
+            merged.add(perGroupItems.get(chosen).get(cursor[chosen]++));
+            remaining[chosen]--;
+            lastRunLength = (chosen == lastGroup) ? lastRunLength + 1 : 1;
+            lastGroup = chosen;
         }
         return merged;
+    }
+
+    // 다음에 배치할 그룹을 고른다: 직전 그룹이 이미 연속 2개째이면(lastRunLength>=2)
+    // 그 그룹을 연속 3개째로 만들지 않도록 제외하고, 남은 그룹 중 remaining이 가장
+    // 큰 그룹을 고른다. 제외 후 고를 수 있는 다른 그룹이 전혀 없으면(= 수학적으로
+    // 불가능한 영역) 어쩔 수 없이 직전 그룹을 다시 선택한다.
+    private static int pickNextGroup(int[] remaining, int lastGroup, int lastRunLength) {
+        boolean avoidLastGroup = lastRunLength >= 2;
+        int best = -1;
+        for (int i = 0; i < remaining.length; i++) {
+            if (remaining[i] <= 0) {
+                continue;
+            }
+            if (avoidLastGroup && i == lastGroup) {
+                continue;
+            }
+            if (best == -1 || remaining[i] > remaining[best]) {
+                best = i;
+            }
+        }
+        return best != -1 ? best : lastGroup;
     }
 
     private static Map<Long, List<ContentSeedItemFailure>> initFailureMap(List<Member> bots) {
