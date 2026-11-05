@@ -11,7 +11,6 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -27,17 +26,6 @@ import java.util.stream.Collectors;
 @Component
 @RequiredArgsConstructor
 public class ContentSeedOrchestrator {
-
-    // 시드 마이그레이션이 부여한 닉네임과 1:1로 맞춘 관심사 힌트. MemberProfile에는
-    // 이 정보를 저장할 필드가 없어 여기서 정적으로 관리한다 - 5개 봇 닉네임이 생성
-    // 카테고리(FOOD/LOVE/BUY/SPORT/WORRY) 5개와 각각 대응하도록 설계되어 있다.
-    private static final Map<String, String> INTEREST_HINT_BY_NICKNAME = Map.of(
-            "한입만판사", "음식",
-            "연애배심원", "연애",
-            "장바구니철학자", "소비·쇼핑",
-            "숨참고승부", "스포츠·승부",
-            "결정은내일", "고민·선택"
-    );
 
     private final BotAccountSelector botAccountSelector;
     private final ClaudeContentGenerator contentGenerator;
@@ -218,8 +206,10 @@ public class ContentSeedOrchestrator {
         if (profile == null) {
             throw new IllegalStateException("봇 회원 " + bot.getId() + "에 프로필이 없습니다.");
         }
-        String interestHint = INTEREST_HINT_BY_NICKNAME.getOrDefault(bot.getNickname(), "");
-        return new BotPersonaContext(bot.getNickname(), profile.getGender(), profile.getAge(), profile.getMbti(), interestHint);
+        BotPersonaCatalog.BotPersonaTraits traits = BotPersonaCatalog.traitsFor(bot.getSocialId());
+        return new BotPersonaContext(
+                bot.getNickname(), profile.getGender(), profile.getAge(), profile.getMbti(),
+                traits.interestHint(), traits.toneExample());
     }
 
     private String describe(Exception e) {

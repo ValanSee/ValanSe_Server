@@ -33,7 +33,10 @@ class SeedContentBotAccountsMigrationTest {
 
     @Test
     void seedsCorrectBotPersonas() throws Exception {
-        migrateToLatest();
+        // V12에서 닉네임이 자연스러운 값으로 교체되므로(M1), V10 자체의 시드 결과만
+        // 검증하려면 V11까지만 적용한다 - migrateToLatest()를 쓰면 V12 교체 후
+        // 닉네임을 검증하게 되어 이 테스트의 원래 의도(V10 시드 검증)와 어긋난다.
+        migrateTo("10");
 
         try (Connection conn = connect()) {
             assertPersona(conn, "content-seed-bot-001", "한입만판사", "FEMALE", "TWENTY", "ENFP");
@@ -53,7 +56,9 @@ class SeedContentBotAccountsMigrationTest {
                     + "VALUES (NOW(6), NOW(6), 'content-seed-bot-001', 'KAKAO', 'USER', '진짜유저', '진짜유저', FALSE)");
         }
 
-        migrateToLatest();
+        // V10 자체의 충돌-스킵 동작만 검증한다 (migrateToLatest() 미사용 이유는
+        // seedsCorrectBotPersonas()와 동일 - V12 닉네임 교체가 끼어들지 않게 함).
+        migrateTo("10");
 
         try (Connection conn = connect()) {
             // 충돌한 기존 회원은 그대로 유지되고, 프로필은 생성되지 않는다.

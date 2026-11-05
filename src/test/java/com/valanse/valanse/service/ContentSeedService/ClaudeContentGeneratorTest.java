@@ -23,7 +23,7 @@ class ClaudeContentGeneratorTest {
     private ClaudeContentGenerator generator;
 
     private final BotPersonaContext persona = new BotPersonaContext(
-            "한입만판사", Gender.FEMALE, Age.TWENTY, "ENFP", "음식·일상");
+            "한입만판사", Gender.FEMALE, Age.TWENTY, "ENFP", "음식·일상", "친근하고 편한 말투");
 
     @BeforeEach
     void setUp() {
@@ -40,6 +40,20 @@ class ClaudeContentGeneratorTest {
                 .contains("TWENTY")
                 .contains("ENFP")
                 .contains("음식·일상");
+    }
+
+    @Test
+    void 게시글_프롬프트에_말투_예시가_포함된다() {
+        String prompt = generator.buildPostPrompt(persona, 3, List.of());
+
+        assertThat(prompt).contains("친근하고 편한 말투");
+    }
+
+    @Test
+    void 상호작용_프롬프트에_말투_예시가_포함된다() {
+        String prompt = generator.buildInteractionPrompt(persona, 1, List.of());
+
+        assertThat(prompt).contains("친근하고 편한 말투");
     }
 
     @Test

@@ -146,6 +146,7 @@ public class ClaudeContentGenerator {
                 .append("연령대: ").append(persona.age()).append("\n")
                 .append("MBTI: ").append(persona.mbti()).append("\n")
                 .append("관심사: ").append(persona.interestHint()).append("\n")
+                .append("말투 예시: ").append(persona.toneExample()).append("\n")
                 .append("위 페르소나의 말투와 관심사에 맞게 자연스러운 한국어 커뮤니티 말투로 작성하세요. ")
                 .append("욕설, 과도한 줄임말, 공격적인 표현은 사용하지 마세요.\n\n");
     }

@@ -318,6 +318,37 @@ class ContentSeedOrchestratorTest {
     }
 
     @Test
+    void 닉네임이_바뀌어도_관심사_매핑은_봇_식별자_기준으로_유지된다() {
+        // REQ-001/AC-004: 관심사·말투 힌트는 닉네임이 아니라 안정적인 social_id로
+        // 조회되어야 한다. 과거 매핑 키였던 닉네임("한입만판사")이 아닌 다른
+        // 닉네임을 쓰더라도 social_id가 같으면 동일한 관심사 힌트를 받아야 한다.
+        properties.setPostsPerBot(1);
+        Member bot = Member.builder()
+                .id(1L)
+                .socialId("content-seed-bot-001")
+                .nickname("새로운닉네임")
+                .isBot(true)
+                .role(Role.USER)
+                .profile(MemberProfile.builder().gender(Gender.FEMALE).age(Age.TWENTY).mbti("ENFP").build())
+                .build();
+        when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot));
+        when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
+        when(contentGenerator.generatePosts(any(), anyInt(), any()))
+                .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of()), 1, 1));
+
+        orchestrator.run();
+
+        ArgumentCaptor<BotPersonaContext> personaCaptor = ArgumentCaptor.forClass(BotPersonaContext.class);
+        verify(contentGenerator, org.mockito.Mockito.atLeastOnce())
+                .generatePosts(personaCaptor.capture(), anyInt(), any());
+        BotPersonaContext capturedPersona = personaCaptor.getValue();
+        assertThat(capturedPersona.nickname()).isEqualTo("새로운닉네임");
+        assertThat(capturedPersona.interestHint())
+                .isEqualTo(BotPersonaCatalog.traitsFor("content-seed-bot-001").interestHint());
+        assertThat(capturedPersona.interestHint()).isNotBlank();
+    }
+
+    @Test
     void 실패_사유별_개수를_집계한다() {
         ContentSeedBatchOutcome postOutcome = new ContentSeedBatchOutcome(1L, 2, 1, List.of(
                 new ContentSeedItemFailure("제목1", "제목 길이 위반(1~25자)")));
