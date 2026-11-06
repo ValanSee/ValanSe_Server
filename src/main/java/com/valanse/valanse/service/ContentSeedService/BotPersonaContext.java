@@ -9,6 +9,7 @@ public record BotPersonaContext(
         Gender gender,
         Age age,
         String mbti,
-        String interestHint
+        String interestHint,
+        String toneExample
 ) {
 }
