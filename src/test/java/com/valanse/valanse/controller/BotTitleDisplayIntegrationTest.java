@@ -92,7 +92,7 @@ class BotTitleDisplayIntegrationTest {
     @WithMockUser(username = "1", roles = "ADMIN")
     @DisplayName("봇에게 직접 부여·장착된 칭호가 CMS 댓글 조회 응답에 null 없이 표시된다")
     void getComments_BotWithGrantedTitle_ShowsTitleNotNull() throws Exception {
-        Member bot = saveMember("content-seed-bot-001", true, "구름위고양이");
+        Member bot = saveMember("content-seed-bot-001", true, "한라봉");
         grantAndEquipTitle(bot, "bot-curator", "AI 큐레이터");
 
         Comment botComment = commentRepository.save(Comment.builder()
@@ -114,7 +114,7 @@ class BotTitleDisplayIntegrationTest {
     @WithMockUser(username = "1", roles = "ADMIN")
     @DisplayName("칭호를 장착하지 않은 작성자의 댓글은 title 필드가 null이다")
     void getComments_AuthorWithoutTitle_ShowsTitleNull() throws Exception {
-        Member bot = saveMember("content-seed-bot-002", true, "노을진오후");
+        Member bot = saveMember("content-seed-bot-002", true, "존이냐");
 
         Comment botComment = commentRepository.save(Comment.builder()
                 .content("저도 그거 궁금했어요").member(bot).commentGroup(commentGroup)

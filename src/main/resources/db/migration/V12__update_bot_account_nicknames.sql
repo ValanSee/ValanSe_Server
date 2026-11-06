@@ -16,96 +16,96 @@
 --      일관성을 보장한다(member 쪽이 충돌로 스킵되면 profile 쪽도 자동으로 스킵됨).
 
 UPDATE member m
-SET m.nickname = '구름위고양이', m.name = '구름위고양이'
+SET m.nickname = '한라봉', m.name = '한라봉'
 WHERE m.social_id = 'content-seed-bot-001'
   AND m.is_bot = TRUE
   AND m.nickname = '한입만판사'
   AND NOT EXISTS (
       SELECT 1 FROM (SELECT id, nickname, deleted_at FROM member) AS m2
-      WHERE m2.nickname = '구름위고양이'
+      WHERE m2.nickname = '한라봉'
         AND m2.deleted_at IS NULL
         AND m2.id <> m.id
   );
 
 UPDATE member_profile mp
 JOIN member m ON m.id = mp.member_id
-SET mp.nickname = '구름위고양이'
+SET mp.nickname = '한라봉'
 WHERE m.social_id = 'content-seed-bot-001'
   AND m.is_bot = TRUE
-  AND m.nickname = '구름위고양이';
+  AND m.nickname = '한라봉';
 
 UPDATE member m
-SET m.nickname = '노을진오후', m.name = '노을진오후'
+SET m.nickname = '존이냐', m.name = '존이냐'
 WHERE m.social_id = 'content-seed-bot-002'
   AND m.is_bot = TRUE
   AND m.nickname = '연애배심원'
   AND NOT EXISTS (
       SELECT 1 FROM (SELECT id, nickname, deleted_at FROM member) AS m2
-      WHERE m2.nickname = '노을진오후'
+      WHERE m2.nickname = '존이냐'
         AND m2.deleted_at IS NULL
         AND m2.id <> m.id
   );
 
 UPDATE member_profile mp
 JOIN member m ON m.id = mp.member_id
-SET mp.nickname = '노을진오후'
+SET mp.nickname = '존이냐'
 WHERE m.social_id = 'content-seed-bot-002'
   AND m.is_bot = TRUE
-  AND m.nickname = '노을진오후';
+  AND m.nickname = '존이냐';
 
 UPDATE member m
-SET m.nickname = '조용한파도', m.name = '조용한파도'
+SET m.nickname = '휴지조각', m.name = '휴지조각'
 WHERE m.social_id = 'content-seed-bot-003'
   AND m.is_bot = TRUE
   AND m.nickname = '장바구니철학자'
   AND NOT EXISTS (
       SELECT 1 FROM (SELECT id, nickname, deleted_at FROM member) AS m2
-      WHERE m2.nickname = '조용한파도'
+      WHERE m2.nickname = '휴지조각'
         AND m2.deleted_at IS NULL
         AND m2.id <> m.id
   );
 
 UPDATE member_profile mp
 JOIN member m ON m.id = mp.member_id
-SET mp.nickname = '조용한파도'
+SET mp.nickname = '휴지조각'
 WHERE m.social_id = 'content-seed-bot-003'
   AND m.is_bot = TRUE
-  AND m.nickname = '조용한파도';
+  AND m.nickname = '휴지조각';
 
 UPDATE member m
-SET m.nickname = '달빛산책자', m.name = '달빛산책자'
+SET m.nickname = '한판더', m.name = '한판더'
 WHERE m.social_id = 'content-seed-bot-004'
   AND m.is_bot = TRUE
   AND m.nickname = '숨참고승부'
   AND NOT EXISTS (
       SELECT 1 FROM (SELECT id, nickname, deleted_at FROM member) AS m2
-      WHERE m2.nickname = '달빛산책자'
+      WHERE m2.nickname = '한판더'
         AND m2.deleted_at IS NULL
         AND m2.id <> m.id
   );
 
 UPDATE member_profile mp
 JOIN member m ON m.id = mp.member_id
-SET mp.nickname = '달빛산책자'
+SET mp.nickname = '한판더'
 WHERE m.social_id = 'content-seed-bot-004'
   AND m.is_bot = TRUE
-  AND m.nickname = '달빛산책자';
+  AND m.nickname = '한판더';
 
 UPDATE member m
-SET m.nickname = '작은별하나', m.name = '작은별하나'
+SET m.nickname = '크림이', m.name = '크림이'
 WHERE m.social_id = 'content-seed-bot-005'
   AND m.is_bot = TRUE
   AND m.nickname = '결정은내일'
   AND NOT EXISTS (
       SELECT 1 FROM (SELECT id, nickname, deleted_at FROM member) AS m2
-      WHERE m2.nickname = '작은별하나'
+      WHERE m2.nickname = '크림이'
         AND m2.deleted_at IS NULL
         AND m2.id <> m.id
   );
 
 UPDATE member_profile mp
 JOIN member m ON m.id = mp.member_id
-SET mp.nickname = '작은별하나'
+SET mp.nickname = '크림이'
 WHERE m.social_id = 'content-seed-bot-005'
   AND m.is_bot = TRUE
-  AND m.nickname = '작은별하나';
+  AND m.nickname = '크림이';

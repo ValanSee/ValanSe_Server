@@ -38,11 +38,11 @@ class BotPersonaNicknameMigrationTest {
         migrateToLatest();
 
         try (Connection conn = connect()) {
-            assertNickname(conn, "content-seed-bot-001", "구름위고양이");
-            assertNickname(conn, "content-seed-bot-002", "노을진오후");
-            assertNickname(conn, "content-seed-bot-003", "조용한파도");
-            assertNickname(conn, "content-seed-bot-004", "달빛산책자");
-            assertNickname(conn, "content-seed-bot-005", "작은별하나");
+            assertNickname(conn, "content-seed-bot-001", "한라봉");
+            assertNickname(conn, "content-seed-bot-002", "존이냐");
+            assertNickname(conn, "content-seed-bot-003", "휴지조각");
+            assertNickname(conn, "content-seed-bot-004", "한판더");
+            assertNickname(conn, "content-seed-bot-005", "크림이");
         }
     }
 
@@ -51,9 +51,9 @@ class BotPersonaNicknameMigrationTest {
         migrateToLatest();
 
         try (Connection conn = connect()) {
-            assertThat(memberNickname(conn, "content-seed-bot-001")).isEqualTo("구름위고양이");
-            assertThat(memberName(conn, "content-seed-bot-001")).isEqualTo("구름위고양이");
-            assertThat(profileNickname(conn, "content-seed-bot-001")).isEqualTo("구름위고양이");
+            assertThat(memberNickname(conn, "content-seed-bot-001")).isEqualTo("한라봉");
+            assertThat(memberName(conn, "content-seed-bot-001")).isEqualTo("한라봉");
+            assertThat(profileNickname(conn, "content-seed-bot-001")).isEqualTo("한라봉");
         }
     }
 
@@ -65,21 +65,21 @@ class BotPersonaNicknameMigrationTest {
 
         try (Connection conn = connect(); Statement st = conn.createStatement()) {
             st.execute("INSERT INTO member (created_at, updated_at, social_id, social_type, role, name, nickname, is_bot) "
-                    + "VALUES (NOW(6), NOW(6), 'real-user-001', 'KAKAO', 'USER', '구름위고양이', '구름위고양이', FALSE)");
+                    + "VALUES (NOW(6), NOW(6), 'real-user-001', 'KAKAO', 'USER', '한라봉', '한라봉', FALSE)");
         }
 
         migrateToLatest();
 
         try (Connection conn = connect()) {
-            // bot-001의 새 닉네임('구름위고양이')이 실제 회원과 충돌하므로 교체가 스킵된다.
+            // bot-001의 새 닉네임('한라봉')이 실제 회원과 충돌하므로 교체가 스킵된다.
             assertThat(memberNickname(conn, "content-seed-bot-001")).isEqualTo("한입만판사");
             assertThat(profileNickname(conn, "content-seed-bot-001")).isEqualTo("한입만판사");
 
             // 충돌하지 않은 나머지 4개 봇은 정상적으로 교체된다.
-            assertNickname(conn, "content-seed-bot-002", "노을진오후");
-            assertNickname(conn, "content-seed-bot-003", "조용한파도");
-            assertNickname(conn, "content-seed-bot-004", "달빛산책자");
-            assertNickname(conn, "content-seed-bot-005", "작은별하나");
+            assertNickname(conn, "content-seed-bot-002", "존이냐");
+            assertNickname(conn, "content-seed-bot-003", "휴지조각");
+            assertNickname(conn, "content-seed-bot-004", "한판더");
+            assertNickname(conn, "content-seed-bot-005", "크림이");
         }
     }
 
@@ -89,7 +89,7 @@ class BotPersonaNicknameMigrationTest {
         executeSqlFile(V12_FILE); // Flyway 밖에서 같은 SQL을 한 번 더 직접 실행
 
         try (Connection conn = connect()) {
-            assertNickname(conn, "content-seed-bot-001", "구름위고양이");
+            assertNickname(conn, "content-seed-bot-001", "한라봉");
             assertThat(memberCount(conn)).isEqualTo(5);
             assertThat(profileCount(conn)).isEqualTo(5);
         }
