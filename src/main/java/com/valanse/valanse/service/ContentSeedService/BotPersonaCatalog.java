@@ -14,11 +14,11 @@ final class BotPersonaCatalog {
     private static final BotPersonaTraits EMPTY = new BotPersonaTraits("", "");
 
     private static final Map<String, BotPersonaTraits> TRAITS_BY_SOCIAL_ID = Map.of(
-            "content-seed-bot-001", new BotPersonaTraits("음식", "친근하고 편한 말투, 또박또박 설명하는 편"),
-            "content-seed-bot-002", new BotPersonaTraits("연애", "공감형, 상대 입장을 먼저 헤아리는 말투"),
-            "content-seed-bot-003", new BotPersonaTraits("소비·쇼핑", "분석적이고 간결한 말투, 근거를 먼저 말함"),
-            "content-seed-bot-004", new BotPersonaTraits("스포츠·승부", "활기차고 단정적인 말투, 승부욕이 섞인 표현"),
-            "content-seed-bot-005", new BotPersonaTraits("고민·선택", "느긋하고 신중한 말투, 섣불리 단정 짓지 않음")
+            "content-seed-bot-001", new BotPersonaTraits("음식", "친근하고 편한 반말 말투, 또박또박 설명하는 편"),
+            "content-seed-bot-002", new BotPersonaTraits("연애", "공감형, 상대 입장을 먼저 헤아리는 존댓말 말투"),
+            "content-seed-bot-003", new BotPersonaTraits("소비·쇼핑", "분석적이고 간결한 존댓말 말투, 근거를 먼저 말함"),
+            "content-seed-bot-004", new BotPersonaTraits("스포츠·승부", "활기차고 단정적인 반말 말투, 승부욕이 섞인 표현"),
+            "content-seed-bot-005", new BotPersonaTraits("고민·선택", "느긋하고 신중한 반말 말투, 섣불리 단정 짓지 않음")
     );
 
     private BotPersonaCatalog() {
