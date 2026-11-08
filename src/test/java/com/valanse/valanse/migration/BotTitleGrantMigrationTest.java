@@ -15,20 +15,19 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * V13 봇 칭호 지급 마이그레이션(M4, REQ-010/011/AC-017~020)을 실제 MySQL 컨테이너에
- * 적용해 검증하는 테스트입니다. SeedContentBotAccountsMigrationTest/
- * BotPersonaNicknameMigrationTest와 동일한 패턴입니다.
- */
 @Testcontainers
 class BotTitleGrantMigrationTest {
 
     private static final Path MIGRATION_DIR = Path.of("src/main/resources/db/migration");
-    private static final String V13_FILE = "V13__grant_bot_default_title.sql";
+    private static final String V14_FILE = "V14__replace_bot_title_with_random_existing_titles.sql";
     private static final List<String> BOT_SOCIAL_IDS = List.of(
             "content-seed-bot-001", "content-seed-bot-002", "content-seed-bot-003",
             "content-seed-bot-004", "content-seed-bot-005");
@@ -37,43 +36,74 @@ class BotTitleGrantMigrationTest {
     private final MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.0");
 
     @Test
-    void 모든_활성_봇에_유효한_칭호가_장착된다() throws Exception {
+    void 기존_활성_칭호를_봇마다_하나씩_장착한다() throws Exception {
+        migrateToV13();
+        seedExistingTitles(5);
         migrateToLatest();
 
         try (Connection conn = connect()) {
+            Set<String> equippedTitleCodes = new HashSet<>();
             for (String socialId : BOT_SOCIAL_IDS) {
-                assertThat(equippedTitleName(conn, socialId))
-                        .as("bot %s 장착 칭호", socialId)
-                        .isNotNull()
-                        .isNotBlank();
+                String titleCode = equippedTitleCode(conn, socialId);
+                assertThat(titleCode).startsWith("existing-title-");
+                assertThat(equippedTitleCount(conn, socialId)).isEqualTo(1);
+                equippedTitleCodes.add(titleCode);
             }
-        }
-    }
-
-    // AC-017/AC-020: 새로 생성된 봇 전용 칭호는 active=FALSE여야 한다 - 그래야
-    // TitleServiceImpl.getTitleList()의 지연 자동지급(활성 DEFAULT 칭호만 순회)
-    // 대상에서 제외되어 일반 회원에게 노출되지 않는다.
-    @Test
-    void 새로_생성된_봇_전용_칭호는_비활성_상태다() throws Exception {
-        migrateToLatest();
-
-        try (Connection conn = connect()) {
-            assertThat(titleActive(conn, "bot-curator")).isFalse();
-            assertThat(titleAcquisitionType(conn, "bot-curator")).isEqualTo("DEFAULT");
+            assertThat(equippedTitleCodes).hasSize(5);
         }
     }
 
     @Test
-    void 재실행해도_member_profile_title에_중복_row가_생기지_않는다() throws Exception {
+    void 활성_칭호가_부족하면_중복을_허용해_모든_봇에_장착한다() throws Exception {
+        migrateToV13();
+        seedExistingTitles(2);
         migrateToLatest();
-        executeSqlFile(V13_FILE); // Flyway 밖에서 같은 SQL을 한 번 더 직접 실행
 
         try (Connection conn = connect()) {
+            Set<String> equippedTitleCodes = new HashSet<>();
             for (String socialId : BOT_SOCIAL_IDS) {
-                assertThat(memberProfileTitleRowCount(conn, socialId)).isEqualTo(1);
+                equippedTitleCodes.add(equippedTitleCode(conn, socialId));
             }
-            assertThat(titleRowCount(conn, "bot-curator")).isEqualTo(1);
+            assertThat(equippedTitleCodes).hasSize(2);
         }
+    }
+
+    @Test
+    void AI_큐레이터_칭호를_제거한다() throws Exception {
+        migrateToV13();
+        seedExistingTitles(5);
+        migrateToLatest();
+
+        try (Connection conn = connect()) {
+            assertThat(titleRowCount(conn, "bot-curator")).isZero();
+        }
+    }
+
+    @Test
+    void 재실행해도_최초_배정된_칭호를_유지한다() throws Exception {
+        migrateToV13();
+        seedExistingTitles(5);
+        migrateToLatest();
+
+        try (Connection conn = connect()) {
+            Map<String, String> initialAssignments = equippedTitleAssignments(conn);
+
+            executeSqlFile(V14_FILE);
+
+            assertThat(equippedTitleAssignments(conn)).isEqualTo(initialAssignments);
+            for (String socialId : BOT_SOCIAL_IDS) {
+                assertThat(equippedTitleCount(conn, socialId)).isEqualTo(1);
+            }
+        }
+    }
+
+    private void migrateToV13() {
+        Flyway.configure()
+                .dataSource(mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword())
+                .locations("classpath:db/migration")
+                .target("13")
+                .load()
+                .migrate();
     }
 
     private void migrateToLatest() {
@@ -82,6 +112,21 @@ class BotTitleGrantMigrationTest {
                 .locations("classpath:db/migration")
                 .load()
                 .migrate();
+    }
+
+    private void seedExistingTitles(int count) throws SQLException {
+        String sql = "INSERT INTO title "
+                + "(code, name, description, price, tier, acquisition_type, requirement_text, active, display_order) "
+                + "VALUES (?, ?, NULL, 0, 'BASIC', 'DEFAULT', NULL, TRUE, ?)";
+        try (Connection conn = connect(); var ps = conn.prepareStatement(sql)) {
+            for (int index = 1; index <= count; index++) {
+                ps.setString(1, "existing-title-" + index);
+                ps.setString(2, "기존 칭호 " + index);
+                ps.setInt(3, index);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
     }
 
     private void executeSqlFile(String fileName) throws IOException, SQLException {
@@ -100,8 +145,8 @@ class BotTitleGrantMigrationTest {
         return DriverManager.getConnection(mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword());
     }
 
-    private String equippedTitleName(Connection conn, String socialId) throws SQLException {
-        String sql = "SELECT t.name FROM member m "
+    private String equippedTitleCode(Connection conn, String socialId) throws SQLException {
+        String sql = "SELECT t.code FROM member m "
                 + "JOIN member_profile_title mpt ON mpt.member_profile_id = m.id AND mpt.equipped = TRUE "
                 + "JOIN title t ON t.id = mpt.title_id "
                 + "WHERE m.social_id = ?";
@@ -113,29 +158,9 @@ class BotTitleGrantMigrationTest {
         }
     }
 
-    private boolean titleActive(Connection conn, String code) throws SQLException {
-        try (var ps = conn.prepareStatement("SELECT active FROM title WHERE code = ?")) {
-            ps.setString(1, code);
-            try (ResultSet rs = ps.executeQuery()) {
-                rs.next();
-                return rs.getBoolean(1);
-            }
-        }
-    }
-
-    private String titleAcquisitionType(Connection conn, String code) throws SQLException {
-        try (var ps = conn.prepareStatement("SELECT acquisition_type FROM title WHERE code = ?")) {
-            ps.setString(1, code);
-            try (ResultSet rs = ps.executeQuery()) {
-                rs.next();
-                return rs.getString(1);
-            }
-        }
-    }
-
-    private int memberProfileTitleRowCount(Connection conn, String socialId) throws SQLException {
+    private int equippedTitleCount(Connection conn, String socialId) throws SQLException {
         String sql = "SELECT COUNT(*) FROM member m "
-                + "JOIN member_profile_title mpt ON mpt.member_profile_id = m.id "
+                + "JOIN member_profile_title mpt ON mpt.member_profile_id = m.id AND mpt.equipped = TRUE "
                 + "WHERE m.social_id = ?";
         try (var ps = conn.prepareStatement(sql)) {
             ps.setString(1, socialId);
@@ -144,6 +169,14 @@ class BotTitleGrantMigrationTest {
                 return rs.getInt(1);
             }
         }
+    }
+
+    private Map<String, String> equippedTitleAssignments(Connection conn) throws SQLException {
+        Map<String, String> assignments = new HashMap<>();
+        for (String socialId : BOT_SOCIAL_IDS) {
+            assignments.put(socialId, equippedTitleCode(conn, socialId));
+        }
+        return assignments;
     }
 
     private int titleRowCount(Connection conn, String code) throws SQLException {
