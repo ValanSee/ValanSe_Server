@@ -93,7 +93,7 @@ class BotTitleDisplayIntegrationTest {
     @DisplayName("봇에게 직접 부여·장착된 칭호가 CMS 댓글 조회 응답에 null 없이 표시된다")
     void getComments_BotWithGrantedTitle_ShowsTitleNotNull() throws Exception {
         Member bot = saveMember("content-seed-bot-001", true, "한라봉");
-        grantAndEquipTitle(bot, "bot-curator", "AI 큐레이터");
+        grantAndEquipTitle(bot, "existing-title", "기존 칭호");
 
         Comment botComment = commentRepository.save(Comment.builder()
                 .content("이 중에 고민이면 그냥 둘 다 드세요").member(bot).commentGroup(commentGroup)
@@ -104,7 +104,7 @@ class BotTitleDisplayIntegrationTest {
                 .andExpect(jsonPath("$.comments.length()").value(1))
                 .andExpect(jsonPath("$.comments[0].commentId").value(botComment.getId()))
                 .andExpect(jsonPath("$.comments[0].isBot").value(true))
-                .andExpect(jsonPath("$.comments[0].title").value("AI 큐레이터"));
+                .andExpect(jsonPath("$.comments[0].title").value("기존 칭호"));
     }
 
     // 칭호가 없는(장착하지 않은) 작성자의 댓글은 title 필드가 null이어야 한다 -
