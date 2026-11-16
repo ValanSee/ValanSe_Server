@@ -31,6 +31,7 @@ import java.time.LocalDateTime; // 기존 코드에 있었으므로 유지
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List; // 기존 코드에 있었으므로 유지
 import java.util.Map;
@@ -489,6 +490,7 @@ public class VoteServiceImpl implements VoteService {
         }
 
         List<VoteDetailResponse.VoteOptionDto> optionDtos = vote.getVoteOptions().stream()
+                .sorted(Comparator.comparing(VoteOption::getLabel)) // 선택지는 항상 A, B, C, D 순으로 노출
                 .map(option -> VoteDetailResponse.VoteOptionDto.builder()
                         .optionId(option.getId())
                         .content(option.getContent())
@@ -682,10 +684,12 @@ public class VoteServiceImpl implements VoteService {
                     }
 
                     List<VoteListResponse.VoteOptionListDto> optionListDtos = vote.getVoteOptions().stream()
+                            .sorted(Comparator.comparing(VoteOption::getLabel)) // 선택지는 항상 A, B, C, D 순으로 노출
                             .map(option -> VoteListResponse.VoteOptionListDto.builder()
                                     .id(option.getId())
                                     .content(option.getContent())
                                     .imageUrl(option.getImageUrl())
+                                    .label(option.getLabel().name())
                                     .build())
                             .collect(Collectors.toList());
 

@@ -13,6 +13,7 @@ import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import com.valanse.valanse.dto.Vote.VoteCancleResponseDto;
 import com.valanse.valanse.dto.Vote.VoteCreateRequest;
 import com.valanse.valanse.dto.Vote.VoteDetailResponse;
+import com.valanse.valanse.dto.Vote.VoteListResponse;
 import com.valanse.valanse.dto.Vote.TrendingDisplayType;
 import com.valanse.valanse.dto.Vote.TrendingScoreType;
 import com.valanse.valanse.dto.Vote.TrendingVoteScore;
@@ -37,6 +38,7 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -536,6 +538,65 @@ class VoteServiceImplTest {
 
         assertThat(result.getHasVoted()).isTrue();
         assertThat(result.getVotedOptionLabel()).isEqualTo("A");
+    }
+
+    @Test
+    @DisplayName("저장 순서가 뒤섞여 있어도 투표 상세 선택지는 A, B, C, D 순으로 반환된다")
+    void 투표상세조회_선택지_라벨순정렬() {
+        Authentication auth = mock(Authentication.class);
+        when(auth.getName()).thenReturn("anonymousUser");
+        SecurityContext ctx = mock(SecurityContext.class);
+        when(ctx.getAuthentication()).thenReturn(auth);
+        SecurityContextHolder.setContext(ctx);
+
+        Vote vote = Vote.builder()
+                .id(10L).title("테스트 투표").totalVoteCount(10).build();
+        // 저장 순서를 C, A, D, B로 뒤섞어 구성
+        vote.addVoteOption(VoteOption.builder().id(3L).content("C선택지").label(VoteLabel.C).build());
+        vote.addVoteOption(VoteOption.builder().id(1L).content("A선택지").label(VoteLabel.A).build());
+        vote.addVoteOption(VoteOption.builder().id(4L).content("D선택지").label(VoteLabel.D).build());
+        vote.addVoteOption(VoteOption.builder().id(2L).content("B선택지").label(VoteLabel.B).build());
+
+        when(voteRepository.findById(10L)).thenReturn(Optional.of(vote));
+
+        VoteDetailResponse result = voteService.getVoteDetailById(10L);
+
+        assertThat(result.getOptions())
+                .extracting(VoteDetailResponse.VoteOptionDto::getLabel)
+                .containsExactly("A", "B", "C", "D");
+        assertThat(result.getOptions())
+                .extracting(VoteDetailResponse.VoteOptionDto::getContent)
+                .containsExactly("A선택지", "B선택지", "C선택지", "D선택지");
+    }
+
+    // ──────────────────────────────────────────────
+    // getVotesByCategoryAndSort
+    // ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("저장 순서가 뒤섞여 있어도 투표 목록 선택지는 label과 함께 A, B, C, D 순으로 반환된다")
+    void 투표목록조회_선택지_라벨순정렬() {
+        Vote vote = Vote.builder()
+                .id(10L).title("테스트 투표").category(VoteCategory.ALL).totalVoteCount(0).build();
+        // 저장 순서를 C, A, D, B로 뒤섞어 구성
+        vote.addVoteOption(VoteOption.builder().id(3L).content("C선택지").label(VoteLabel.C).build());
+        vote.addVoteOption(VoteOption.builder().id(1L).content("A선택지").label(VoteLabel.A).build());
+        vote.addVoteOption(VoteOption.builder().id(4L).content("D선택지").label(VoteLabel.D).build());
+        vote.addVoteOption(VoteOption.builder().id(2L).content("B선택지").label(VoteLabel.B).build());
+
+        when(voteRepository.findVotesByCursor("ALL", "latest", null, 10, null))
+                .thenReturn(new ArrayList<>(List.of(vote)));
+
+        VoteListResponse result = voteService.getVotesByCategoryAndSort(
+                null, "ALL", "latest", null, 10, null);
+
+        assertThat(result.getVotes()).hasSize(1);
+        assertThat(result.getVotes().get(0).getOptions())
+                .extracting(VoteListResponse.VoteOptionListDto::getLabel)
+                .containsExactly("A", "B", "C", "D");
+        assertThat(result.getVotes().get(0).getOptions())
+                .extracting(VoteListResponse.VoteOptionListDto::getContent)
+                .containsExactly("A선택지", "B선택지", "C선택지", "D선택지");
     }
 
     // ──────────────────────────────────────────────
