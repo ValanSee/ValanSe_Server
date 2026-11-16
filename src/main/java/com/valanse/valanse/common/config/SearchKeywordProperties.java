@@ -105,7 +105,8 @@ public class SearchKeywordProperties {
 
         private String customerId = "";
 
-        private List<String> hintKeywords = new ArrayList<>();
+        private List<String> hintKeywords = new ArrayList<>(List.of(
+                "밸런스게임", "커플밸런스게임", "연애밸런스게임", "음식밸런스게임", "친구밸런스게임"));
 
         @Positive
         private int maxKeywords = 200;
