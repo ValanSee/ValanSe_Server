@@ -15,13 +15,16 @@ import java.util.Optional;
  * DB 조회와 저장을 담당하는 레포지토리 코드입니다.
  */
 public interface CommentRepositoryCustom {
+    // loginId가 있으면 그 회원이 차단한 작성자의 댓글은 제외한다.
     Slice<CommentResponseDto> findCommentsByVoteIdSlice(Long voteId, String sort, Pageable pageable, Long loginId,boolean isAdmin);
 
     Slice<MyCommentResponseDto> findMyCommentsSlice(Long memberId, String sort, Pageable pageable);
 
+    // loginId가 있으면 그 회원이 차단한 작성자의 대댓글은 제외한다.
     Slice<CommentReplyResponseDto> findRepliesByParentIdSlice(Long voteId, Long parentCommentId, Pageable pageable, Long loginId, boolean isAdmin);
 
-    Optional<Comment> findMostLikedCommentByVoteId(Long voteId);
+    // blockerId(로그인 회원)가 차단한 작성자의 댓글은 제외한다. 비로그인이면 null.
+    Optional<Comment> findMostLikedCommentByVoteId(Long voteId, Long blockerId);
 
     Long countActiveCommentsByVoteId(Long voteId);
 

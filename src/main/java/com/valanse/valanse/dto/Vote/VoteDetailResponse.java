@@ -14,6 +14,7 @@ import java.util.List;
  */
 public class VoteDetailResponse {
     private Long voteId;
+    private Long authorId; // 작성자 회원 id (차단하기용). 퍼지된 작성자면 null
     private String title;
     private String content; // 투표 상세 내용
     private VoteCategory category;

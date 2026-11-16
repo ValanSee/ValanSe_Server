@@ -15,6 +15,8 @@ import java.time.LocalDateTime;
 public class CommentReplyResponseDto {
 
     private Long id;
+    // 대댓글 작성자 회원 id (차단하기용). 탈퇴 후 퍼지된 작성자면 null
+    private Long authorId;
     private String nickname;
     private Boolean isBot;
     private String title;
@@ -32,25 +34,48 @@ public class CommentReplyResponseDto {
     private boolean liked;
 
     /**
-     * CommentReplyResponseDto 의존성을 주입하거나 객체를 초기화하는 생성자입니다.
+     * QueryDSL 조회용 생성자입니다. (작성자 id 포함)
      */
     @QueryProjection
+    public CommentReplyResponseDto(Long id, Long authorId, String nickname, Boolean isBot, String title,
+                                   LocalDateTime createdAt, String content, Integer likeCount, Integer replyCount,
+                                   Boolean isDeleted, LocalDateTime deletedAt, VoteLabel label,
+                                   Long daysAgo, Long hoursAgo, Boolean canDelete) {
+        this(id, authorId, nickname, isBot, title, createdAt, content, likeCount, replyCount, isDeleted, deletedAt,
+                label, daysAgo, hoursAgo, canDelete, false);
+    }
+
+    /**
+     * 작성자 id 없이 생성하는 기존 호환용 생성자입니다.
+     */
     public CommentReplyResponseDto(Long id, String nickname, Boolean isBot, String title, LocalDateTime createdAt,
                                    String content, Integer likeCount, Integer replyCount,
                                    Boolean isDeleted, LocalDateTime deletedAt, VoteLabel label,
                                    Long daysAgo, Long hoursAgo, Boolean canDelete) {
-        this(id, nickname, isBot, title, createdAt, content, likeCount, replyCount, isDeleted, deletedAt, label,
+        this(id, null, nickname, isBot, title, createdAt, content, likeCount, replyCount, isDeleted, deletedAt, label,
                 daysAgo, hoursAgo, canDelete, false);
     }
 
     /**
-     * liked 값을 포함한 전체 필드 생성자입니다. (@Builder 용)
+     * 작성자 id 없이 liked 값을 포함해 생성하는 기존 호환용 생성자입니다.
      */
     public CommentReplyResponseDto(Long id, String nickname, Boolean isBot, String title, LocalDateTime createdAt,
                                    String content, Integer likeCount, Integer replyCount,
                                    Boolean isDeleted, LocalDateTime deletedAt, VoteLabel label,
                                    Long daysAgo, Long hoursAgo, Boolean canDelete, boolean liked) {
+        this(id, null, nickname, isBot, title, createdAt, content, likeCount, replyCount, isDeleted, deletedAt, label,
+                daysAgo, hoursAgo, canDelete, liked);
+    }
+
+    /**
+     * 전체 필드 생성자입니다. (@Builder 용)
+     */
+    public CommentReplyResponseDto(Long id, Long authorId, String nickname, Boolean isBot, String title,
+                                   LocalDateTime createdAt, String content, Integer likeCount, Integer replyCount,
+                                   Boolean isDeleted, LocalDateTime deletedAt, VoteLabel label,
+                                   Long daysAgo, Long hoursAgo, Boolean canDelete, boolean liked) {
         this.id = id;
+        this.authorId = authorId;
         this.nickname = nickname != null ? nickname : "탈퇴한 사용자";
         this.isBot = isBot != null && isBot;
         this.title = title;

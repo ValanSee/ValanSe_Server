@@ -12,7 +12,8 @@ public enum MemberErrorMessage {
     AGE_REQUIRED("나이를 선택해주세요"),
     MBTI_REQUIRED("MBTI를 모두 선택해주세요"),
     MBTI_INVALID_LENGTH("MBTI는 4자리여야 합니다 (예: ENFP)"),
-    NICKNAME_DUPLICATED("이미 사용 중인 닉네임입니다.");
+    NICKNAME_DUPLICATED("이미 사용 중인 닉네임입니다."),
+    CANNOT_BLOCK_SELF("자기 자신은 차단할 수 없습니다.");
 
     private final String message;
 

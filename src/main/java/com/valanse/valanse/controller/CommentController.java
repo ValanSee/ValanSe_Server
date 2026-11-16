@@ -93,7 +93,7 @@ public class CommentController {
      */
     @GetMapping("/best")
     public BestCommentResponseDto getBestComment(@PathVariable("voteId") Long voteId) {
-        return commentService.getBestCommentByVoteId(voteId);
+        return commentService.getBestCommentByVoteId(voteId, SecurityUtils.currentMemberIdOrNull());
     }
 
     @Operation(

@@ -42,9 +42,14 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
      * 투표 목록 커서 페이지네이션에 필요한 ID 조회와 fetch join 조회를 수행하는 메서드입니다.
      */
     @Override
-    public List<Vote> findVotesByCursor(String category, String sort, String cursor, int size, Boolean isBot) {
+    public List<Vote> findVotesByCursor(String category, String sort, String cursor, int size, Boolean isBot, Long blockerId) {
 
         List<Predicate> whereConditions = new ArrayList<>();
+        // 로그인 회원이 차단한 작성자의 투표는 페이지를 자르기 전에(ID 조회 단계에서) 제외한다.
+        Predicate notBlockedAuthor = BlockedAuthorPredicates.authorNotBlockedBy(blockerId, vote.member.id);
+        if (notBlockedAuthor != null) {
+            whereConditions.add(notBlockedAuthor);
+        }
         if (!"ALL".equalsIgnoreCase(category)) {
             whereConditions.add(vote.category.eq(VoteCategory.valueOf(category.toUpperCase())));
         }
@@ -127,9 +132,10 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
     public List<TrendingVoteScore> findTopTrendingVotes(
             LocalDateTime from,
             LocalDateTime to,
-            int limit
+            int limit,
+            Long blockerId
     ) {
-        Query query = entityManager.createNativeQuery("""
+        Query query = entityManager.createNativeQuery(withBlockedAuthorFilter("""
                 SELECT reactions.vote_id,
                        SUM(reactions.vote_count) AS vote_reaction_count,
                        SUM(reactions.comment_count) AS comment_reaction_count,
@@ -165,22 +171,24 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                 ) reactions
                 JOIN vote v ON v.id = reactions.vote_id
                 WHERE v.deleted_at IS NULL
+                  /*BLOCKED_AUTHOR_FILTER*/
                 GROUP BY reactions.vote_id
                 ORDER BY reactivity_score DESC,
                          latest_reaction_at DESC,
                          reactions.vote_id DESC
                 LIMIT :limit
-                """);
+                """, blockerId));
 
         query.setParameter("from", from);
         query.setParameter("to", to);
         query.setParameter("limit", limit);
+        bindBlockerId(query, blockerId);
         return toTrendingVoteScores(query.getResultList());
     }
 
     @Override
-    public List<TrendingVoteScore> findTopAllTimeTrendingVotes(int limit) {
-        Query query = entityManager.createNativeQuery("""
+    public List<TrendingVoteScore> findTopAllTimeTrendingVotes(int limit, Long blockerId) {
+        Query query = entityManager.createNativeQuery(withBlockedAuthorFilter("""
                 SELECT v.id AS vote_id,
                        COALESCE(reactions.vote_count, 0) AS vote_reaction_count,
                        COALESCE(reactions.comment_count, 0) AS comment_reaction_count,
@@ -219,13 +227,15 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                     GROUP BY activity.vote_id
                 ) reactions ON reactions.vote_id = v.id
                 WHERE v.deleted_at IS NULL
+                  /*BLOCKED_AUTHOR_FILTER*/
                 ORDER BY reactivity_score DESC,
                          latest_reaction_at DESC,
                          v.id DESC
                 LIMIT :limit
-                """);
+                """, blockerId));
 
         query.setParameter("limit", limit);
+        bindBlockerId(query, blockerId);
         return toTrendingVoteScores(query.getResultList());
     }
 
@@ -346,6 +356,29 @@ public class VoteRepositoryImpl implements VoteRepositoryCustom {
                 .leftJoin(vote.voteOptions, voteOption).fetchJoin()
                 .where(vote.id.in(voteIds))
                 .fetch();
+    }
+
+    private static final String BLOCKED_AUTHOR_FILTER_PLACEHOLDER = "/*BLOCKED_AUTHOR_FILTER*/";
+    private static final String BLOCKED_AUTHOR_FILTER_SQL = """
+            AND NOT EXISTS (
+                      SELECT 1
+                      FROM member_block mb
+                      WHERE mb.blocker_id = :blockerId
+                        AND mb.blocked_id = v.member_id
+                  )""";
+
+    /**
+     * 로그인 회원(blockerId)이 있으면 그 회원이 차단한 작성자의 투표를 제외하는 조건을 SQL에 끼워 넣습니다.
+     * 비로그인(null)이면 조건 없이 원래 쿼리를 사용합니다. 작성자가 퍼지돼 member_id가 null인 투표는 제외되지 않습니다.
+     */
+    private String withBlockedAuthorFilter(String sql, Long blockerId) {
+        return sql.replace(BLOCKED_AUTHOR_FILTER_PLACEHOLDER, blockerId == null ? "" : BLOCKED_AUTHOR_FILTER_SQL);
+    }
+
+    private void bindBlockerId(Query query, Long blockerId) {
+        if (blockerId != null) {
+            query.setParameter("blockerId", blockerId);
+        }
     }
 
     private List<TrendingVoteScore> toTrendingVoteScores(List<?> rows) {

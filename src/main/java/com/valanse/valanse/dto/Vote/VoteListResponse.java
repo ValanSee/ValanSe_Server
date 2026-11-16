@@ -35,6 +35,7 @@ public class VoteListResponse {
         private String content;
         private String category; // ENUM 이름을 String으로 반환
         private Long member_id;
+        private Long authorId; // 작성자 회원 id (차단하기용, member_id와 같은 값). 퍼지된 작성자면 null
         private String nickname;
         private Boolean isBot;
         private String member_title;

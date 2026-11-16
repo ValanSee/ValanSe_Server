@@ -54,6 +54,7 @@ public class VoteServiceImpl implements VoteService {
     private final MemberVoteOptionRepository memberVoteOptionRepository;
     private final CommentGroupRepository commentGroupRepository;
     private final MemberProfileTitleRepository memberProfileTitleRepository;
+    private final MemberBlockRepository memberBlockRepository;
     private final PointService pointService;
     private final StorageService storageService;
     private final Clock clock;
@@ -142,23 +143,25 @@ public class VoteServiceImpl implements VoteService {
     }
 
     @Override
-    public TrendingVotesResponse getTrendingVotes(int days) {
+    public TrendingVotesResponse getTrendingVotes(int days, Long blockerId) {
         validateTrendingDays(days);
 
         LocalDateTime to = LocalDateTime.now(clock);
         LocalDateTime from = to.minusDays(days);
         List<TrendingVoteScore> periodScores = voteRepository
-                .findTopTrendingVotes(from, to, TRENDING_LIMIT);
+                .findTopTrendingVotes(from, to, TRENDING_LIMIT, blockerId);
 
         boolean fallbackApplied = periodScores.isEmpty();
         TrendingScoreType scoreType = fallbackApplied
                 ? TrendingScoreType.ALL_TIME
                 : TrendingScoreType.PERIOD;
         List<TrendingVoteScore> rankedScores = fallbackApplied
-                ? voteRepository.findTopAllTimeTrendingVotes(TRENDING_LIMIT)
+                ? voteRepository.findTopAllTimeTrendingVotes(TRENDING_LIMIT, blockerId)
                 : periodScores;
 
-        Optional<Vote> pinnedVote = voteRepository.findByPinType(PinType.TRENDING);
+        // 고정 투표라도 로그인 회원이 차단한 작성자의 투표면 노출하지 않는다.
+        Optional<Vote> pinnedVote = voteRepository.findByPinType(PinType.TRENDING)
+                .filter(vote -> !isAuthorBlocked(blockerId, vote));
         List<SelectedTrendingVote> selectedVotes = selectTrendingVotes(
                 rankedScores,
                 pinnedVote,
@@ -176,6 +179,13 @@ public class VoteServiceImpl implements VoteService {
                 .fallbackApplied(fallbackApplied)
                 .votes(voteItems)
                 .build();
+    }
+
+    private boolean isAuthorBlocked(Long blockerId, Vote vote) {
+        if (blockerId == null || vote.getMember() == null || vote.getMember().getId() == null) {
+            return false;
+        }
+        return memberBlockRepository.existsByBlockerIdAndBlockedId(blockerId, vote.getMember().getId());
     }
 
     private void validateTrendingDays(int days) {
@@ -304,6 +314,7 @@ public class VoteServiceImpl implements VoteService {
                 .displayOrder(displayOrder)
                 .displayType(selectedVote.displayType())
                 .voteId(vote.getId())
+                .authorId(creator != null ? creator.getId() : null)
                 .title(vote.getTitle())
                 .content(vote.getContent())
                 .category(vote.getCategory() == null ? null : vote.getCategory().name())
@@ -529,6 +540,7 @@ public class VoteServiceImpl implements VoteService {
 
         return VoteDetailResponse.builder()
                 .voteId(vote.getId())
+                .authorId(vote.getMember() != null ? vote.getMember().getId() : null)
                 .title(vote.getTitle())
                 .content(vote.getContent())
                 .category(vote.getCategory())
@@ -651,7 +663,8 @@ public class VoteServiceImpl implements VoteService {
             Member loginUser, String category, String sort, String cursor, int size, Boolean isBot) {
         validateVoteListRequest(category, sort, cursor, size);
 
-        List<Vote> votes = voteRepository.findVotesByCursor(category, sort, cursor, size, isBot);
+        Long blockerId = loginUser != null ? loginUser.getId() : null;
+        List<Vote> votes = voteRepository.findVotesByCursor(category, sort, cursor, size, isBot, blockerId);
 
         boolean hasNext = votes.size() > size;
         String nextCursor = null;
@@ -709,6 +722,7 @@ public class VoteServiceImpl implements VoteService {
                             .content(vote.getContent())
                             .category(vote.getCategory().name())
                             .member_id(vote.getMember() != null ? vote.getMember().getId() : null)
+                            .authorId(vote.getMember() != null ? vote.getMember().getId() : null)
                             .nickname(creatorNickname)
                             .isBot(vote.getMember() != null && vote.getMember().isBot())
                             .member_title(vote.getMember() != null

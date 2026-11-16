@@ -16,7 +16,12 @@ import java.util.Map;
  */
 public interface VoteService {
 
-    TrendingVotesResponse getTrendingVotes(int days);
+    default TrendingVotesResponse getTrendingVotes(int days) {
+        return getTrendingVotes(days, null);
+    }
+
+    // blockerId: 로그인 회원 id. 이 회원이 차단한 작성자의 투표는 제외한다. 비로그인이면 null.
+    TrendingVotesResponse getTrendingVotes(int days, Long blockerId);
     // 사용자의 투표를 처리하는 핵심 메서드.
     // userId: 현재 로그인한 사용자의 ID
     // voteId: 사용자가 투표하려는 투표의 ID
