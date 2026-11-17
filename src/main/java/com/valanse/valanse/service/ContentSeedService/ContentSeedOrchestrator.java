@@ -1,14 +1,21 @@
 package com.valanse.valanse.service.ContentSeedService;
 
 import com.valanse.valanse.common.config.ContentSeedProperties;
+import com.valanse.valanse.common.config.SearchKeywordProperties;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
+import com.valanse.valanse.service.SearchKeywordService.KeywordCandidate;
+import com.valanse.valanse.service.SearchKeywordService.KeywordNormalizer;
+import com.valanse.valanse.service.SearchKeywordService.SearchKeywordSelector;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -37,6 +44,7 @@ import java.util.stream.Collectors;
 // (연속 ceil(maxCount/(total-maxCount+1))개)까지만 보장한다 - 상세는
 // interleaveRoundRobin의 @MX:DEBT 참고. 목표량/부족분 재시도/실패 격리는
 // 생성 단계 로직을 그대로 유지하므로 기존과 동일하게 동작한다(AC-014/AC-015).
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ContentSeedOrchestrator {
@@ -47,13 +55,17 @@ public class ContentSeedOrchestrator {
     private final ContentSeedCandidateQueryService candidateQueryService;
     private final ContentSeedPersistenceService persistenceService;
     private final ContentSeedProperties properties;
+    private final SearchKeywordSelector keywordSelector;
+    private final SearchKeywordProperties keywordProperties;
 
     public ContentSeedRunResult run() {
         List<Member> bots = botAccountSelector.selectActiveBots();
         Set<Long> thisRunBotMemberIds = bots.stream().map(Member::getId).collect(Collectors.toSet());
         UsageAccumulator usage = new UsageAccumulator();
 
-        PostsPhaseResult postsResult = generatePostsForAllBots(bots, usage);
+        // 검색 키워드는 실행 시작 시 한 번만 고르고 모든 봇이 공유한다(spec 5.4 "선택").
+        List<KeywordCandidate> keywords = keywordSelector.selectForPrompt();
+        PostsPhaseResult postsResult = generatePostsForAllBots(bots, usage, keywords);
         List<ContentSeedBatchOutcome> interactionOutcomes =
                 generateInteractionsForAllBots(bots, thisRunBotMemberIds, usage, true);
 
@@ -82,7 +94,11 @@ public class ContentSeedOrchestrator {
 
     // 모든 봇의 게시글을 생성한다 - 1차 시도를 전체 봇에 대해 순차 생성(+품질검증)한 뒤
     // 라운드로빈으로 교차 저장하고, 그다음 부족분이 남은 봇들만 재시도(생성+교차저장)한다.
-    private PostsPhaseResult generatePostsForAllBots(List<Member> bots, UsageAccumulator usage) {
+    // 검색 키워드(spec 5.4): 묶음은 1차 시도에서만 봇에게 하나씩 주고, 그 봇이 batch 예외로
+    // 끝나거나 품질 통과 글 중 묶음 키워드와 일치하는 sourceKeyword가 없으면 다음 봇에게 넘긴다.
+    // 재시도는 항상 키워드 없이 호출한다.
+    private PostsPhaseResult generatePostsForAllBots(
+            List<Member> bots, UsageAccumulator usage, List<KeywordCandidate> keywords) {
         int target = properties.getPostsPerBot();
         Map<Long, List<ContentSeedItemFailure>> failuresByBot = initFailureMap(bots);
         Map<Long, Integer> savedCountByBot = initZeroMap(bots);
@@ -95,19 +111,24 @@ public class ContentSeedOrchestrator {
         // 기존 generatePostsForBot()이 1차+재시도 전체를 하나의 try로 묶어, 1차에서
         // 예외가 나면 재시도 없이 그 봇의 처리를 즉시 중단하던 동작과 동일하게 맞춘다.
         Set<Long> batchErrorBots = new HashSet<>();
+        Deque<List<KeywordCandidate>> pendingKeywordGroups = splitKeywordGroups(keywords, bots.size());
 
         List<List<PostDraft>> firstAttempt = new ArrayList<>();
         for (Member bot : bots) {
             List<PostDraft> drafts = List.of();
+            List<KeywordCandidate> keywordGroup = pendingKeywordGroups.pollFirst();
             try {
                 List<RecentPost> recentPosts = candidateQueryService.findRecentActivePosts();
                 List<String> recentTitles = recentPosts.stream().map(RecentPost::title).toList();
                 recentPostsByBot.put(bot.getId(), recentPosts);
                 recentTitlesByBot.put(bot.getId(), recentTitles);
-                drafts = collectPostDrafts(bot, target, recentPosts, recentTitles, usage, failuresByBot);
+                drafts = collectPostDrafts(bot, target, recentPosts, recentTitles, usage, failuresByBot, keywordGroup);
             } catch (Exception e) {
                 failuresByBot.get(bot.getId()).add(new ContentSeedItemFailure("batch", describe(e)));
                 batchErrorBots.add(bot.getId());
+            }
+            if (keywordGroup != null && drafts.stream().noneMatch(draft -> draft.keywordId() != null)) {
+                pendingKeywordGroups.addFirst(keywordGroup);
             }
             firstAttempt.add(drafts);
         }
@@ -121,7 +142,8 @@ public class ContentSeedOrchestrator {
             if (!batchErrorBots.contains(bot.getId()) && recentPosts != null && shortfall > 0) {
                 try {
                     drafts = collectPostDrafts(
-                            bot, shortfall, recentPosts, recentTitlesByBot.get(bot.getId()), usage, failuresByBot);
+                            bot, shortfall, recentPosts, recentTitlesByBot.get(bot.getId()), usage, failuresByBot,
+                            null);
                 } catch (Exception e) {
                     failuresByBot.get(bot.getId()).add(new ContentSeedItemFailure("batch", describe(e)));
                 }
@@ -140,13 +162,19 @@ public class ContentSeedOrchestrator {
     // 한 봇의 게시글 생성 1회 시도(최초 또는 재시도)를 수행하고, 품질 검증을 통과한
     // 항목만 "저장 대기" 상태로 모아 반환한다 - 실제 저장은 호출자가 라운드로빈으로
     // 교차시킨 뒤 수행한다. 생성 호출 자체의 예외는 호출자가 처리한다(전파).
+    // keywordGroup이 null이면 키워드 없이(3인자) 호출하고, 있으면 품질 통과 글 중
+    // sourceKeyword가 묶음과 일치하는 첫 글 하나에만 keywordId를 붙인다(spec 5.4 "코드에서 상한 강제").
     private List<PostDraft> collectPostDrafts(
             Member bot, int count, List<RecentPost> recentPosts, List<String> recentTitles,
-            UsageAccumulator usage, Map<Long, List<ContentSeedItemFailure>> failuresByBot) {
-        GenerationResult<GeneratedPostBatch> result = contentGenerator.generatePosts(toPersona(bot), count, recentPosts);
+            UsageAccumulator usage, Map<Long, List<ContentSeedItemFailure>> failuresByBot,
+            List<KeywordCandidate> keywordGroup) {
+        GenerationResult<GeneratedPostBatch> result = keywordGroup == null
+                ? contentGenerator.generatePosts(toPersona(bot), count, recentPosts)
+                : contentGenerator.generatePosts(toPersona(bot), count, recentPosts, keywordGroup);
         usage.record(result.inputTokens(), result.outputTokens());
 
         List<PostDraft> drafts = new ArrayList<>();
+        boolean keywordMatched = false;
         for (GeneratedPost post : result.content().posts()) {
             QualityCheckResult check = qualityGate.validatePost(post, recentTitles);
             String detail = qualityGate.toLogSafeSummary(post.title(), 30);
@@ -154,9 +182,54 @@ public class ContentSeedOrchestrator {
                 failuresByBot.get(bot.getId()).add(new ContentSeedItemFailure(detail, String.join(", ", check.reasons())));
                 continue;
             }
-            drafts.add(new PostDraft(bot.getId(), post, detail));
+            Long keywordId = null;
+            if (keywordGroup != null && !keywordMatched) {
+                keywordId = findMatchingKeywordId(keywordGroup, post.sourceKeyword());
+                keywordMatched = keywordId != null;
+            }
+            drafts.add(new PostDraft(bot.getId(), post, detail, keywordId));
         }
         return drafts;
+    }
+
+    // 선택 목록을 min(maxPostsPerRun, 봇 수)개 묶음으로 라운드로빈 분할한다 - 봇마다 겹치지
+    // 않는 목록을 주고, 묶음 수가 곧 실행 전체 사용 기록 상한이 된다(spec 5.4 "배분").
+    private Deque<List<KeywordCandidate>> splitKeywordGroups(List<KeywordCandidate> keywords, int botCount) {
+        Deque<List<KeywordCandidate>> groups = new ArrayDeque<>();
+        int groupCount = Math.min(keywordProperties.getPrompt().getMaxPostsPerRun(), botCount);
+        if (keywords == null || keywords.isEmpty() || groupCount <= 0) {
+            return groups;
+        }
+        List<List<KeywordCandidate>> split = new ArrayList<>();
+        for (int i = 0; i < groupCount; i++) {
+            split.add(new ArrayList<>());
+        }
+        for (int i = 0; i < keywords.size(); i++) {
+            split.get(i % groupCount).add(keywords.get(i));
+        }
+        split.stream().filter(group -> !group.isEmpty()).map(List::copyOf).forEach(groups::addLast);
+        return groups;
+    }
+
+    private static Long findMatchingKeywordId(List<KeywordCandidate> keywordGroup, String sourceKeyword) {
+        String normalized = KeywordNormalizer.normalize(sourceKeyword);
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        return keywordGroup.stream()
+                .filter(candidate -> KeywordNormalizer.normalize(candidate.keyword()).equals(normalized))
+                .map(KeywordCandidate::id)
+                .findFirst()
+                .orElse(null);
+    }
+
+    // 사용 기록 실패는 게시글 저장 결과·실패 목록에 영향을 주지 않는다(별도 트랜잭션, WARN 로그).
+    private void markKeywordUsedQuietly(Long keywordId) {
+        try {
+            keywordSelector.markUsed(keywordId);
+        } catch (Exception e) {
+            log.warn("검색 키워드 사용 기록 실패 keywordId={}", keywordId, e);
+        }
     }
 
     private void persistPostDraftsInterleaved(
@@ -168,6 +241,10 @@ public class ContentSeedOrchestrator {
                 savedCountByBot.merge(draft.botId(), 1, Integer::sum);
             } catch (Exception e) {
                 failuresByBot.get(draft.botId()).add(new ContentSeedItemFailure(draft.detail(), describe(e)));
+                continue;
+            }
+            if (draft.keywordId() != null) {
+                markKeywordUsedQuietly(draft.keywordId());
             }
         }
     }
@@ -387,7 +464,8 @@ public class ContentSeedOrchestrator {
 
     // 품질 검증을 통과해 저장을 기다리는 게시글 1건. detail은 저장(persist) 실패 시
     // 실패 사유에 함께 기록할 요약 문자열이다(기존 attemptPosts의 detail과 동일 용도).
-    private record PostDraft(Long botId, GeneratedPost post, String detail) {
+    // keywordId는 저장 성공 시 사용 기록할 검색 키워드 id다(없으면 null).
+    private record PostDraft(Long botId, GeneratedPost post, String detail, Long keywordId) {
     }
 
     // 후보/품질 검증을 통과해 저장을 기다리는 상호작용 1건.
