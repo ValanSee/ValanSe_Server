@@ -7,6 +7,7 @@ import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.Vote;
 import com.valanse.valanse.domain.VoteOption;
+import com.valanse.valanse.domain.mapping.MemberVoteOption;
 import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import com.valanse.valanse.domain.enums.VoteLabel;
@@ -20,6 +21,7 @@ import com.valanse.valanse.repository.CommentRepository;
 import com.valanse.valanse.repository.MemberBlockRepository;
 import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.repository.MemberRepository;
+import com.valanse.valanse.repository.MemberVoteOptionRepository;
 import com.valanse.valanse.repository.VoteOptionRepository;
 import com.valanse.valanse.repository.VoteRepository;
 import com.valanse.valanse.service.CommentService.CommentService;
@@ -54,6 +56,7 @@ class MemberBlockIntegrationTest {
     @Autowired private MemberProfileRepository memberProfileRepository;
     @Autowired private VoteRepository voteRepository;
     @Autowired private VoteOptionRepository voteOptionRepository;
+    @Autowired private MemberVoteOptionRepository memberVoteOptionRepository;
     @Autowired private CommentGroupRepository commentGroupRepository;
     @Autowired private CommentRepository commentRepository;
 
@@ -204,6 +207,36 @@ class MemberBlockIntegrationTest {
 
         // 공유 링크로 들어오는 상세 조회는 차단 여부와 상관없이 가능하고 authorId를 내려준다
         assertThat(voteService.getVoteDetailById(abuserVote.getId()).getAuthorId()).isEqualTo(abuser.getId());
+    }
+
+    @Test
+    @DisplayName("차단한 작성자의 참여 투표는 카테고리와 정렬에 관계없이 페이지 조회에서 제외된다")
+    void blockedAuthorVotedVotesAreExcludedBeforePaging() {
+        Member viewer = saveMember("block-voted-viewer", "보는사람");
+        Member abuser = saveMember("block-voted-abuser", "차단대상");
+        Member normal = saveMember("block-voted-normal", "일반인");
+        Vote normalVote = saveVote(normal);
+        Vote abuserVote = saveVote(abuser);
+        VoteOption normalOption = voteOptionRepository.findAll().stream()
+                .filter(option -> option.getVote().getId().equals(normalVote.getId())).findFirst().orElseThrow();
+        VoteOption abuserOption = voteOptionRepository.findAll().stream()
+                .filter(option -> option.getVote().getId().equals(abuserVote.getId())).findFirst().orElseThrow();
+        memberVoteOptionRepository.saveAndFlush(MemberVoteOption.builder()
+                .member(viewer).vote(normalVote).voteOption(normalOption).build());
+        memberVoteOptionRepository.saveAndFlush(MemberVoteOption.builder()
+                .member(viewer).vote(abuserVote).voteOption(abuserOption).build());
+
+        assertThat(voteService.getMyVotedVotes(viewer.getId(), "latest", VoteCategory.ALL, PageRequest.of(0, 10))
+                .getVotes()).hasSize(2);
+        memberBlockService.block(viewer.getId(), abuser.getId());
+
+        for (VoteCategory category : List.of(VoteCategory.ALL, VoteCategory.ETC)) {
+            for (String sort : List.of("latest", "oldest")) {
+                var page = voteService.getMyVotedVotes(viewer.getId(), sort, category, PageRequest.of(0, 1));
+                assertThat(page.getVotes()).extracting(v -> v.getVoteId()).containsExactly(normalVote.getId());
+                assertThat(page.isHasNext()).isFalse();
+            }
+        }
     }
 
     private Member saveMember(String prefix, String nickname) {
