@@ -39,7 +39,7 @@ class GoogleSearchConsoleClientTest {
     }
 
     private GoogleSearchConsoleClient client() {
-        return new GoogleSearchConsoleClient(builder, properties, () -> "tok", clock);
+        return new GoogleSearchConsoleClient(builder.build(), properties, () -> "tok", clock);
     }
 
     @Test

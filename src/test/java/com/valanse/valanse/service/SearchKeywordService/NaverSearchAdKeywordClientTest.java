@@ -46,7 +46,7 @@ class NaverSearchAdKeywordClientTest {
     }
 
     private NaverSearchAdKeywordClient client() {
-        return new NaverSearchAdKeywordClient(builder, properties, clock, () -> { });
+        return new NaverSearchAdKeywordClient(builder.build(), properties, clock, () -> { });
     }
 
     private static org.springframework.test.web.client.RequestMatcher hint(String expected) {

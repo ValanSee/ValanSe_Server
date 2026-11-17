@@ -73,6 +73,19 @@ class SearchKeywordCollectorTest {
     }
 
     @Test
+    void failure_message_falls_back_to_exception_type_when_message_missing() {
+        when(naverClient.isConfigured()).thenReturn(true);
+        when(naverClient.fetch()).thenThrow(new IllegalStateException());
+        when(googleClient.isConfigured()).thenReturn(true);
+        when(googleClient.fetch()).thenThrow(new IllegalStateException("google down"));
+
+        SearchKeywordCollectResult result = collector.collect();
+
+        assertThat(result.failures().get(SearchKeywordSource.NAVER_SEARCH_AD)).isEqualTo("IllegalStateException");
+        assertThat(result.failures().get(SearchKeywordSource.GOOGLE_SEARCH_CONSOLE)).isEqualTo("google down");
+    }
+
+    @Test
     void upserts_master_and_overwrites_same_day_snapshot() {
         when(naverClient.isConfigured()).thenReturn(true);
         when(googleClient.isConfigured()).thenReturn(false);

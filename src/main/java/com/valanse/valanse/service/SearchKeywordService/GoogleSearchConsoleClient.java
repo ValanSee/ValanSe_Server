@@ -2,6 +2,7 @@ package com.valanse.valanse.service.SearchKeywordService;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.valanse.valanse.common.config.SearchKeywordProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -29,9 +30,16 @@ public class GoogleSearchConsoleClient {
     private final GoogleAccessTokenProvider tokenProvider;
     private final Clock clock;
 
+    @Autowired
     public GoogleSearchConsoleClient(RestClient.Builder builder, SearchKeywordProperties properties,
                                      GoogleAccessTokenProvider tokenProvider, Clock clock) {
-        this.restClient = builder.build();
+        this(SearchKeywordHttpTimeouts.build(builder), properties, tokenProvider, clock);
+    }
+
+    // 테스트용: MockRestServiceServer에 묶인 RestClient를 그대로 받는다(타임아웃 팩토리로 덮어쓰지 않음).
+    GoogleSearchConsoleClient(RestClient restClient, SearchKeywordProperties properties,
+                              GoogleAccessTokenProvider tokenProvider, Clock clock) {
+        this.restClient = restClient;
         this.properties = properties;
         this.tokenProvider = tokenProvider;
         this.clock = clock;

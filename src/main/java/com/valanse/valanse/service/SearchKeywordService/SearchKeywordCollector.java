@@ -48,8 +48,14 @@ public class SearchKeywordCollector {
             saved.put(source, count);
             log.info("SEARCH_KEYWORD_COLLECTED source={} saved={}", source, count);
         } catch (Exception e) {
-            failures.put(source, String.valueOf(e.getMessage()));
+            failures.put(source, describe(e));
             log.warn("SEARCH_KEYWORD_COLLECT_FAILED source={}", source, e);
         }
+    }
+
+    // 실패 사유가 "null" 문자열이 되지 않게, 메시지가 비어 있으면 예외 타입 이름을 쓴다.
+    private static String describe(Exception e) {
+        String message = e.getMessage();
+        return message != null && !message.isBlank() ? message : e.getClass().getSimpleName();
     }
 }

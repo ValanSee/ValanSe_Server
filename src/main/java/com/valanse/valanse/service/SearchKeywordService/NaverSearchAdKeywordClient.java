@@ -32,12 +32,13 @@ public class NaverSearchAdKeywordClient {
 
     @Autowired
     public NaverSearchAdKeywordClient(RestClient.Builder builder, SearchKeywordProperties properties, Clock clock) {
-        this(builder, properties, clock, () -> Thread.sleep(BATCH_DELAY_MILLIS));
+        this(SearchKeywordHttpTimeouts.build(builder), properties, clock, () -> Thread.sleep(BATCH_DELAY_MILLIS));
     }
 
-    NaverSearchAdKeywordClient(RestClient.Builder builder, SearchKeywordProperties properties,
+    // 테스트용: MockRestServiceServer에 묶인 RestClient를 그대로 받는다(타임아웃 팩토리로 덮어쓰지 않음).
+    NaverSearchAdKeywordClient(RestClient restClient, SearchKeywordProperties properties,
                                Clock clock, BatchPause pause) {
-        this.restClient = builder.build();
+        this.restClient = restClient;
         this.properties = properties;
         this.clock = clock;
         this.pause = pause;
