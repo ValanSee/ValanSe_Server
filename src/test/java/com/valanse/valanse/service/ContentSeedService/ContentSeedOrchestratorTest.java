@@ -89,8 +89,8 @@ class ContentSeedOrchestratorTest {
         when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
 
         GeneratedPost tooLongTitle = new GeneratedPost(
-                "가".repeat(30), "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost validPost = new GeneratedPost("정상 제목", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+                "가".repeat(30), "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost validPost = new GeneratedPost("정상 제목", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
         when(contentGenerator.generatePosts(any(), anyInt(), any()))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(tooLongTitle, validPost)), 1, 1));
         when(persistenceService.saveBotPost(eq(1L), eq(validPost))).thenReturn(100L);
@@ -112,8 +112,8 @@ class ContentSeedOrchestratorTest {
         when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot));
         when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
 
-        GeneratedPost failingPost = new GeneratedPost("실패할 제목", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost okPost = new GeneratedPost("성공할 제목", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost failingPost = new GeneratedPost("실패할 제목", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost okPost = new GeneratedPost("성공할 제목", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
         when(contentGenerator.generatePosts(any(), anyInt(), any()))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(failingPost, okPost)), 1, 1));
         doThrow(new RuntimeException("DB 오류")).when(persistenceService).saveBotPost(eq(1L), eq(failingPost));
@@ -135,7 +135,7 @@ class ContentSeedOrchestratorTest {
         when(botAccountSelector.selectActiveBots()).thenReturn(List.of(failingBot, okBot));
         when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
 
-        GeneratedPost okPost = new GeneratedPost("정상 제목", "본문", "A", "B", GeneratableVoteCategory.LOVE);
+        GeneratedPost okPost = new GeneratedPost("정상 제목", "본문", "A", "B", GeneratableVoteCategory.LOVE, null);
         when(contentGenerator.generatePosts(any(), anyInt(), any()))
                 .thenThrow(new RuntimeException("Claude 호출 실패"))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(okPost)), 1, 1));
@@ -206,7 +206,7 @@ class ContentSeedOrchestratorTest {
         when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot));
         when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
 
-        GeneratedPost onlyPost = new GeneratedPost("제목", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost onlyPost = new GeneratedPost("제목", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
         when(contentGenerator.generatePosts(any(), anyInt(), any()))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(onlyPost)), 1, 1))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of()), 1, 1));
@@ -227,7 +227,7 @@ class ContentSeedOrchestratorTest {
         Member bot = bot(1L, "한입만판사");
         when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot));
 
-        GeneratedPost post = new GeneratedPost("제목", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost post = new GeneratedPost("제목", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
         when(contentGenerator.generatePosts(any(), anyInt(), any()))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(post)), 1000, 500));
         when(persistenceService.saveBotPost(eq(1L), eq(post))).thenReturn(100L);
@@ -361,8 +361,8 @@ class ContentSeedOrchestratorTest {
         when(candidateQueryService.findRecentActivePosts()).thenReturn(List.of());
         when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
 
-        GeneratedPost itemA = new GeneratedPost("제목A", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost itemB = new GeneratedPost("제목B", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost itemA = new GeneratedPost("제목A", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost itemB = new GeneratedPost("제목B", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
         when(contentGenerator.generatePosts(any(), eq(2), any()))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(itemA, itemB)), 1, 1));
         when(persistenceService.saveBotPost(any(), any())).thenReturn(1L, 2L, 3L, 4L, 5L, 6L);
@@ -453,11 +453,11 @@ class ContentSeedOrchestratorTest {
         when(candidateQueryService.findRecentActivePosts()).thenReturn(List.of());
         when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
 
-        GeneratedPost a0 = new GeneratedPost("제목A0", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost a1 = new GeneratedPost("제목A1", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost a2 = new GeneratedPost("제목A2", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost a3 = new GeneratedPost("제목A3", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost b0 = new GeneratedPost("제목B0", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost a0 = new GeneratedPost("제목A0", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost a1 = new GeneratedPost("제목A1", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost a2 = new GeneratedPost("제목A2", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost a3 = new GeneratedPost("제목A3", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost b0 = new GeneratedPost("제목B0", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
         when(contentGenerator.generatePosts(any(), anyInt(), any()))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(a0, a1, a2, a3)), 1, 1))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(b0)), 1, 1));
@@ -487,12 +487,12 @@ class ContentSeedOrchestratorTest {
         when(candidateQueryService.findRecentActivePosts()).thenReturn(List.of());
         when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
 
-        GeneratedPost a0 = new GeneratedPost("제목A0", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost a1 = new GeneratedPost("제목A1", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost a2 = new GeneratedPost("제목A2", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost a3 = new GeneratedPost("제목A3", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost a4 = new GeneratedPost("제목A4", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost b0 = new GeneratedPost("제목B0", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost a0 = new GeneratedPost("제목A0", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost a1 = new GeneratedPost("제목A1", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost a2 = new GeneratedPost("제목A2", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost a3 = new GeneratedPost("제목A3", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost a4 = new GeneratedPost("제목A4", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost b0 = new GeneratedPost("제목B0", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
         when(contentGenerator.generatePosts(any(), anyInt(), any()))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(a0, a1, a2, a3, a4)), 1, 1))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(b0)), 1, 1));
