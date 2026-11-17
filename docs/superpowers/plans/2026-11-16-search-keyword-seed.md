@@ -14,7 +14,7 @@
 
 - 작업 위치: `/Users/a11/Desktop/project/valanse/ValanSe_Server-keywords`, 브랜치 `feat/#347-search-keyword-seed`(base `dev`)
 - 커밋 메시지: `feat : ... (#347)` / `test : ... (#347)` 형식(콜론 앞 공백)
-- 설정 prefix `search-keyword`, 기본 `enabled=false`. 키가 비면 해당 출처는 HTTP 호출 없이 건너뜀
+- 설정 prefix `search-keyword`, 기본 `enabled=true`(2026-11-17 변경). 키가 비면 해당 출처는 HTTP 호출 없이 건너뜀
 - 마이그레이션 파일명 `V15__add_search_keyword.sql`
 - 출처 enum 값: `NAVER_SEARCH_AD`, `GOOGLE_SEARCH_CONSOLE`
 - 기본 브랜드 목록: `발란세, valanse, valsense, valance`(`벨런스`·`발랜스`·`발란스`는 넣지 않음)
@@ -45,7 +45,7 @@
 
 **Interfaces:**
 - Produces:
-  - `SearchKeywordProperties`(`@Validated @Component @ConfigurationProperties("search-keyword")`, `ContentSeedProperties`와 같은 getter/setter 스타일). 필드와 기본값은 spec 5.5를 그대로 따른다. 중첩 `Naver`(apiKey, secretKey, customerId, hintKeywords, maxKeywords=200), `Google`(serviceAccountJsonBase64, siteUrl="https://valanse.kr/", maxKeywords=200), `Prompt`(naverLimit=15, googleLimit=10, maxPostsPerRun=1). 최상위: enabled=false, cron="0 0 3 * * *", zone="Asia/Seoul", freshnessDays=14, reuseCooldownDays=56, brandTerms. `Naver.isConfigured()`는 세 값이 모두 있을 때 true, `Google.isConfigured()`는 JSON이 있을 때 true.
+  - `SearchKeywordProperties`(`@Validated @Component @ConfigurationProperties("search-keyword")`, `ContentSeedProperties`와 같은 getter/setter 스타일). 필드와 기본값은 spec 5.5를 그대로 따른다. 중첩 `Naver`(apiKey, secretKey, customerId, hintKeywords, maxKeywords=200), `Google`(serviceAccountJsonBase64, siteUrl="https://valanse.kr/", maxKeywords=200), `Prompt`(naverLimit=15, googleLimit=10, maxPostsPerRun=1). 최상위: enabled=true, cron="0 0 3 * * *", zone="Asia/Seoul", freshnessDays=14, reuseCooldownDays=56, brandTerms. `Naver.isConfigured()`는 세 값이 모두 있을 때 true, `Google.isConfigured()`는 JSON이 있을 때 true.
   - `SearchKeyword` 엔티티: 컬럼은 spec 5.2를 따른다. `BaseEntity`를 상속하지 않고 `createdAt`/`updatedAt`을 직접 둔다. 메서드 `static SearchKeyword create(SearchKeywordSource, String keyword, String normalized, LocalDateTime now)`, `void refreshMetrics(Integer monthlySearchVolume, Integer impressions, Integer clicks, BigDecimal avgPosition, LocalDateTime now)`(lastSeenAt/updatedAt 갱신), `void markUsed(LocalDateTime now)`.
   - `SearchKeywordSnapshot`: `static of(SearchKeyword, LocalDate collectedDate, ...metrics)`, `void overwrite(...metrics)`.
   - `SearchKeywordRepository`: `Optional<SearchKeyword> findBySourceAndNormalizedKeyword(SearchKeywordSource, String)`, `List<SearchKeyword> findByLastSeenAtGreaterThanEqual(LocalDateTime)`.

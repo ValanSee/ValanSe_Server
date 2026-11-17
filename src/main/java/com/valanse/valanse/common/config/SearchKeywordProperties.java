@@ -15,7 +15,7 @@ import java.util.List;
 @ConfigurationProperties(prefix = "search-keyword")
 public class SearchKeywordProperties {
 
-    private boolean enabled = false;
+    private boolean enabled = true;
 
     @NotBlank
     private String cron = "0 0 3 * * *";

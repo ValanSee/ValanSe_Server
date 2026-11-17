@@ -32,7 +32,7 @@
 ## 3. 제약
 
 - 서버 설정은 GitHub Secret `APPLICATION_PROPERTIES`의 `application.yml`에 `${ENV:}` 자리표시자를 두고 운영 환경 변수로 넣는다. 새 키는 이 방식으로 추가하고, 운영 반영은 백엔드 담당자가 한다.
-- 키가 비어 있으면 해당 출처는 조용히 건너뛰어야 한다(`AnthropicConfig`의 placeholder 방식과 같은 원칙). 기본값은 `enabled=false`.
+- 키가 비어 있으면 해당 출처는 조용히 건너뛰어야 한다(`AnthropicConfig`의 placeholder 방식과 같은 원칙). 기본값은 `enabled=true`(키가 없으면 수집은 HTTP 호출 없이 0건, 선택은 빈 목록이라 프롬프트 변화 없음).
 - 외부 HTTP 호출은 기존 코드처럼 Spring `RestClient`를 쓴다.
 - 스케줄러는 ShedLock으로 다중 인스턴스 중복 실행을 막는다(`ContentSeedScheduler` 패턴).
 - 마이그레이션은 Flyway로 추가한다(다음 번호는 `V15__`).
@@ -142,7 +142,7 @@
 
 ```yaml
 search-keyword:
-  enabled: ${SEARCH_KEYWORD_ENABLED:false}
+  enabled: ${SEARCH_KEYWORD_ENABLED:true}
   cron: "0 0 3 * * *"
   zone: Asia/Seoul
   freshness-days: 14
@@ -179,7 +179,7 @@ search-keyword:
 
 1. 네이버 검색광고(searchad.naver.com) 가입 → 도구 › API 사용 관리에서 액세스 라이선스, 비밀키, 고객 ID 발급(무료)
 2. Google Cloud 프로젝트에서 Search Console API 사용 설정 → 서비스 계정 생성 → JSON 키 발급 → GSC `https://valanse.kr/` 속성에 서비스 계정 이메일을 "제한됨" 사용자로 추가
-3. 백엔드 담당자가 `APPLICATION_PROPERTIES` 시크릿에 5.5 블록을 추가하고, 운영과 dev 환경 변수에 키를 넣은 뒤 `SEARCH_KEYWORD_ENABLED=true`로 설정
+3. 백엔드 담당자가 `APPLICATION_PROPERTIES` 시크릿에 5.5 블록을 추가하고, 운영과 dev 환경 변수에 키를 넣는다(기본 켜짐. 끄려면 `SEARCH_KEYWORD_ENABLED=false`)
 4. 배포 후 `POST /admin/search-keywords/collect`로 수집을 확인하고, 다음 월요일 생성 결과에서 `sourceKeyword`가 쓰였는지 확인
 
 ## 7. 구현자에게 맡기는 것

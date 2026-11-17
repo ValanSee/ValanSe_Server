@@ -7,6 +7,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SearchKeywordPropertiesTest {
 
     @Test
+    void 기본값은_켜져_있다() {
+        SearchKeywordProperties properties = new SearchKeywordProperties();
+
+        assertThat(properties.isEnabled()).isTrue();
+    }
+
+    @Test
     void 네이버_힌트_키워드_기본값은_spec과_같다() {
         SearchKeywordProperties properties = new SearchKeywordProperties();
 
