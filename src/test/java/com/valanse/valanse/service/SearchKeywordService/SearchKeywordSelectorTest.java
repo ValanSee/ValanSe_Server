@@ -109,6 +109,20 @@ class SearchKeywordSelectorTest {
     }
 
     @Test
+    void merges_same_normalized_keyword_across_sources() {
+        SearchKeyword naverRow = naver("레트로게임", 100);
+        SearchKeyword googleRow = google("레트로 게임", 50);
+        when(keywordRepository.findByLastSeenAtGreaterThanEqual(any())).thenReturn(List.of(naverRow, googleRow));
+
+        List<KeywordCandidate> result = selector.selectForPrompt();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).ids()).containsExactlyInAnyOrder(naverRow.getId(), googleRow.getId());
+        assertThat(result.get(0).monthlySearchVolume()).isEqualTo(100);
+        assertThat(result.get(0).impressions()).isEqualTo(50);
+    }
+
+    @Test
     void disabled_returns_empty() {
         properties.setEnabled(false);
 

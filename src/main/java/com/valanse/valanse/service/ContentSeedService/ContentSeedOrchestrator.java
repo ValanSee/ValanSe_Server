@@ -189,17 +189,17 @@ public class ContentSeedOrchestrator {
             String detail = qualityGate.toLogSafeSummary(post.title(), 30);
             if (!check.passed()) {
                 failuresByBot.get(bot.getId()).add(new ContentSeedItemFailure(detail, String.join(", ", check.reasons())));
-                if (keywordGroup != null && findMatchingKeywordId(keywordGroup, post.sourceKeyword()) != null) {
+                if (keywordGroup != null && !findMatchingKeywordIds(keywordGroup, post.sourceKeyword()).isEmpty()) {
                     matchingRejected = true;
                 }
                 continue;
             }
-            Long keywordId = null;
+            List<Long> keywordIds = List.of();
             if (keywordGroup != null && !keywordMatched) {
-                keywordId = findMatchingKeywordId(keywordGroup, post.sourceKeyword());
-                keywordMatched = keywordId != null;
+                keywordIds = findMatchingKeywordIds(keywordGroup, post.sourceKeyword());
+                keywordMatched = !keywordIds.isEmpty();
             }
-            drafts.add(new PostDraft(bot.getId(), post, detail, keywordId));
+            drafts.add(new PostDraft(bot.getId(), post, detail, keywordIds));
         }
         return new PostDraftCollection(drafts, matchingRejected && !keywordMatched);
     }
@@ -223,16 +223,16 @@ public class ContentSeedOrchestrator {
         return groups;
     }
 
-    private static Long findMatchingKeywordId(List<KeywordCandidate> keywordGroup, String sourceKeyword) {
+    private static List<Long> findMatchingKeywordIds(List<KeywordCandidate> keywordGroup, String sourceKeyword) {
         String normalized = KeywordNormalizer.normalize(sourceKeyword);
         if (normalized.isEmpty()) {
-            return null;
+            return List.of();
         }
         return keywordGroup.stream()
                 .filter(candidate -> KeywordNormalizer.normalize(candidate.keyword()).equals(normalized))
-                .map(KeywordCandidate::id)
+                .map(KeywordCandidate::ids)
                 .findFirst()
-                .orElse(null);
+                .orElse(List.of());
     }
 
     // 사용 기록 실패는 게시글 저장 결과·실패 목록에 영향을 주지 않는다(별도 트랜잭션, WARN 로그).
@@ -255,8 +255,8 @@ public class ContentSeedOrchestrator {
                 failuresByBot.get(draft.botId()).add(new ContentSeedItemFailure(draft.detail(), describe(e)));
                 continue;
             }
-            if (draft.keywordId() != null) {
-                markKeywordUsedQuietly(draft.keywordId());
+            if (!draft.keywordIds().isEmpty()) {
+                draft.keywordIds().forEach(this::markKeywordUsedQuietly);
             }
         }
     }
@@ -476,8 +476,9 @@ public class ContentSeedOrchestrator {
 
     // 품질 검증을 통과해 저장을 기다리는 게시글 1건. detail은 저장(persist) 실패 시
     // 실패 사유에 함께 기록할 요약 문자열이다(기존 attemptPosts의 detail과 동일 용도).
-    // keywordId는 저장 성공 시 사용 기록할 검색 키워드 id다(없으면 null).
-    private record PostDraft(Long botId, GeneratedPost post, String detail, Long keywordId) {
+    // keywordIds는 저장 성공 시 사용 기록할 검색 키워드 id 목록이다(없으면 빈 목록 - 네이버·GSC
+    // 양쪽에 같은 정규화 키워드가 있었다면 두 id 모두 담겨 함께 사용 기록된다).
+    private record PostDraft(Long botId, GeneratedPost post, String detail, List<Long> keywordIds) {
     }
 
     // 1회 생성 시도의 저장 대기 게시글과, 묶음 키워드 일치 글이 전부 품질 거절됐는지 여부.

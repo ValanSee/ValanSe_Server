@@ -699,6 +699,23 @@ class ContentSeedOrchestratorTest {
     }
 
     @Test
+    void marks_used_for_all_ids_when_keyword_merged_across_sources() {
+        properties.setPostsPerBot(1);
+        Member bot = bot(1L, "한입만판사");
+        KeywordCandidate merged = new KeywordCandidate(
+                List.of(7L, 8L), SearchKeywordSource.NAVER_SEARCH_AD, "커플밸런스게임", 1000, null);
+        givenBotsAndKeywords(List.of(bot), List.of(merged));
+        GeneratedPost keywordPost = post("커플 질문", "커플밸런스게임");
+        when(contentGenerator.generatePosts(any(), anyInt(), any(), any())).thenReturn(postBatch(keywordPost));
+        when(persistenceService.saveBotPost(eq(1L), eq(keywordPost))).thenReturn(100L);
+
+        orchestrator.run();
+
+        verify(keywordSelector).markUsed(7L);
+        verify(keywordSelector).markUsed(8L);
+    }
+
+    @Test
     void caps_mark_used_when_model_fills_many() {
         properties.setPostsPerBot(3);
         Member bot = bot(1L, "한입만판사");
@@ -783,7 +800,7 @@ class ContentSeedOrchestratorTest {
     }
 
     private static KeywordCandidate keyword(long id, String text) {
-        return new KeywordCandidate(id, SearchKeywordSource.NAVER_SEARCH_AD, text, 1000, null);
+        return new KeywordCandidate(List.of(id), SearchKeywordSource.NAVER_SEARCH_AD, text, 1000, null);
     }
 
     private static GeneratedPost post(String title, String sourceKeyword) {

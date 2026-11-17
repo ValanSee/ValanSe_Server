@@ -15,7 +15,9 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 // 주간 게시글 생성 프롬프트에 넣을 검색 키워드를 고르고 사용 기록을 남긴다.
 @Slf4j
@@ -62,7 +64,7 @@ public class SearchKeywordSelector {
                             Comparator.nullsLast(Comparator.reverseOrder())))
                     .limit(properties.getPrompt().getGoogleLimit())
                     .forEach(k -> result.add(toCandidate(k)));
-            return result;
+            return mergeSameNormalizedKeyword(result);
         } catch (Exception e) {
             log.warn("검색 키워드 선택 실패, 키워드 없이 진행합니다.", e);
             return List.of();
@@ -82,7 +84,27 @@ public class SearchKeywordSelector {
     }
 
     private static KeywordCandidate toCandidate(SearchKeyword k) {
-        return new KeywordCandidate(k.getId(), k.getSource(), k.getKeyword(),
+        return new KeywordCandidate(List.of(k.getId()), k.getSource(), k.getKeyword(),
                 k.getMonthlySearchVolume(), k.getImpressions());
+    }
+
+    // 네이버·GSC 양쪽에 같은 정규화 키워드가 있으면 하나로 합친다 - 합치지 않으면 모델이 한쪽
+    // 행의 id로만 markUsed를 호출해 다른 쪽 행은 계속 null로 남고, 56일 재사용 제한을 우회해
+    // 다음 주에 다시 뽑힌다.
+    private static List<KeywordCandidate> mergeSameNormalizedKeyword(List<KeywordCandidate> candidates) {
+        Map<String, KeywordCandidate> merged = new LinkedHashMap<>();
+        for (KeywordCandidate candidate : candidates) {
+            String normalized = KeywordNormalizer.normalize(candidate.keyword());
+            merged.merge(normalized, candidate, SearchKeywordSelector::combine);
+        }
+        return List.copyOf(merged.values());
+    }
+
+    private static KeywordCandidate combine(KeywordCandidate first, KeywordCandidate second) {
+        List<Long> ids = new ArrayList<>(first.ids());
+        ids.addAll(second.ids());
+        Integer volume = first.monthlySearchVolume() != null ? first.monthlySearchVolume() : second.monthlySearchVolume();
+        Integer impressions = first.impressions() != null ? first.impressions() : second.impressions();
+        return new KeywordCandidate(ids, first.source(), first.keyword(), volume, impressions);
     }
 }
