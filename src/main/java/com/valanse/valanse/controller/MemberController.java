@@ -3,6 +3,8 @@ package com.valanse.valanse.controller;
 import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.common.api.PaginationValidator;
 import com.valanse.valanse.common.message.MemberErrorMessage;
+import com.valanse.valanse.dto.MemberBlock.MemberBlockListResponse;
+import com.valanse.valanse.dto.MemberBlock.MemberBlockStatusResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberMyPageResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileImageResponse;
 import com.valanse.valanse.dto.MemberProfile.MemberProfileRequest;
@@ -17,6 +19,7 @@ import com.valanse.valanse.dto.Title.TitleListResponse;
 import com.valanse.valanse.dto.Title.TitlePurchaseResponse;
 import com.valanse.valanse.dto.Title.TitleUpdateRequest;
 import com.valanse.valanse.dto.Title.TitleUpdateResponse;
+import com.valanse.valanse.service.MemberBlockService.MemberBlockService;
 import com.valanse.valanse.service.MemberProfileService.MemberProfileService;
 import com.valanse.valanse.service.PointService.PointService;
 import com.valanse.valanse.service.TitleService.TitleService;
@@ -47,6 +50,7 @@ public class MemberController {
     private final MemberProfileService memberProfileService;
     private final PointService pointService;
     private final TitleService titleService;
+    private final MemberBlockService memberBlockService;
 
     @Operation(
             summary = "회원 프로필 정보 저장",
@@ -266,5 +270,46 @@ public class MemberController {
         Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
         TitlePurchaseResponse response = titleService.purchaseTitle(userId, titleId);
         return ResponseEntity.ok(response);
+    }
+    @Operation(
+            summary = "회원 차단",
+            description = "현재 로그인한 회원이 대상 회원을 차단합니다. 차단한 회원의 투표/댓글/대댓글은 목록 조회에서 제외됩니다. " +
+                    "이미 차단한 회원을 다시 차단해도 성공합니다. 자기 자신은 차단할 수 없고(400), 존재하지 않거나 탈퇴한 회원이면 404를 반환합니다."
+    )
+    /**
+     * 대상 회원을 차단하는 메서드입니다.
+     */
+    @PostMapping("/blocks/{memberId}")
+    public ResponseEntity<MemberBlockStatusResponse> blockMember(@PathVariable("memberId") Long memberId) {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        memberBlockService.block(userId, memberId);
+        return ResponseEntity.ok(new MemberBlockStatusResponse(true));
+    }
+
+    @Operation(
+            summary = "회원 차단 해제",
+            description = "현재 로그인한 회원이 대상 회원의 차단을 해제합니다. 차단하지 않은 회원이어도 성공합니다."
+    )
+    /**
+     * 대상 회원의 차단을 해제하는 메서드입니다.
+     */
+    @DeleteMapping("/blocks/{memberId}")
+    public ResponseEntity<MemberBlockStatusResponse> unblockMember(@PathVariable("memberId") Long memberId) {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        memberBlockService.unblock(userId, memberId);
+        return ResponseEntity.ok(new MemberBlockStatusResponse(false));
+    }
+
+    @Operation(
+            summary = "차단한 회원 목록 조회",
+            description = "현재 로그인한 회원이 차단한 회원 목록을 최근 차단순으로 조회합니다. 프로필이 없는 회원은 nickname이 null입니다."
+    )
+    /**
+     * 차단한 회원 목록을 조회하는 메서드입니다.
+     */
+    @GetMapping("/blocks")
+    public ResponseEntity<MemberBlockListResponse> getBlocks() {
+        Long userId = Long.parseLong(SecurityContextHolder.getContext().getAuthentication().getName());
+        return ResponseEntity.ok(memberBlockService.getBlocks(userId));
     }
 }

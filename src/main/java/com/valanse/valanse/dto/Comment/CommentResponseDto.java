@@ -15,6 +15,8 @@ import com.querydsl.core.annotations.QueryProjection;
 public class CommentResponseDto {
     private Long commentId;
     private Long voteId;
+    // 댓글 작성자 회원 id (차단하기용). 탈퇴 후 퍼지된 작성자면 null
+    private Long authorId;
     private String nickname;
     private Boolean isBot;
     private String title;
@@ -32,28 +34,53 @@ public class CommentResponseDto {
     private boolean liked;
 
     /**
-     * CommentResponseDto 의존성을 주입하거나 객체를 초기화하는 생성자입니다.
+     * QueryDSL 조회용 생성자입니다. (작성자 id 포함)
      */
     @QueryProjection
-    public CommentResponseDto(Long commentId, Long voteId, String nickname, Boolean isBot, String title,
-                              LocalDateTime commentCreatedAt, LocalDateTime voteCreatedAt,  // 추가
+    public CommentResponseDto(Long commentId, Long voteId, Long authorId, String nickname, Boolean isBot, String title,
+                              LocalDateTime commentCreatedAt, LocalDateTime voteCreatedAt,
                               String content, Integer likeCount, Integer replyCount,
                               LocalDateTime deletedAt, String voteOptionLabel, Long daysAgo, Long hoursAgo,
                               Boolean canDelete) {
-        this(commentId, voteId, nickname, isBot, title, commentCreatedAt, voteCreatedAt, content, likeCount,
+        this(commentId, voteId, authorId, nickname, isBot, title, commentCreatedAt, voteCreatedAt, content, likeCount,
                 replyCount, deletedAt, voteOptionLabel, daysAgo, hoursAgo, canDelete, false);
     }
 
     /**
-     * liked 값을 포함한 전체 필드 생성자입니다. (@Builder 용)
+     * 작성자 id 없이 생성하는 기존 호환용 생성자입니다.
+     */
+    public CommentResponseDto(Long commentId, Long voteId, String nickname, Boolean isBot, String title,
+                              LocalDateTime commentCreatedAt, LocalDateTime voteCreatedAt,
+                              String content, Integer likeCount, Integer replyCount,
+                              LocalDateTime deletedAt, String voteOptionLabel, Long daysAgo, Long hoursAgo,
+                              Boolean canDelete) {
+        this(commentId, voteId, null, nickname, isBot, title, commentCreatedAt, voteCreatedAt, content, likeCount,
+                replyCount, deletedAt, voteOptionLabel, daysAgo, hoursAgo, canDelete, false);
+    }
+
+    /**
+     * 작성자 id 없이 liked 값을 포함해 생성하는 기존 호환용 생성자입니다.
      */
     public CommentResponseDto(Long commentId, Long voteId, String nickname, Boolean isBot, String title,
                               LocalDateTime commentCreatedAt, LocalDateTime voteCreatedAt,
                               String content, Integer likeCount, Integer replyCount,
                               LocalDateTime deletedAt, String voteOptionLabel, Long daysAgo, Long hoursAgo,
                               Boolean canDelete, boolean liked) {
+        this(commentId, voteId, null, nickname, isBot, title, commentCreatedAt, voteCreatedAt, content, likeCount,
+                replyCount, deletedAt, voteOptionLabel, daysAgo, hoursAgo, canDelete, liked);
+    }
+
+    /**
+     * 전체 필드 생성자입니다. (@Builder 용)
+     */
+    public CommentResponseDto(Long commentId, Long voteId, Long authorId, String nickname, Boolean isBot, String title,
+                              LocalDateTime commentCreatedAt, LocalDateTime voteCreatedAt,
+                              String content, Integer likeCount, Integer replyCount,
+                              LocalDateTime deletedAt, String voteOptionLabel, Long daysAgo, Long hoursAgo,
+                              Boolean canDelete, boolean liked) {
         this.commentId = commentId;
         this.voteId = voteId;
+        this.authorId = authorId;
         this.nickname = nickname != null ? nickname : "탈퇴한 사용자";
         this.isBot = isBot != null && isBot;
         this.title = title;

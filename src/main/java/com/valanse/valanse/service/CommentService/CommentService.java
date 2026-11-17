@@ -17,7 +17,12 @@ public interface CommentService {
     Long createComment(Long voteId, Long userId, CommentPostRequest request);
 
     PagedCommentResponse getCommentsByVoteId(Long voteId, String sort, Pageable pageable,Long userId, Boolean isAdmin);
-    BestCommentResponseDto getBestCommentByVoteId(Long voteId);
+    default BestCommentResponseDto getBestCommentByVoteId(Long voteId) {
+        return getBestCommentByVoteId(voteId, null);
+    }
+
+    // loginId(로그인 회원)가 차단한 작성자의 댓글은 대표 댓글 후보에서 제외한다. 비로그인이면 null.
+    BestCommentResponseDto getBestCommentByVoteId(Long voteId, Long loginId);
     PagedCommentReplyResponse getReplies(Member loginUser, Long voteId, Long commentId, Pageable pageable);
 
     // 관리자(CMS) 콘텐츠 검수용 댓글 통합 목록 조회.

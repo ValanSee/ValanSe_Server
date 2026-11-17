@@ -18,4 +18,23 @@ public final class SecurityUtils {
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch("ROLE_ADMIN"::equals);
     }
+
+    /**
+     * 현재 요청의 로그인 회원 id를 반환합니다. 비로그인이거나 회원 id 형식이 아닌 주체면 null을 반환합니다.
+     */
+    public static Long currentMemberIdOrNull() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return null;
+        }
+        String name = authentication.getName();
+        if (name == null || "anonymousUser".equals(name)) {
+            return null;
+        }
+        try {
+            return Long.parseLong(name);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
 }

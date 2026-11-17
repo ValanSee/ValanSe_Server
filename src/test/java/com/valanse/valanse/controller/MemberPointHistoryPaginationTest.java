@@ -4,6 +4,7 @@ import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.dto.PointHistory.PointHistoryResponse;
 import com.valanse.valanse.service.MemberProfileService.MemberProfileService;
 import com.valanse.valanse.service.PointService.PointService;
+import com.valanse.valanse.service.MemberBlockService.MemberBlockService;
 import com.valanse.valanse.service.TitleService.TitleService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -38,7 +39,8 @@ class MemberPointHistoryPaginationTest {
         MemberController controller = new MemberController(
                 mock(MemberProfileService.class),
                 mock(PointService.class),
-                mock(TitleService.class)
+                mock(TitleService.class),
+                mock(MemberBlockService.class)
         );
 
         assertThatThrownBy(() -> controller.getPointHistory(-1, 10))
@@ -55,7 +57,8 @@ class MemberPointHistoryPaginationTest {
         MemberController controller = new MemberController(
                 mock(MemberProfileService.class),
                 pointService,
-                mock(TitleService.class)
+                mock(TitleService.class),
+                mock(MemberBlockService.class)
         );
         PointHistoryResponse response = new PointHistoryResponse(List.of(), 1, 10, false);
 

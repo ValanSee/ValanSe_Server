@@ -126,7 +126,7 @@ public class VoteController {
     public ResponseEntity<TrendingVotesResponse> getTrendingVotes(
             @RequestParam(name = "days") int days
     ) {
-        TrendingVotesResponse response = voteService.getTrendingVotes(days);
+        TrendingVotesResponse response = voteService.getTrendingVotes(days, SecurityUtils.currentMemberIdOrNull());
         return ResponseEntity.ok(response);
     }
 

@@ -96,6 +96,7 @@ public class SoftDeletePurgeService {
             jdbcTemplate.update("delete from point_history where member_id = ?", memberId);
             jdbcTemplate.update("delete from activity_event where member_id = ?", memberId);
             jdbcTemplate.update("delete from anonymous_user_link where member_id = ?", memberId);
+            jdbcTemplate.update("delete from member_block where blocker_id = ? or blocked_id = ?", memberId, memberId);
             jdbcTemplate.update("delete from report where member_id = ?", memberId);
             jdbcTemplate.update("delete from report where report_type = 'COMMENT' and target_id in (select id from comment where member_id = ?)", memberId);
             jdbcTemplate.update("delete from report where report_type = 'VOTE' and target_id in (select id from vote where member_id = ?)", memberId);

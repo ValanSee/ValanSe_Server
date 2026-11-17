@@ -64,6 +64,7 @@ class VoteServiceImplTest {
     @Mock private VoteOptionRepository voteOptionRepository;
     @Mock private MemberProfileRepository memberProfileRepository;
     @Mock private MemberProfileTitleRepository memberProfileTitleRepository;
+    @Mock private MemberBlockRepository memberBlockRepository;
     @Mock private PointService pointService;
     @Mock private StorageService storageService;
     @Mock private Clock clock;
@@ -89,8 +90,8 @@ class VoteServiceImplTest {
                 new TrendingVoteScore(2L, 2L, 1L, 3L, null)
         );
 
-        when(voteRepository.findTopTrendingVotes(any(), any(), eq(5))).thenReturn(List.of());
-        when(voteRepository.findTopAllTimeTrendingVotes(5)).thenReturn(allTimeScores);
+        when(voteRepository.findTopTrendingVotes(any(), any(), eq(5), isNull())).thenReturn(List.of());
+        when(voteRepository.findTopAllTimeTrendingVotes(5, null)).thenReturn(allTimeScores);
         when(voteRepository.findByPinType(PinType.TRENDING)).thenReturn(Optional.empty());
         when(voteRepository.findTrendingVoteDetailsByIds(List.of(1L, 2L)))
                 .thenReturn(List.of(second, first));
@@ -122,7 +123,7 @@ class VoteServiceImplTest {
                         .build())
                 .toList();
 
-        when(voteRepository.findTopTrendingVotes(any(), any(), eq(5))).thenReturn(scores);
+        when(voteRepository.findTopTrendingVotes(any(), any(), eq(5), isNull())).thenReturn(scores);
         when(voteRepository.findByPinType(PinType.TRENDING))
                 .thenReturn(Optional.of(votes.get(2)));
         when(voteRepository.findTrendingVoteDetailsByIds(List.of(3L, 1L, 2L, 4L, 5L)))
@@ -584,7 +585,7 @@ class VoteServiceImplTest {
         vote.addVoteOption(VoteOption.builder().id(4L).content("D선택지").label(VoteLabel.D).build());
         vote.addVoteOption(VoteOption.builder().id(2L).content("B선택지").label(VoteLabel.B).build());
 
-        when(voteRepository.findVotesByCursor("ALL", "latest", null, 10, null))
+        when(voteRepository.findVotesByCursor("ALL", "latest", null, 10, null, null))
                 .thenReturn(new ArrayList<>(List.of(vote)));
 
         VoteListResponse result = voteService.getVotesByCategoryAndSort(
