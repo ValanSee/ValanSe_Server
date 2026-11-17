@@ -1,6 +1,7 @@
 // src/test/java/com/valanse/valanse/controller/VoteControllerTest.java
 package com.valanse.valanse.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.valanse.valanse.domain.*;
 import com.valanse.valanse.domain.enums.*;
@@ -26,10 +27,13 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -352,6 +356,61 @@ public class VoteControllerTest {
                 .andExpect(jsonPath("$.has_next_page").value(false));
 
         assertThat(statistics.getPrepareStatementCount()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("투표 목록 조회 시 1페이지에서 받은 커서로 2페이지를 중복 없이 조회한다.")
+    void getVotes_ValidCursor_ReturnsNextPageWithoutOverlap() throws Exception {
+        // setUp()이 투표 2개를 저장하므로, 2페이지 순회가 가능하도록 투표 1개를 추가한다.
+        Vote thirdVote = saveBotVote("cursor-pagination-vote");
+        entityManager.flush();
+        entityManager.clear();
+
+        MvcResult firstPageResult = mockMvc.perform(get("/votes")
+                        .param("category", "ALL")
+                        .param("sort", "latest")
+                        .param("size", "2")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.votes.length()").value(2))
+                .andExpect(jsonPath("$.has_next_page").value(true))
+                .andExpect(jsonPath("$.next_cursor").isNotEmpty())
+                .andReturn();
+
+        String nextCursor = objectMapper.readTree(firstPageResult.getResponse().getContentAsString())
+                .path("next_cursor").asText();
+        assertThat(nextCursor).isNotBlank();
+
+        MvcResult secondPageResult = mockMvc.perform(get("/votes")
+                        .param("category", "ALL")
+                        .param("sort", "latest")
+                        .param("size", "2")
+                        .param("cursor", nextCursor)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.votes.length()").value(1))
+                .andExpect(jsonPath("$.has_next_page").value(false))
+                .andReturn();
+
+        List<Long> firstPageVoteIds = extractVoteIds(firstPageResult);
+        List<Long> secondPageVoteIds = extractVoteIds(secondPageResult);
+
+        // 2페이지는 1페이지와 겹치지 않고, 두 페이지가 저장된 투표 3개를 정확히 한 번씩 덮는다.
+        assertThat(secondPageVoteIds).doesNotContainAnyElementsOf(firstPageVoteIds);
+
+        List<Long> allVoteIds = new ArrayList<>(firstPageVoteIds);
+        allVoteIds.addAll(secondPageVoteIds);
+        assertThat(allVoteIds)
+                .hasSize(3)
+                .doesNotHaveDuplicates()
+                .contains(hotIssueVoteId, thirdVote.getId());
+    }
+
+    private List<Long> extractVoteIds(MvcResult result) throws Exception {
+        JsonNode voteNodes = objectMapper.readTree(result.getResponse().getContentAsString()).path("votes");
+        List<Long> voteIds = new ArrayList<>();
+        voteNodes.forEach(voteNode -> voteIds.add(voteNode.path("id").asLong()));
+        return voteIds;
     }
 
     @Test

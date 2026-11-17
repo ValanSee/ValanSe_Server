@@ -55,5 +55,6 @@ public class VoteListResponse {
         private Long id;
         private String content;
         private String imageUrl;
+        private String label; // A, B, C, D
     }
 }
