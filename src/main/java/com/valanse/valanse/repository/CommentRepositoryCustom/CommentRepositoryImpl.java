@@ -18,6 +18,7 @@ import com.valanse.valanse.dto.Comment.QAdminCommentResponseDto;
 import com.valanse.valanse.dto.Comment.QCommentReplyResponseDto;
 import com.valanse.valanse.dto.Comment.QCommentResponseDto;
 import com.valanse.valanse.dto.Comment.QMyCommentResponseDto;
+import com.valanse.valanse.repository.BlockedAuthorPredicates;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -80,6 +81,7 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                 .select(new QCommentResponseDto(
                         comment.id,
                         vote.id,
+                        member.id,
                         profile.nickname,
                         member.isBot,
                         title.name,
@@ -102,7 +104,11 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                 .join(comment.commentGroup.vote, vote)
                 .leftJoin(mvo).on(mvo.member.eq(member).and(mvo.vote.eq(vote)))
                 .leftJoin(mvo.voteOption, voteOption)
-                .where(vote.id.eq(voteId), comment.parent.isNull())
+                .where(
+                        vote.id.eq(voteId),
+                        comment.parent.isNull(),
+                        BlockedAuthorPredicates.authorNotBlockedBy(loginId, comment.member.id)
+                )
                 .orderBy(sort.equals("latest") ? comment.createdAt.desc() : comment.likeCount.desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize() + 1)
@@ -203,6 +209,7 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
         List<CommentReplyResponseDto> result = queryFactory
                 .select(new QCommentReplyResponseDto(
                         reply.id,
+                        member.id,
                         profile.nickname,
                         member.isBot,
                         title.name,
@@ -227,7 +234,8 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                 .leftJoin(mvo.voteOption, voteOption)
                 .where(
                         vote.id.eq(voteId),
-                        reply.parent.id.eq(parentCommentId)
+                        reply.parent.id.eq(parentCommentId),
+                        BlockedAuthorPredicates.authorNotBlockedBy(loginId, reply.member.id)
                 )
                 .orderBy(reply.createdAt.asc())
                 .offset(pageable.getOffset())
@@ -244,9 +252,10 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
 
     /**
      * MostLikedCommentByVoteId 조건에 맞는 데이터를 찾는 메서드입니다.
+     * blockerId가 있으면 그 회원이 차단한 작성자의 댓글은 후보에서 제외합니다.
      */
     @Override
-    public Optional<Comment> findMostLikedCommentByVoteId(Long voteId) {
+    public Optional<Comment> findMostLikedCommentByVoteId(Long voteId, Long blockerId) {
         QComment comment = QComment.comment;
         QCommentGroup group = QCommentGroup.commentGroup;
 
@@ -256,7 +265,8 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                         .join(comment.commentGroup, group)
                         .where(
                                 group.vote.id.eq(voteId),
-                                comment.deletedAt.isNull()
+                                comment.deletedAt.isNull(),
+                                BlockedAuthorPredicates.authorNotBlockedBy(blockerId, comment.member.id)
                         )
                         .orderBy(comment.likeCount.desc())
                         .fetchFirst()

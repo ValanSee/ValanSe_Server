@@ -35,13 +35,13 @@ public interface VoteRepository extends JpaRepository<Vote, Long>, VoteRepositor
     @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member AND v.category = :category ORDER BY v.createdAt DESC")
     List<Vote> findAllByMemberVotedAndCategoryOrderByCreatedAtDesc(@Param("member") Member member, @Param("category") VoteCategory category);
 
-    @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member AND v.category = :category ORDER BY v.createdAt DESC")
+    @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member AND v.category = :category AND NOT EXISTS (SELECT 1 FROM MemberBlock mb WHERE mb.blocker = :member AND mb.blocked = v.member) ORDER BY v.createdAt DESC")
     Slice<Vote> findSliceByMemberVotedAndCategoryOrderByCreatedAtDesc(@Param("member") Member member, @Param("category") VoteCategory category, Pageable pageable);
 
     @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member AND v.category = :category ORDER BY v.createdAt ASC")
     List<Vote> findAllByMemberVotedAndCategoryOrderByCreatedAtAsc(@Param("member") Member member, @Param("category") VoteCategory category);
 
-    @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member AND v.category = :category ORDER BY v.createdAt ASC")
+    @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member AND v.category = :category AND NOT EXISTS (SELECT 1 FROM MemberBlock mb WHERE mb.blocker = :member AND mb.blocked = v.member) ORDER BY v.createdAt ASC")
     Slice<Vote> findSliceByMemberVotedAndCategoryOrderByCreatedAtAsc(@Param("member") Member member, @Param("category") VoteCategory category, Pageable pageable);
 
     List<Vote> findAllByMemberAndCategoryOrderByCreatedAtDesc(Member member, VoteCategory category);
@@ -59,13 +59,13 @@ public interface VoteRepository extends JpaRepository<Vote, Long>, VoteRepositor
     @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member ORDER BY v.createdAt DESC")
     List<Vote> findAllByMemberVotedOrderByCreatedAtDesc(@Param("member") Member member);
 
-    @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member ORDER BY v.createdAt DESC")
+    @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member AND NOT EXISTS (SELECT 1 FROM MemberBlock mb WHERE mb.blocker = :member AND mb.blocked = v.member) ORDER BY v.createdAt DESC")
     Slice<Vote> findSliceByMemberVotedOrderByCreatedAtDesc(@Param("member") Member member, Pageable pageable);
 
     @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member ORDER BY v.createdAt ASC")
     List<Vote> findAllByMemberVotedOrderByCreatedAtAsc(@Param("member") Member member);
 
-    @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member ORDER BY v.createdAt ASC")
+    @Query("SELECT DISTINCT v FROM Vote v JOIN v.voteOptions vo JOIN vo.memberVoteOptions mvo WHERE mvo.member = :member AND NOT EXISTS (SELECT 1 FROM MemberBlock mb WHERE mb.blocker = :member AND mb.blocked = v.member) ORDER BY v.createdAt ASC")
     Slice<Vote> findSliceByMemberVotedOrderByCreatedAtAsc(@Param("member") Member member, Pageable pageable);
 
     // 특정 카테고리에 해당하는 투표를 페이징하여 조회

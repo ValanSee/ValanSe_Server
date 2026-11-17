@@ -478,7 +478,7 @@ class CommentServiceImplTest {
 
         when(commentGroupRepository.findByVoteId(1L)).thenReturn(Optional.of(commentGroup));
         when(commentRepository.countActiveCommentsByVoteId(1L)).thenReturn(7L); // 실제 활성 댓글 수
-        when(commentRepository.findMostLikedCommentByVoteId(1L)).thenReturn(Optional.of(bestComment));
+        when(commentRepository.findMostLikedCommentByVoteId(1L, null)).thenReturn(Optional.of(bestComment));
 
         // when
         BestCommentResponseDto response = commentService.getBestCommentByVoteId(1L);

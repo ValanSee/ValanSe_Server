@@ -178,10 +178,11 @@ public class CommentServiceImpl implements CommentService {
 
     /**
      * 특정 투표에서 좋아요가 가장 많은 대표 댓글과 댓글 수를 조회하는 메서드입니다.
+     * 로그인 회원이 차단한 작성자의 댓글은 대표 댓글이 될 수 없습니다. (댓글 수는 전체 기준)
      */
     @Override
     @Transactional(readOnly = true)
-    public BestCommentResponseDto getBestCommentByVoteId(Long voteId) {
+    public BestCommentResponseDto getBestCommentByVoteId(Long voteId, Long loginId) {
         // commentGroup이 없으면 아예 댓글도 없다고 판단하고 빈 응답 반환
         CommentGroup group = commentGroupRepository.findByVoteId(voteId).orElse(null);
         if (group == null) {
@@ -192,7 +193,7 @@ public class CommentServiceImpl implements CommentService {
         }
         Long actualCommentCount = commentRepository.countActiveCommentsByVoteId(voteId);
 
-        return commentRepository.findMostLikedCommentByVoteId(voteId)
+        return commentRepository.findMostLikedCommentByVoteId(voteId, loginId)
                 .map(comment -> BestCommentResponseDto.builder()
                         .totalCommentCount(actualCommentCount.intValue())
                         .content(comment.getContent())
