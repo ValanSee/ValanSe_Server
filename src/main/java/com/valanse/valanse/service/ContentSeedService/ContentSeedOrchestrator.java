@@ -95,7 +95,9 @@ public class ContentSeedOrchestrator {
     // 모든 봇의 게시글을 생성한다 - 1차 시도를 전체 봇에 대해 순차 생성(+품질검증)한 뒤
     // 라운드로빈으로 교차 저장하고, 그다음 부족분이 남은 봇들만 재시도(생성+교차저장)한다.
     // 검색 키워드(spec 5.4): 묶음은 1차 시도에서만 봇에게 하나씩 주고, 그 봇이 batch 예외로
-    // 끝나거나 품질 통과 글 중 묶음 키워드와 일치하는 sourceKeyword가 없으면 다음 봇에게 넘긴다.
+    // 끝나거나, 묶음 키워드와 일치하는 sourceKeyword를 단 글이 있었지만 모두 품질 게이트에서
+    // 거절됐을 때만 다음 봇에게 넘긴다. 모델이 키워드를 쓰지 않았으면(빈 값·목록에 없는 값)
+    // 묶음은 소비된 것으로 보고 넘기지 않는다. 저장 실패도 넘기지 않는다.
     // 재시도는 항상 키워드 없이 호출한다.
     private PostsPhaseResult generatePostsForAllBots(
             List<Member> bots, UsageAccumulator usage, List<KeywordCandidate> keywords) {
@@ -117,17 +119,22 @@ public class ContentSeedOrchestrator {
         for (Member bot : bots) {
             List<PostDraft> drafts = List.of();
             List<KeywordCandidate> keywordGroup = pendingKeywordGroups.pollFirst();
+            boolean handOffKeywords = false;
             try {
                 List<RecentPost> recentPosts = candidateQueryService.findRecentActivePosts();
                 List<String> recentTitles = recentPosts.stream().map(RecentPost::title).toList();
                 recentPostsByBot.put(bot.getId(), recentPosts);
                 recentTitlesByBot.put(bot.getId(), recentTitles);
-                drafts = collectPostDrafts(bot, target, recentPosts, recentTitles, usage, failuresByBot, keywordGroup);
+                PostDraftCollection collection = collectPostDrafts(
+                        bot, target, recentPosts, recentTitles, usage, failuresByBot, keywordGroup);
+                drafts = collection.drafts();
+                handOffKeywords = collection.keywordPostRejected();
             } catch (Exception e) {
                 failuresByBot.get(bot.getId()).add(new ContentSeedItemFailure("batch", describe(e)));
                 batchErrorBots.add(bot.getId());
+                handOffKeywords = true;
             }
-            if (keywordGroup != null && drafts.stream().noneMatch(draft -> draft.keywordId() != null)) {
+            if (keywordGroup != null && handOffKeywords) {
                 pendingKeywordGroups.addFirst(keywordGroup);
             }
             firstAttempt.add(drafts);
@@ -143,7 +150,7 @@ public class ContentSeedOrchestrator {
                 try {
                     drafts = collectPostDrafts(
                             bot, shortfall, recentPosts, recentTitlesByBot.get(bot.getId()), usage, failuresByBot,
-                            null);
+                            null).drafts();
                 } catch (Exception e) {
                     failuresByBot.get(bot.getId()).add(new ContentSeedItemFailure("batch", describe(e)));
                 }
@@ -164,7 +171,8 @@ public class ContentSeedOrchestrator {
     // 교차시킨 뒤 수행한다. 생성 호출 자체의 예외는 호출자가 처리한다(전파).
     // keywordGroup이 null이면 키워드 없이(3인자) 호출하고, 있으면 품질 통과 글 중
     // sourceKeyword가 묶음과 일치하는 첫 글 하나에만 keywordId를 붙인다(spec 5.4 "코드에서 상한 강제").
-    private List<PostDraft> collectPostDrafts(
+    // 묶음과 일치하는 글이 있었지만 모두 품질 게이트에서 거절됐으면 keywordPostRejected=true로 알린다.
+    private PostDraftCollection collectPostDrafts(
             Member bot, int count, List<RecentPost> recentPosts, List<String> recentTitles,
             UsageAccumulator usage, Map<Long, List<ContentSeedItemFailure>> failuresByBot,
             List<KeywordCandidate> keywordGroup) {
@@ -175,11 +183,15 @@ public class ContentSeedOrchestrator {
 
         List<PostDraft> drafts = new ArrayList<>();
         boolean keywordMatched = false;
+        boolean matchingRejected = false;
         for (GeneratedPost post : result.content().posts()) {
             QualityCheckResult check = qualityGate.validatePost(post, recentTitles);
             String detail = qualityGate.toLogSafeSummary(post.title(), 30);
             if (!check.passed()) {
                 failuresByBot.get(bot.getId()).add(new ContentSeedItemFailure(detail, String.join(", ", check.reasons())));
+                if (keywordGroup != null && findMatchingKeywordId(keywordGroup, post.sourceKeyword()) != null) {
+                    matchingRejected = true;
+                }
                 continue;
             }
             Long keywordId = null;
@@ -189,7 +201,7 @@ public class ContentSeedOrchestrator {
             }
             drafts.add(new PostDraft(bot.getId(), post, detail, keywordId));
         }
-        return drafts;
+        return new PostDraftCollection(drafts, matchingRejected && !keywordMatched);
     }
 
     // 선택 목록을 min(maxPostsPerRun, 봇 수)개 묶음으로 라운드로빈 분할한다 - 봇마다 겹치지
@@ -466,6 +478,10 @@ public class ContentSeedOrchestrator {
     // 실패 사유에 함께 기록할 요약 문자열이다(기존 attemptPosts의 detail과 동일 용도).
     // keywordId는 저장 성공 시 사용 기록할 검색 키워드 id다(없으면 null).
     private record PostDraft(Long botId, GeneratedPost post, String detail, Long keywordId) {
+    }
+
+    // 1회 생성 시도의 저장 대기 게시글과, 묶음 키워드 일치 글이 전부 품질 거절됐는지 여부.
+    private record PostDraftCollection(List<PostDraft> drafts, boolean keywordPostRejected) {
     }
 
     // 후보/품질 검증을 통과해 저장을 기다리는 상호작용 1건.

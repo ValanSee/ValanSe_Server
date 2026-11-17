@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
@@ -613,21 +614,72 @@ class ContentSeedOrchestratorTest {
     }
 
     @Test
-    void hands_off_when_no_matching_source_keyword() {
+    void no_hand_off_when_model_skips_keyword() {
+        properties.setPostsPerBot(2);
+        Member bot1 = bot(1L, "한입만판사");
+        Member bot2 = bot(2L, "연애배심원");
+        List<KeywordCandidate> keywords = List.of(keyword(7L, "커플밸런스게임"));
+        givenBotsAndKeywords(List.of(bot1, bot2), keywords);
+        when(contentGenerator.generatePosts(any(), anyInt(), any(), any()))
+                .thenReturn(postBatch(post("평범한 질문", null), post("다른 질문", "없는키워드")));
+        when(contentGenerator.generatePosts(any(), anyInt(), any()))
+                .thenReturn(postBatch(post("봇2 질문1", "커플밸런스게임"), post("봇2 질문2", null)));
+        when(persistenceService.saveBotPost(any(), any())).thenReturn(100L, 101L, 102L, 103L);
+
+        orchestrator.run();
+
+        // 모델이 키워드를 쓰지 않았으면 묶음은 소비된다 - 봇2는 키워드 없이(3인자)만 호출된다.
+        verify(contentGenerator, times(1)).generatePosts(any(), anyInt(), any(), any());
+        verify(contentGenerator, never()).generatePosts(personaOf("연애배심원"), anyInt(), any(), any());
+        verify(contentGenerator, times(1)).generatePosts(personaOf("연애배심원"), anyInt(), any());
+        verify(keywordSelector, never()).markUsed(any());
+    }
+
+    @Test
+    void hands_off_when_matching_post_fails_quality_gate() {
         properties.setPostsPerBot(1);
         Member bot1 = bot(1L, "한입만판사");
         Member bot2 = bot(2L, "연애배심원");
         List<KeywordCandidate> keywords = List.of(keyword(7L, "커플밸런스게임"));
         givenBotsAndKeywords(List.of(bot1, bot2), keywords);
         when(contentGenerator.generatePosts(any(), anyInt(), any(), any()))
-                .thenReturn(postBatch(post("평범한 질문", null)))
+                .thenReturn(postBatch(post("가".repeat(26), "커플밸런스게임")))
                 .thenReturn(postBatch(post("커플 질문", "커플밸런스게임")));
-        when(persistenceService.saveBotPost(any(), any())).thenReturn(100L);
+        // 봇1은 1차에서 0건 저장 -> 부족분 재시도는 항상 3인자다.
+        when(contentGenerator.generatePosts(any(), anyInt(), any()))
+                .thenReturn(postBatch(post("봇1 재시도 질문", null)));
+        when(persistenceService.saveBotPost(any(), any())).thenReturn(100L, 101L);
 
         orchestrator.run();
 
         verify(contentGenerator, times(2)).generatePosts(any(), anyInt(), any(), eq(keywords));
+        verify(contentGenerator, times(1)).generatePosts(personaOf("연애배심원"), anyInt(), any(), eq(keywords));
+        verify(contentGenerator, never()).generatePosts(personaOf("연애배심원"), anyInt(), any());
         verify(keywordSelector, times(1)).markUsed(7L);
+    }
+
+    @Test
+    void no_hand_off_on_save_failure() {
+        properties.setPostsPerBot(1);
+        Member bot1 = bot(1L, "한입만판사");
+        Member bot2 = bot(2L, "연애배심원");
+        List<KeywordCandidate> keywords = List.of(keyword(7L, "커플밸런스게임"));
+        givenBotsAndKeywords(List.of(bot1, bot2), keywords);
+        GeneratedPost keywordPost = post("커플 질문", "커플밸런스게임");
+        when(contentGenerator.generatePosts(any(), anyInt(), any(), any())).thenReturn(postBatch(keywordPost));
+        when(contentGenerator.generatePosts(any(), anyInt(), any())).thenReturn(postBatch(post("다른 질문", null)));
+        when(persistenceService.saveBotPost(any(), any())).thenReturn(200L);
+        doThrow(new RuntimeException("DB 오류")).when(persistenceService).saveBotPost(eq(1L), eq(keywordPost));
+
+        orchestrator.run();
+
+        verify(contentGenerator, times(1)).generatePosts(any(), anyInt(), any(), any());
+        verify(contentGenerator, never()).generatePosts(personaOf("연애배심원"), anyInt(), any(), any());
+        verify(keywordSelector, never()).markUsed(any());
+    }
+
+    private static BotPersonaContext personaOf(String nickname) {
+        return argThat(persona -> persona != null && nickname.equals(persona.nickname()));
     }
 
     @Test
