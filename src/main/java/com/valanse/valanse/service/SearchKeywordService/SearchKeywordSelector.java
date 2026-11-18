@@ -18,6 +18,8 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 // 주간 게시글 생성 프롬프트에 넣을 검색 키워드를 고르고 사용 기록을 남긴다.
 @Slf4j
@@ -44,8 +46,9 @@ public class SearchKeywordSelector {
                     .findByLastSeenAtGreaterThanEqual(now.minusDays(properties.getFreshnessDays()));
             List<String> titles = voteRepository.findAllActiveTitles();
 
+            Set<String> cooldownBlockedKeywords = cooldownBlockedKeywords(fresh, cooldownThreshold);
             List<SearchKeyword> eligible = fresh.stream()
-                    .filter(k -> k.getLastUsedAt() == null || k.getLastUsedAt().isBefore(cooldownThreshold))
+                    .filter(k -> !cooldownBlockedKeywords.contains(effectiveKeyword(k.getKeyword())))
                     .filter(k -> isLengthOk(k.getKeyword()))
                     .filter(k -> !KeywordNormalizer.containsBrand(k.getKeyword(), properties.getBrandTerms()))
                     .filter(k -> titles.stream().noneMatch(title -> KeywordNormalizer.overlaps(k.getKeyword(), title)))
@@ -83,6 +86,27 @@ public class SearchKeywordSelector {
         return length >= MIN_LENGTH && length <= MAX_LENGTH;
     }
 
+    // 모델에게 실제로 보이는(sanitize 후 normalize된) 키워드 표현. 행 단위 cooldown 검사와
+    // 후보 합치기(mergeSameNormalizedKeyword)가 "같은 키워드"를 같은 기준으로 판단하도록
+    // 한곳에서 정의한다.
+    private static String effectiveKeyword(String keyword) {
+        return KeywordNormalizer.normalize(KeywordNormalizer.sanitize(keyword));
+    }
+
+    // 같은 표현(effectiveKeyword)의 행 중 하나라도 최근 reuseCooldownDays 안에 쓰였으면, 그
+    // 표현 전체를 차단 목록에 올린다. 행 단위로만 검사하면 네이버 쪽을 쓴 지 얼마 안 됐는데
+    // GSC가 같은 검색어를 이번에 처음 수집한 경우(lastUsedAt=null) 그 행만 보면 통과해버려서
+    // 56일 재사용 제한을 우회한다.
+    private static Set<String> cooldownBlockedKeywords(List<SearchKeyword> fresh, LocalDateTime cooldownThreshold) {
+        return fresh.stream()
+                .collect(Collectors.groupingBy(k -> effectiveKeyword(k.getKeyword())))
+                .entrySet().stream()
+                .filter(entry -> entry.getValue().stream()
+                        .anyMatch(k -> k.getLastUsedAt() != null && !k.getLastUsedAt().isBefore(cooldownThreshold)))
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
+    }
+
     private static KeywordCandidate toCandidate(SearchKeyword k) {
         return new KeywordCandidate(List.of(k.getId()), k.getSource(), k.getKeyword(),
                 k.getMonthlySearchVolume(), k.getImpressions());
@@ -96,8 +120,7 @@ public class SearchKeywordSelector {
     private static List<KeywordCandidate> mergeSameNormalizedKeyword(List<KeywordCandidate> candidates) {
         Map<String, KeywordCandidate> merged = new LinkedHashMap<>();
         for (KeywordCandidate candidate : candidates) {
-            String key = KeywordNormalizer.normalize(KeywordNormalizer.sanitize(candidate.keyword()));
-            merged.merge(key, candidate, SearchKeywordSelector::combine);
+            merged.merge(effectiveKeyword(candidate.keyword()), candidate, SearchKeywordSelector::combine);
         }
         return List.copyOf(merged.values());
     }

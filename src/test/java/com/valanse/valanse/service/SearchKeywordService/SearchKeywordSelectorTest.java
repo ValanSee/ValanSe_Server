@@ -98,6 +98,22 @@ class SearchKeywordSelectorTest {
     }
 
     @Test
+    void excludes_whole_group_when_sibling_row_was_recently_used() {
+        // 네이버의 "LOL 프로"는 10일 전 사용 기록이 있어 그 행만 보면 쿨다운에 걸린다. GSC가
+        // 같은 검색어를 이번 주에 처음 수집하면 그 행은 lastUsedAt이 없어 행 단위로만 보면
+        // 통과해버린다 - 하지만 같은 표현이 10일 전에 이미 쓰였으므로 묶음 전체가 제외돼야 한다.
+        SearchKeyword naverUsedRecently = kw(SearchKeywordSource.NAVER_SEARCH_AD, "LOL 프로", 100, null,
+                NOW.minusDays(10));
+        SearchKeyword googleNeverUsed = google("LOL 프로", 50);
+        when(keywordRepository.findByLastSeenAtGreaterThanEqual(any()))
+                .thenReturn(List.of(naverUsedRecently, googleNeverUsed));
+
+        List<KeywordCandidate> result = selector.selectForPrompt();
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
     void excludes_stale_last_seen() {
         when(keywordRepository.findByLastSeenAtGreaterThanEqual(NOW.minusDays(14))).thenReturn(List.of());
 
