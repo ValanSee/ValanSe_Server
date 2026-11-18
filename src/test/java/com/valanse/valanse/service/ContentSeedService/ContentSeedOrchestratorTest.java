@@ -699,6 +699,23 @@ class ContentSeedOrchestratorTest {
     }
 
     @Test
+    void matches_sourceKeyword_against_sanitized_form_with_special_characters() {
+        properties.setPostsPerBot(1);
+        Member bot = bot(1L, "한입만판사");
+        KeywordCandidate candidate = new KeywordCandidate(
+                List.of(7L), SearchKeywordSource.NAVER_SEARCH_AD, "LOL[프로]", 1000, null);
+        givenBotsAndKeywords(List.of(bot), List.of(candidate));
+        // 모델은 프롬프트에 적힌 정제된 형태("LOL 프로")만 보고, 그걸 그대로 sourceKeyword에 echo한다.
+        GeneratedPost keywordPost = post("LOL 프로 질문", "LOL 프로");
+        when(contentGenerator.generatePosts(any(), anyInt(), any(), any())).thenReturn(postBatch(keywordPost));
+        when(persistenceService.saveBotPost(eq(1L), eq(keywordPost))).thenReturn(100L);
+
+        orchestrator.run();
+
+        verify(keywordSelector).markUsed(7L);
+    }
+
+    @Test
     void marks_used_for_all_ids_when_keyword_merged_across_sources() {
         properties.setPostsPerBot(1);
         Member bot = bot(1L, "한입만판사");

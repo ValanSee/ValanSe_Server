@@ -229,7 +229,8 @@ public class ContentSeedOrchestrator {
             return List.of();
         }
         return keywordGroup.stream()
-                .filter(candidate -> KeywordNormalizer.normalize(candidate.keyword()).equals(normalized))
+                .filter(candidate -> KeywordNormalizer.normalize(KeywordNormalizer.sanitize(candidate.keyword()))
+                        .equals(normalized))
                 .map(KeywordCandidate::ids)
                 .findFirst()
                 .orElse(List.of());

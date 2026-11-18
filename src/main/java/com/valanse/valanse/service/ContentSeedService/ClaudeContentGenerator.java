@@ -7,6 +7,7 @@ import com.anthropic.models.messages.StructuredMessageCreateParams;
 import com.valanse.valanse.common.config.ContentSeedProperties;
 import com.valanse.valanse.domain.enums.SearchKeywordSource;
 import com.valanse.valanse.service.SearchKeywordService.KeywordCandidate;
+import com.valanse.valanse.service.SearchKeywordService.KeywordNormalizer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -135,7 +136,7 @@ public class ClaudeContentGenerator {
                 .append("실제 사람들이 네이버·구글에서 검색한 말입니다. ")
                 .append("네이버 키워드는 공백이 빠져 있으니 자연스럽게 띄어 쓰세요.\n");
         keywords.forEach(k -> {
-            String text = sanitizeKeyword(k.keyword());
+            String text = KeywordNormalizer.sanitize(k.keyword());
             if (text.isEmpty()) {
                 return;
             }
@@ -148,17 +149,6 @@ public class ClaudeContentGenerator {
             }
             prompt.append("\n");
         });
-    }
-
-    // 외부에서 온 키워드가 프롬프트 구조를 흉내 내지 못하게 한다 - 줄바꿈·탭 등 제어 문자(줄/문단 구분자 포함),
-    // 섹션 표식([, ]), 백틱을 공백으로 바꾸고 연속 공백을 하나로 줄인 뒤 trim한다.
-    private static String sanitizeKeyword(String keyword) {
-        if (keyword == null) {
-            return "";
-        }
-        return keyword.replaceAll("[\\p{Cc}\\p{Zl}\\p{Zp}\\[\\]`]", " ")
-                .replaceAll(" {2,}", " ")
-                .trim();
     }
 
     private String categoryDistributionSummary(List<RecentPost> recentPosts) {

@@ -21,6 +21,18 @@ public final class KeywordNormalizer {
         return raw.replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
     }
 
+    // 프롬프트에 보여줄 때 제어 문자·줄/문단 구분자·[]·백틱을 공백으로 바꾼다(ClaudeContentGenerator의
+    // 표시용 정제와 동일). 모델은 이 정제된 형태만 보고 sourceKeyword에 그대로 echo하므로, 원본
+    // keyword와 매칭할 때도 같은 정제를 거쳐야 괄호·백틱이 든 키워드가 영영 매칭 실패하지 않는다.
+    public static String sanitize(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        return raw.replaceAll("[\\p{Cc}\\p{Zl}\\p{Zp}\\[\\]`]", " ")
+                .replaceAll(" {2,}", " ")
+                .trim();
+    }
+
     public static String core(String raw) {
         String result = normalize(raw);
         for (String token : CORE_TOKENS) {
