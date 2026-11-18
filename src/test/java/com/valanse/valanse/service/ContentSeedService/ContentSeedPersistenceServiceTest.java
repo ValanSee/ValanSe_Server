@@ -64,7 +64,7 @@ class ContentSeedPersistenceServiceTest {
     @DisplayName("봇 게시글 1건을 저장하고, 봇에게는 작성 포인트를 지급하지 않는다")
     void saveBotPost_PersistsVoteWithoutRewardingBot() {
         Member bot = saveMember("content-seed-bot-301", true);
-        GeneratedPost post = new GeneratedPost("제목입니다", "본문입니다", "A를 고른다", "B를 고른다", GeneratableVoteCategory.FOOD);
+        GeneratedPost post = new GeneratedPost("제목입니다", "본문입니다", "A를 고른다", "B를 고른다", GeneratableVoteCategory.FOOD, null);
 
         Long voteId = persistenceService.saveBotPost(bot.getId(), post);
 
@@ -106,7 +106,7 @@ class ContentSeedPersistenceServiceTest {
     @DisplayName("REQUIRES_NEW 저장은 이를 감싼 바깥 트랜잭션이 나중에 롤백되어도 유지된다")
     void saveBotPost_CommitsIndependentlyOfSurroundingTransactionRollback() {
         Member bot = saveMember("content-seed-bot-303", true);
-        GeneratedPost post = new GeneratedPost("독립커밋제목", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost post = new GeneratedPost("독립커밋제목", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
         long[] savedVoteId = new long[1];
 
         Assertions.assertThrows(RuntimeException.class, () ->
@@ -123,7 +123,7 @@ class ContentSeedPersistenceServiceTest {
     @DisplayName("뒤 항목 저장이 실패해도 앞서 저장된 항목은 그대로 남는다")
     void saveBotInteraction_FailureDoesNotRollBackEarlierSuccess() {
         Member bot = saveMember("content-seed-bot-304", true);
-        GeneratedPost post = new GeneratedPost("먼저성공제목", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost post = new GeneratedPost("먼저성공제목", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
         Long voteId = persistenceService.saveBotPost(bot.getId(), post);
 
         GeneratedInteraction badInteraction = new GeneratedInteraction(

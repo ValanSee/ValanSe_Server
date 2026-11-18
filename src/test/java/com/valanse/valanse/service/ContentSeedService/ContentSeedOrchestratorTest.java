@@ -1,11 +1,15 @@
 package com.valanse.valanse.service.ContentSeedService;
 
 import com.valanse.valanse.common.config.ContentSeedProperties;
+import com.valanse.valanse.common.config.SearchKeywordProperties;
 import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.MemberProfile;
 import com.valanse.valanse.domain.enums.Age;
 import com.valanse.valanse.domain.enums.Gender;
 import com.valanse.valanse.domain.enums.Role;
+import com.valanse.valanse.domain.enums.SearchKeywordSource;
+import com.valanse.valanse.service.SearchKeywordService.KeywordCandidate;
+import com.valanse.valanse.service.SearchKeywordService.SearchKeywordSelector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,8 +27,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -45,18 +51,23 @@ class ContentSeedOrchestratorTest {
     @Mock private ClaudeContentGenerator contentGenerator;
     @Mock private ContentSeedCandidateQueryService candidateQueryService;
     @Mock private ContentSeedPersistenceService persistenceService;
+    @Mock private SearchKeywordSelector keywordSelector;
 
     private ContentSeedOrchestrator orchestrator;
     private ContentSeedProperties properties;
+    private SearchKeywordProperties keywordProperties;
 
     @BeforeEach
     void setUp() {
         properties = new ContentSeedProperties();
         properties.setPostsPerBot(2);
         properties.setInteractionsPerBot(2);
+        keywordProperties = new SearchKeywordProperties();
+        // runCommentsOnly 경로는 선택기를 호출하지 않으므로 lenient로 둔다.
+        lenient().when(keywordSelector.selectForPrompt()).thenReturn(List.of());
         orchestrator = new ContentSeedOrchestrator(
                 botAccountSelector, contentGenerator, new ContentQualityGate(),
-                candidateQueryService, persistenceService, properties);
+                candidateQueryService, persistenceService, properties, keywordSelector, keywordProperties);
     }
 
     @Test
@@ -89,8 +100,8 @@ class ContentSeedOrchestratorTest {
         when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
 
         GeneratedPost tooLongTitle = new GeneratedPost(
-                "가".repeat(30), "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost validPost = new GeneratedPost("정상 제목", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+                "가".repeat(30), "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost validPost = new GeneratedPost("정상 제목", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
         when(contentGenerator.generatePosts(any(), anyInt(), any()))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(tooLongTitle, validPost)), 1, 1));
         when(persistenceService.saveBotPost(eq(1L), eq(validPost))).thenReturn(100L);
@@ -112,8 +123,8 @@ class ContentSeedOrchestratorTest {
         when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot));
         when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
 
-        GeneratedPost failingPost = new GeneratedPost("실패할 제목", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost okPost = new GeneratedPost("성공할 제목", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost failingPost = new GeneratedPost("실패할 제목", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost okPost = new GeneratedPost("성공할 제목", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
         when(contentGenerator.generatePosts(any(), anyInt(), any()))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(failingPost, okPost)), 1, 1));
         doThrow(new RuntimeException("DB 오류")).when(persistenceService).saveBotPost(eq(1L), eq(failingPost));
@@ -135,7 +146,7 @@ class ContentSeedOrchestratorTest {
         when(botAccountSelector.selectActiveBots()).thenReturn(List.of(failingBot, okBot));
         when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
 
-        GeneratedPost okPost = new GeneratedPost("정상 제목", "본문", "A", "B", GeneratableVoteCategory.LOVE);
+        GeneratedPost okPost = new GeneratedPost("정상 제목", "본문", "A", "B", GeneratableVoteCategory.LOVE, null);
         when(contentGenerator.generatePosts(any(), anyInt(), any()))
                 .thenThrow(new RuntimeException("Claude 호출 실패"))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(okPost)), 1, 1));
@@ -206,7 +217,7 @@ class ContentSeedOrchestratorTest {
         when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot));
         when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
 
-        GeneratedPost onlyPost = new GeneratedPost("제목", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost onlyPost = new GeneratedPost("제목", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
         when(contentGenerator.generatePosts(any(), anyInt(), any()))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(onlyPost)), 1, 1))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of()), 1, 1));
@@ -227,7 +238,7 @@ class ContentSeedOrchestratorTest {
         Member bot = bot(1L, "한입만판사");
         when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot));
 
-        GeneratedPost post = new GeneratedPost("제목", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost post = new GeneratedPost("제목", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
         when(contentGenerator.generatePosts(any(), anyInt(), any()))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(post)), 1000, 500));
         when(persistenceService.saveBotPost(eq(1L), eq(post))).thenReturn(100L);
@@ -361,8 +372,8 @@ class ContentSeedOrchestratorTest {
         when(candidateQueryService.findRecentActivePosts()).thenReturn(List.of());
         when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
 
-        GeneratedPost itemA = new GeneratedPost("제목A", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost itemB = new GeneratedPost("제목B", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost itemA = new GeneratedPost("제목A", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost itemB = new GeneratedPost("제목B", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
         when(contentGenerator.generatePosts(any(), eq(2), any()))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(itemA, itemB)), 1, 1));
         when(persistenceService.saveBotPost(any(), any())).thenReturn(1L, 2L, 3L, 4L, 5L, 6L);
@@ -453,11 +464,11 @@ class ContentSeedOrchestratorTest {
         when(candidateQueryService.findRecentActivePosts()).thenReturn(List.of());
         when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
 
-        GeneratedPost a0 = new GeneratedPost("제목A0", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost a1 = new GeneratedPost("제목A1", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost a2 = new GeneratedPost("제목A2", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost a3 = new GeneratedPost("제목A3", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost b0 = new GeneratedPost("제목B0", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost a0 = new GeneratedPost("제목A0", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost a1 = new GeneratedPost("제목A1", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost a2 = new GeneratedPost("제목A2", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost a3 = new GeneratedPost("제목A3", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost b0 = new GeneratedPost("제목B0", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
         when(contentGenerator.generatePosts(any(), anyInt(), any()))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(a0, a1, a2, a3)), 1, 1))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(b0)), 1, 1));
@@ -487,12 +498,12 @@ class ContentSeedOrchestratorTest {
         when(candidateQueryService.findRecentActivePosts()).thenReturn(List.of());
         when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
 
-        GeneratedPost a0 = new GeneratedPost("제목A0", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost a1 = new GeneratedPost("제목A1", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost a2 = new GeneratedPost("제목A2", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost a3 = new GeneratedPost("제목A3", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost a4 = new GeneratedPost("제목A4", "본문", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost b0 = new GeneratedPost("제목B0", "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost a0 = new GeneratedPost("제목A0", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost a1 = new GeneratedPost("제목A1", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost a2 = new GeneratedPost("제목A2", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost a3 = new GeneratedPost("제목A3", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost a4 = new GeneratedPost("제목A4", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost b0 = new GeneratedPost("제목B0", "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
         when(contentGenerator.generatePosts(any(), anyInt(), any()))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(a0, a1, a2, a3, a4)), 1, 1))
                 .thenReturn(new GenerationResult<>(new GeneratedPostBatch(List.of(b0)), 1, 1));
@@ -534,6 +545,287 @@ class ContentSeedOrchestratorTest {
 
         assertThat(counts).containsEntry("제목 길이 위반(1~25자)", 2L);
         assertThat(counts).containsEntry("선택 옵션 누락", 1L);
+    }
+
+    @Test
+    void no_keywords_keeps_existing_flow() {
+        properties.setPostsPerBot(1);
+        Member bot = bot(1L, "한입만판사");
+        when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot));
+        when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
+        when(contentGenerator.generatePosts(any(), anyInt(), any()))
+                .thenReturn(postBatch(post("정상 제목", null)));
+        when(persistenceService.saveBotPost(eq(1L), any())).thenReturn(100L);
+
+        orchestrator.run();
+
+        verify(contentGenerator, never()).generatePosts(any(), anyInt(), any(), any());
+        verify(keywordSelector, never()).markUsed(any());
+    }
+
+    @Test
+    void runCommentsOnly_does_not_call_keyword_selector() {
+        when(botAccountSelector.selectActiveBots()).thenReturn(List.of(bot(1L, "한입만판사")));
+        when(candidateQueryService.findInteractionCandidates(any(), any(), anyBoolean())).thenReturn(List.of());
+
+        orchestrator.runCommentsOnly();
+
+        verify(keywordSelector, never()).selectForPrompt();
+    }
+
+    @Test
+    void only_first_bot_first_attempt_gets_keywords() {
+        Member bot1 = bot(1L, "한입만판사");
+        Member bot2 = bot(2L, "연애배심원");
+        List<KeywordCandidate> keywords = List.of(keyword(7L, "커플밸런스게임"));
+        givenBotsAndKeywords(List.of(bot1, bot2), keywords);
+        when(contentGenerator.generatePosts(any(), anyInt(), any(), any()))
+                .thenReturn(postBatch(post("커플 질문", "커플밸런스게임")));
+        when(contentGenerator.generatePosts(any(), anyInt(), any()))
+                .thenReturn(postBatch(post("다른 질문", null)));
+        when(persistenceService.saveBotPost(any(), any())).thenReturn(100L);
+
+        orchestrator.run();
+
+        // postsPerBot=2라 봇1은 1개 부족 -> 재시도는 3인자. 봇2는 1차·재시도 모두 3인자.
+        verify(contentGenerator, times(1)).generatePosts(any(), anyInt(), any(), eq(keywords));
+        verify(contentGenerator, times(1)).generatePosts(any(), anyInt(), any(), any());
+        verify(contentGenerator, times(3)).generatePosts(any(), anyInt(), any());
+    }
+
+    @Test
+    void hands_off_to_next_bot_on_batch_failure() {
+        properties.setPostsPerBot(1);
+        Member bot1 = bot(1L, "한입만판사");
+        Member bot2 = bot(2L, "연애배심원");
+        List<KeywordCandidate> keywords = List.of(keyword(7L, "커플밸런스게임"));
+        givenBotsAndKeywords(List.of(bot1, bot2), keywords);
+        when(contentGenerator.generatePosts(any(), anyInt(), any(), any()))
+                .thenThrow(new RuntimeException("Claude 호출 실패"))
+                .thenReturn(postBatch(post("커플 질문", "커플밸런스게임")));
+        when(persistenceService.saveBotPost(any(), any())).thenReturn(100L);
+
+        ContentSeedRunResult result = orchestrator.run();
+
+        verify(contentGenerator, times(2)).generatePosts(any(), anyInt(), any(), eq(keywords));
+        verify(contentGenerator, never()).generatePosts(any(), anyInt(), any());
+        verify(keywordSelector, times(1)).markUsed(7L);
+        assertThat(result.postOutcomes().get(1).savedCount()).isEqualTo(1);
+    }
+
+    @Test
+    void no_hand_off_when_model_skips_keyword() {
+        properties.setPostsPerBot(2);
+        Member bot1 = bot(1L, "한입만판사");
+        Member bot2 = bot(2L, "연애배심원");
+        List<KeywordCandidate> keywords = List.of(keyword(7L, "커플밸런스게임"));
+        givenBotsAndKeywords(List.of(bot1, bot2), keywords);
+        when(contentGenerator.generatePosts(any(), anyInt(), any(), any()))
+                .thenReturn(postBatch(post("평범한 질문", null), post("다른 질문", "없는키워드")));
+        when(contentGenerator.generatePosts(any(), anyInt(), any()))
+                .thenReturn(postBatch(post("봇2 질문1", "커플밸런스게임"), post("봇2 질문2", null)));
+        when(persistenceService.saveBotPost(any(), any())).thenReturn(100L, 101L, 102L, 103L);
+
+        orchestrator.run();
+
+        // 모델이 키워드를 쓰지 않았으면 묶음은 소비된다 - 봇2는 키워드 없이(3인자)만 호출된다.
+        verify(contentGenerator, times(1)).generatePosts(any(), anyInt(), any(), any());
+        verify(contentGenerator, never()).generatePosts(personaOf("연애배심원"), anyInt(), any(), any());
+        verify(contentGenerator, times(1)).generatePosts(personaOf("연애배심원"), anyInt(), any());
+        verify(keywordSelector, never()).markUsed(any());
+    }
+
+    @Test
+    void hands_off_when_matching_post_fails_quality_gate() {
+        properties.setPostsPerBot(1);
+        Member bot1 = bot(1L, "한입만판사");
+        Member bot2 = bot(2L, "연애배심원");
+        List<KeywordCandidate> keywords = List.of(keyword(7L, "커플밸런스게임"));
+        givenBotsAndKeywords(List.of(bot1, bot2), keywords);
+        when(contentGenerator.generatePosts(any(), anyInt(), any(), any()))
+                .thenReturn(postBatch(post("가".repeat(26), "커플밸런스게임")))
+                .thenReturn(postBatch(post("커플 질문", "커플밸런스게임")));
+        // 봇1은 1차에서 0건 저장 -> 부족분 재시도는 항상 3인자다.
+        when(contentGenerator.generatePosts(any(), anyInt(), any()))
+                .thenReturn(postBatch(post("봇1 재시도 질문", null)));
+        when(persistenceService.saveBotPost(any(), any())).thenReturn(100L, 101L);
+
+        orchestrator.run();
+
+        verify(contentGenerator, times(2)).generatePosts(any(), anyInt(), any(), eq(keywords));
+        verify(contentGenerator, times(1)).generatePosts(personaOf("연애배심원"), anyInt(), any(), eq(keywords));
+        verify(contentGenerator, never()).generatePosts(personaOf("연애배심원"), anyInt(), any());
+        verify(keywordSelector, times(1)).markUsed(7L);
+    }
+
+    @Test
+    void no_hand_off_on_save_failure() {
+        properties.setPostsPerBot(1);
+        Member bot1 = bot(1L, "한입만판사");
+        Member bot2 = bot(2L, "연애배심원");
+        List<KeywordCandidate> keywords = List.of(keyword(7L, "커플밸런스게임"));
+        givenBotsAndKeywords(List.of(bot1, bot2), keywords);
+        GeneratedPost keywordPost = post("커플 질문", "커플밸런스게임");
+        when(contentGenerator.generatePosts(any(), anyInt(), any(), any())).thenReturn(postBatch(keywordPost));
+        when(contentGenerator.generatePosts(any(), anyInt(), any())).thenReturn(postBatch(post("다른 질문", null)));
+        when(persistenceService.saveBotPost(any(), any())).thenReturn(200L);
+        doThrow(new RuntimeException("DB 오류")).when(persistenceService).saveBotPost(eq(1L), eq(keywordPost));
+
+        orchestrator.run();
+
+        verify(contentGenerator, times(1)).generatePosts(any(), anyInt(), any(), any());
+        verify(contentGenerator, never()).generatePosts(personaOf("연애배심원"), anyInt(), any(), any());
+        verify(keywordSelector, never()).markUsed(any());
+    }
+
+    private static BotPersonaContext personaOf(String nickname) {
+        return argThat(persona -> persona != null && nickname.equals(persona.nickname()));
+    }
+
+    @Test
+    void marks_used_with_normalized_match() {
+        properties.setPostsPerBot(1);
+        Member bot = bot(1L, "한입만판사");
+        givenBotsAndKeywords(List.of(bot), List.of(keyword(7L, "커플밸런스게임")));
+        GeneratedPost keywordPost = post("커플 질문", "커플 밸런스게임");
+        when(contentGenerator.generatePosts(any(), anyInt(), any(), any())).thenReturn(postBatch(keywordPost));
+        when(persistenceService.saveBotPost(eq(1L), eq(keywordPost))).thenReturn(100L);
+
+        orchestrator.run();
+
+        InOrder order = inOrder(persistenceService, keywordSelector);
+        order.verify(persistenceService).saveBotPost(eq(1L), eq(keywordPost));
+        order.verify(keywordSelector, times(1)).markUsed(7L);
+    }
+
+    @Test
+    void matches_sourceKeyword_against_sanitized_form_with_special_characters() {
+        properties.setPostsPerBot(1);
+        Member bot = bot(1L, "한입만판사");
+        KeywordCandidate candidate = new KeywordCandidate(
+                List.of(7L), SearchKeywordSource.NAVER_SEARCH_AD, "LOL[프로]", 1000, null);
+        givenBotsAndKeywords(List.of(bot), List.of(candidate));
+        // 모델은 프롬프트에 적힌 정제된 형태("LOL 프로")만 보고, 그걸 그대로 sourceKeyword에 echo한다.
+        GeneratedPost keywordPost = post("LOL 프로 질문", "LOL 프로");
+        when(contentGenerator.generatePosts(any(), anyInt(), any(), any())).thenReturn(postBatch(keywordPost));
+        when(persistenceService.saveBotPost(eq(1L), eq(keywordPost))).thenReturn(100L);
+
+        orchestrator.run();
+
+        verify(keywordSelector).markUsed(7L);
+    }
+
+    @Test
+    void marks_used_for_all_ids_when_keyword_merged_across_sources() {
+        properties.setPostsPerBot(1);
+        Member bot = bot(1L, "한입만판사");
+        KeywordCandidate merged = new KeywordCandidate(
+                List.of(7L, 8L), SearchKeywordSource.NAVER_SEARCH_AD, "커플밸런스게임", 1000, null);
+        givenBotsAndKeywords(List.of(bot), List.of(merged));
+        GeneratedPost keywordPost = post("커플 질문", "커플밸런스게임");
+        when(contentGenerator.generatePosts(any(), anyInt(), any(), any())).thenReturn(postBatch(keywordPost));
+        when(persistenceService.saveBotPost(eq(1L), eq(keywordPost))).thenReturn(100L);
+
+        orchestrator.run();
+
+        verify(keywordSelector).markUsed(7L);
+        verify(keywordSelector).markUsed(8L);
+    }
+
+    @Test
+    void caps_mark_used_when_model_fills_many() {
+        properties.setPostsPerBot(3);
+        Member bot = bot(1L, "한입만판사");
+        givenBotsAndKeywords(List.of(bot), List.of(keyword(7L, "커플밸런스게임"), keyword(8L, "음식밸런스게임")));
+        when(contentGenerator.generatePosts(any(), anyInt(), any(), any())).thenReturn(postBatch(
+                post("커플 질문1", "커플밸런스게임"),
+                post("커플 질문2", "음식밸런스게임"),
+                post("커플 질문3", "커플밸런스게임")));
+        when(persistenceService.saveBotPost(any(), any())).thenReturn(100L, 101L, 102L);
+
+        ContentSeedRunResult result = orchestrator.run();
+
+        assertThat(result.postOutcomes().get(0).savedCount()).isEqualTo(3);
+        verify(keywordSelector, times(1)).markUsed(7L);
+        verify(keywordSelector, times(1)).markUsed(any());
+    }
+
+    @Test
+    void no_mark_when_save_fails() {
+        properties.setPostsPerBot(1);
+        Member bot = bot(1L, "한입만판사");
+        givenBotsAndKeywords(List.of(bot), List.of(keyword(7L, "커플밸런스게임")));
+        GeneratedPost keywordPost = post("커플 질문", "커플밸런스게임");
+        when(contentGenerator.generatePosts(any(), anyInt(), any(), any())).thenReturn(postBatch(keywordPost));
+        when(contentGenerator.generatePosts(any(), anyInt(), any())).thenReturn(postBatch());
+        doThrow(new RuntimeException("DB 오류")).when(persistenceService).saveBotPost(eq(1L), eq(keywordPost));
+
+        orchestrator.run();
+
+        verify(keywordSelector, never()).markUsed(any());
+    }
+
+    @Test
+    void mark_used_failure_does_not_affect_result() {
+        properties.setPostsPerBot(1);
+        Member bot = bot(1L, "한입만판사");
+        givenBotsAndKeywords(List.of(bot), List.of(keyword(7L, "커플밸런스게임")));
+        GeneratedPost keywordPost = post("커플 질문", "커플밸런스게임");
+        when(contentGenerator.generatePosts(any(), anyInt(), any(), any())).thenReturn(postBatch(keywordPost));
+        when(persistenceService.saveBotPost(eq(1L), eq(keywordPost))).thenReturn(100L);
+        doThrow(new RuntimeException("기록 실패")).when(keywordSelector).markUsed(7L);
+
+        ContentSeedRunResult result = orchestrator.run();
+
+        ContentSeedBatchOutcome outcome = result.postOutcomes().get(0);
+        assertThat(outcome.savedCount()).isEqualTo(1);
+        assertThat(outcome.failures()).isEmpty();
+        assertThat(result.savedPostIds()).containsExactly(100L);
+    }
+
+    @Test
+    void splits_keywords_round_robin_across_bots_up_to_cap() {
+        properties.setPostsPerBot(1);
+        keywordProperties.getPrompt().setMaxPostsPerRun(2);
+        Member bot1 = bot(1L, "한입만판사");
+        Member bot2 = bot(2L, "연애배심원");
+        Member bot3 = bot(3L, "음식심판");
+        KeywordCandidate k1 = keyword(7L, "커플밸런스게임");
+        KeywordCandidate k2 = keyword(8L, "음식밸런스게임");
+        KeywordCandidate k3 = keyword(9L, "친구밸런스게임");
+        givenBotsAndKeywords(List.of(bot1, bot2, bot3), List.of(k1, k2, k3));
+        when(contentGenerator.generatePosts(any(), anyInt(), any(), eq(List.of(k1, k3))))
+                .thenReturn(postBatch(post("질문1", "친구밸런스게임")));
+        when(contentGenerator.generatePosts(any(), anyInt(), any(), eq(List.of(k2))))
+                .thenReturn(postBatch(post("질문2", "음식밸런스게임")));
+        when(contentGenerator.generatePosts(any(), anyInt(), any())).thenReturn(postBatch(post("질문3", null)));
+        when(persistenceService.saveBotPost(any(), any())).thenReturn(100L, 101L, 102L);
+
+        orchestrator.run();
+
+        verify(contentGenerator, times(2)).generatePosts(any(), anyInt(), any(), any());
+        verify(contentGenerator, times(1)).generatePosts(any(), anyInt(), any());
+        verify(keywordSelector).markUsed(9L);
+        verify(keywordSelector).markUsed(8L);
+        verify(keywordSelector, times(2)).markUsed(any());
+    }
+
+    private void givenBotsAndKeywords(List<Member> bots, List<KeywordCandidate> keywords) {
+        when(botAccountSelector.selectActiveBots()).thenReturn(bots);
+        when(candidateQueryService.findInteractionCandidates(any(), any())).thenReturn(List.of());
+        when(keywordSelector.selectForPrompt()).thenReturn(keywords);
+    }
+
+    private static KeywordCandidate keyword(long id, String text) {
+        return new KeywordCandidate(List.of(id), SearchKeywordSource.NAVER_SEARCH_AD, text, 1000, null);
+    }
+
+    private static GeneratedPost post(String title, String sourceKeyword) {
+        return new GeneratedPost(title, "본문", "A", "B", GeneratableVoteCategory.FOOD, sourceKeyword);
+    }
+
+    private static GenerationResult<GeneratedPostBatch> postBatch(GeneratedPost... posts) {
+        return new GenerationResult<>(new GeneratedPostBatch(List.of(posts)), 1, 1);
     }
 
     private Member bot(long id, String nickname) {

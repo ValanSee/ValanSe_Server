@@ -82,4 +82,8 @@ public interface VoteRepository extends JpaRepository<Vote, Long>, VoteRepositor
 
     // 모든 투표를 페이징하여 조회 (JpaRepository의 findAll(Pageable)을 사용)
     // Page<Vote> findAll(Pageable pageable); // JpaRepository에 이미 정의되어 있으므로 명시적으로 추가할 필요 없음
+
+    // 삭제되지 않은 모든 게임 제목 (검색 키워드 겹침 판정용)
+    @Query("select v.title from Vote v where v.deletedAt is null")
+    List<String> findAllActiveTitles();
 }
