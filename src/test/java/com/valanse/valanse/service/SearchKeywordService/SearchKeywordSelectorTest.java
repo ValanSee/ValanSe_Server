@@ -84,6 +84,20 @@ class SearchKeywordSelectorTest {
     }
 
     @Test
+    void merges_candidates_that_look_identical_after_sanitize() {
+        // "LOL[프로]"와 "LOL 프로"는 원본 정규화는 다르지만([] 때문에), 프롬프트에 보일 때는
+        // 둘 다 "LOL 프로"로 정제되어 모델 눈에는 똑같은 키워드로 보인다.
+        SearchKeyword bracketForm = naver("LOL[프로]", 100);
+        SearchKeyword plainForm = google("LOL 프로", 50);
+        when(keywordRepository.findByLastSeenAtGreaterThanEqual(any())).thenReturn(List.of(bracketForm, plainForm));
+
+        List<KeywordCandidate> result = selector.selectForPrompt();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).ids()).containsExactlyInAnyOrder(bracketForm.getId(), plainForm.getId());
+    }
+
+    @Test
     void excludes_stale_last_seen() {
         when(keywordRepository.findByLastSeenAtGreaterThanEqual(NOW.minusDays(14))).thenReturn(List.of());
 
