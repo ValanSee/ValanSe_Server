@@ -11,7 +11,7 @@ class ContentQualityGateTest {
     private final ContentQualityGate gate = new ContentQualityGate();
 
     private GeneratedPost validPost() {
-        return new GeneratedPost("치킨 vs 피자", "저녁 뭐 먹지 고민이야", "치킨", "피자", GeneratableVoteCategory.FOOD);
+        return new GeneratedPost("치킨 vs 피자", "저녁 뭐 먹지 고민이야", "치킨", "피자", GeneratableVoteCategory.FOOD, null);
     }
 
     private GeneratedInteraction validInteraction() {
@@ -47,7 +47,7 @@ class ContentQualityGateTest {
     @Test
     void 제목이_25자를_초과하면_거절된다() {
         String longTitle = "가".repeat(26);
-        GeneratedPost post = new GeneratedPost(longTitle, "본문", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost post = new GeneratedPost(longTitle, "본문", "A", "B", GeneratableVoteCategory.FOOD, null);
 
         QualityCheckResult result = gate.validatePost(post, List.of());
 
@@ -65,7 +65,7 @@ class ContentQualityGateTest {
 
     @Test
     void 본문이_100자를_초과하면_거절된다() {
-        GeneratedPost post = new GeneratedPost("제목", "가".repeat(101), "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost post = new GeneratedPost("제목", "가".repeat(101), "A", "B", GeneratableVoteCategory.FOOD, null);
 
         QualityCheckResult result = gate.validatePost(post, List.of());
 
@@ -75,8 +75,8 @@ class ContentQualityGateTest {
 
     @Test
     void 선택지가_공백이거나_서로_중복되면_거절된다() {
-        GeneratedPost blankOption = new GeneratedPost("제목", "본문", " ", "피자", GeneratableVoteCategory.FOOD);
-        GeneratedPost duplicateOption = new GeneratedPost("제목", "본문", "치킨", "치킨", GeneratableVoteCategory.FOOD);
+        GeneratedPost blankOption = new GeneratedPost("제목", "본문", " ", "피자", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost duplicateOption = new GeneratedPost("제목", "본문", "치킨", "치킨", GeneratableVoteCategory.FOOD, null);
 
         assertThat(gate.validatePost(blankOption, List.of()).reasons()).anyMatch(r -> r.contains("공백"));
         assertThat(gate.validatePost(duplicateOption, List.of()).reasons()).anyMatch(r -> r.contains("중복"));
@@ -84,7 +84,7 @@ class ContentQualityGateTest {
 
     @Test
     void 카테고리가_없으면_거절된다() {
-        GeneratedPost post = new GeneratedPost("제목", "본문", "A", "B", null);
+        GeneratedPost post = new GeneratedPost("제목", "본문", "A", "B", null, null);
 
         QualityCheckResult result = gate.validatePost(post, List.of());
 
@@ -94,8 +94,8 @@ class ContentQualityGateTest {
 
     @Test
     void 본문에_이메일이나_전화번호가_있으면_거절된다() {
-        GeneratedPost withEmail = new GeneratedPost("제목", "연락은 test@example.com 으로", "A", "B", GeneratableVoteCategory.FOOD);
-        GeneratedPost withPhone = new GeneratedPost("제목", "010-1234-5678로 연락줘", "A", "B", GeneratableVoteCategory.FOOD);
+        GeneratedPost withEmail = new GeneratedPost("제목", "연락은 test@example.com 으로", "A", "B", GeneratableVoteCategory.FOOD, null);
+        GeneratedPost withPhone = new GeneratedPost("제목", "010-1234-5678로 연락줘", "A", "B", GeneratableVoteCategory.FOOD, null);
 
         assertThat(gate.validatePost(withEmail, List.of()).reasons()).anyMatch(r -> r.contains("개인정보"));
         assertThat(gate.validatePost(withPhone, List.of()).reasons()).anyMatch(r -> r.contains("개인정보"));

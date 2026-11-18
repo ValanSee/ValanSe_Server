@@ -16,6 +16,9 @@ public record GeneratedPost(
         String optionB,
 
         @JsonPropertyDescription("밸런스게임 카테고리")
-        GeneratableVoteCategory category
+        GeneratableVoteCategory category,
+
+        @JsonPropertyDescription("참고한 검색 키워드. 사용하지 않았으면 빈 문자열")
+        String sourceKeyword
 ) {
 }
