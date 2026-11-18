@@ -69,13 +69,15 @@ class SearchKeywordSelectorTest {
 
     @Test
     void filters_brand_cooldown_length_and_existing_titles() {
+        SearchKeyword recentlyUsed = kw(SearchKeywordSource.NAVER_SEARCH_AD, "최근사용", 100, null, NOW.minusDays(10));
         when(keywordRepository.findByLastSeenAtGreaterThanEqual(any())).thenReturn(List.of(
                 naver("발란세", 100),
-                kw(SearchKeywordSource.NAVER_SEARCH_AD, "최근사용", 100, null, NOW.minusDays(10)),
+                recentlyUsed,
                 naver("가", 100),
                 naver("가".repeat(26), 100),
                 naver("부먹찍먹", 100),
                 naver("깻잎논쟁", 100)));
+        when(keywordRepository.findByLastUsedAtGreaterThanEqual(any())).thenReturn(List.of(recentlyUsed));
         when(voteRepository.findAllActiveTitles()).thenReturn(List.of("탕수육 부먹 vs 찍먹"));
 
         List<KeywordCandidate> result = selector.selectForPrompt();
@@ -107,6 +109,28 @@ class SearchKeywordSelectorTest {
         SearchKeyword googleNeverUsed = google("LOL 프로", 50);
         when(keywordRepository.findByLastSeenAtGreaterThanEqual(any()))
                 .thenReturn(List.of(naverUsedRecently, googleNeverUsed));
+        when(keywordRepository.findByLastUsedAtGreaterThanEqual(any()))
+                .thenReturn(List.of(naverUsedRecently));
+
+        List<KeywordCandidate> result = selector.selectForPrompt();
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void excludes_keyword_when_usage_history_fell_outside_freshness_window() {
+        // 네이버의 "LOL 프로"는 20일 전에 사용됐지만, 그 뒤로 네이버에서 다시 수집되지 않아
+        // lastSeenAt이 30일 전으로 밀려나 findByLastSeenAtGreaterThanEqual(14일 범위)에는
+        // 더 이상 잡히지 않는다. 그래도 사용 이력은 56일 쿨다운 안에 있으므로, 이번 주 GSC가
+        // 같은 검색어를 새로 수집해도(lastUsedAt=null) 제외돼야 한다.
+        SearchKeyword staleButRecentlyUsed = kw(SearchKeywordSource.NAVER_SEARCH_AD, "LOL 프로", 100, null,
+                NOW.minusDays(20));
+        ReflectionTestUtils.setField(staleButRecentlyUsed, "lastSeenAt", NOW.minusDays(30));
+        when(keywordRepository.findByLastUsedAtGreaterThanEqual(any()))
+                .thenReturn(List.of(staleButRecentlyUsed));
+
+        SearchKeyword googleNeverUsed = google("LOL 프로", 50);
+        when(keywordRepository.findByLastSeenAtGreaterThanEqual(any())).thenReturn(List.of(googleNeverUsed));
 
         List<KeywordCandidate> result = selector.selectForPrompt();
 

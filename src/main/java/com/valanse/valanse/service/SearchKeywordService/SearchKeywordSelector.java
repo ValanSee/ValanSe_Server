@@ -46,7 +46,14 @@ public class SearchKeywordSelector {
                     .findByLastSeenAtGreaterThanEqual(now.minusDays(properties.getFreshnessDays()));
             List<String> titles = voteRepository.findAllActiveTitles();
 
-            Set<String> cooldownBlockedKeywords = cooldownBlockedKeywords(fresh, cooldownThreshold);
+            // 사용 이력은 수집 최신 여부(freshnessDays)와 무관하게 쿨다운 기간 전체로 따로
+            // 조회한다 - fresh 안에서만 찾으면, 쓴 지 얼마 안 된 행이 그 뒤로 다시 수집되지
+            // 않아 lastSeenAt이 freshnessDays 밖으로 밀려났을 때 이력이 안 보여서 56일
+            // 재사용 제한을 우회한다.
+            Set<String> cooldownBlockedKeywords = keywordRepository.findByLastUsedAtGreaterThanEqual(cooldownThreshold)
+                    .stream()
+                    .map(k -> effectiveKeyword(k.getKeyword()))
+                    .collect(Collectors.toSet());
             List<SearchKeyword> eligible = fresh.stream()
                     .filter(k -> !cooldownBlockedKeywords.contains(effectiveKeyword(k.getKeyword())))
                     .filter(k -> isLengthOk(k.getKeyword()))
@@ -91,20 +98,6 @@ public class SearchKeywordSelector {
     // 한곳에서 정의한다.
     private static String effectiveKeyword(String keyword) {
         return KeywordNormalizer.normalize(KeywordNormalizer.sanitize(keyword));
-    }
-
-    // 같은 표현(effectiveKeyword)의 행 중 하나라도 최근 reuseCooldownDays 안에 쓰였으면, 그
-    // 표현 전체를 차단 목록에 올린다. 행 단위로만 검사하면 네이버 쪽을 쓴 지 얼마 안 됐는데
-    // GSC가 같은 검색어를 이번에 처음 수집한 경우(lastUsedAt=null) 그 행만 보면 통과해버려서
-    // 56일 재사용 제한을 우회한다.
-    private static Set<String> cooldownBlockedKeywords(List<SearchKeyword> fresh, LocalDateTime cooldownThreshold) {
-        return fresh.stream()
-                .collect(Collectors.groupingBy(k -> effectiveKeyword(k.getKeyword())))
-                .entrySet().stream()
-                .filter(entry -> entry.getValue().stream()
-                        .anyMatch(k -> k.getLastUsedAt() != null && !k.getLastUsedAt().isBefore(cooldownThreshold)))
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toSet());
     }
 
     private static KeywordCandidate toCandidate(SearchKeyword k) {

@@ -12,4 +12,6 @@ public interface SearchKeywordRepository extends JpaRepository<SearchKeyword, Lo
     Optional<SearchKeyword> findBySourceAndNormalizedKeyword(SearchKeywordSource source, String normalizedKeyword);
 
     List<SearchKeyword> findByLastSeenAtGreaterThanEqual(LocalDateTime threshold);
+
+    List<SearchKeyword> findByLastUsedAtGreaterThanEqual(LocalDateTime threshold);
 }
