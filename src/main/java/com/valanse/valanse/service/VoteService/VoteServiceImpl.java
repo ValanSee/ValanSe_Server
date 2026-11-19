@@ -29,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime; // 기존 코드에 있었으므로 유지
 import java.time.Clock;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -173,8 +174,10 @@ public class VoteServiceImpl implements VoteService {
         List<TrendingVoteItemResponse> voteItems = buildTrendingVoteItems(selectedVotes);
         return TrendingVotesResponse.builder()
                 .requestedDays(days)
-                .from(from)
-                .to(to)
+                // from·to는 clock(Asia/Seoul)으로 만든 한국 시간이므로, UTC로 간주해 변환하는
+                // 전역 LocalDateTime 직렬화기를 타지 않도록 OffsetDateTime으로 바꿔서 응답한다.
+                .from(from.atZone(clock.getZone()).toOffsetDateTime())
+                .to(to.atZone(clock.getZone()).toOffsetDateTime())
                 .scoreType(scoreType)
                 .fallbackApplied(fallbackApplied)
                 .votes(voteItems)
