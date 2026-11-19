@@ -2,6 +2,7 @@ package com.valanse.valanse.dto.PointHistory;
 
 import com.valanse.valanse.domain.enums.PointType;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -22,6 +23,6 @@ public record PointHistoryResponse(
             Long remainingPoint,
             PointType type,
             String typeDescription,
-            String createdAt
+            LocalDateTime createdAt
     ) {}
 }

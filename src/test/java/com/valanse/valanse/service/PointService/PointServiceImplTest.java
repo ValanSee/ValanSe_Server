@@ -179,7 +179,7 @@ class PointServiceImplTest {
     }
 
     @Test
-    @DisplayName("createdAt 날짜 포맷 확인 - YYYY-MM-DD HH:mm:ss 형식")
+    @DisplayName("createdAt은 문자열로 미리 포맷하지 않고 LocalDateTime 그대로 내려간다 (#344)")
     void getPointHistory_DateFormatting() {
         // Given
         Long memberId = 1L;
@@ -210,8 +210,9 @@ class PointServiceImplTest {
         assertThat(response.pointHistory()).hasSize(1);
 
         PointHistoryResponse.PointHistoryItem item = response.pointHistory().get(0);
-        // 날짜가 "2026-04-26 15:30:22" 형식으로 포맷되었는지 확인
-        assertThat(item.createdAt()).isEqualTo("2026-04-26 15:30:22");
+        // createdAt은 DB에 저장된 LocalDateTime 그대로 내려가야 응답 경계의 전역 직렬화기가
+        // +09:00 오프셋을 적용할 수 있다. 여기서 문자열로 미리 포맷해버리면 오프셋이 붙지 않는다.
+        assertThat(item.createdAt()).isEqualTo(testDateTime);
         assertThat(item.amount()).isEqualTo(40L);
         assertThat(item.remainingPoint()).isEqualTo(40L);
         assertThat(item.type()).isEqualTo(PointType.SIGN_UP);

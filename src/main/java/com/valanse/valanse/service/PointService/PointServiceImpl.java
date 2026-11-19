@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +49,6 @@ public class PointServiceImpl implements PointService {
     private static final long COMMENT_DAILY_LIMIT = 3L;
 
     // 날짜 포맷터
-    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /**
      * 포인트 정책에 따라 회원에게 보상 포인트를 지급하고 이력을 저장하는 메서드입니다.
@@ -152,7 +150,7 @@ public class PointServiceImpl implements PointService {
                                 : fallbackRemainingPoints.get(history.getId()),
                         history.getType(),
                         getPointTypeDescription(history.getType()),
-                        formatCreatedAt(history.getCreatedAt())
+                        history.getCreatedAt()
                 ))
                 .toList();
 
@@ -205,13 +203,6 @@ public class PointServiceImpl implements PointService {
             case HOT_ISSUE -> "핫이슈";
             case TITLE_PURCHASE -> "칭호 구매";
         };
-    }
-
-    private String formatCreatedAt(LocalDateTime createdAt) {
-        if (createdAt == null) {
-            return null;
-        }
-        return createdAt.format(DATE_TIME_FORMATTER);
     }
 
     private Optional<MemberProfile> findMemberProfileForUpdate(Long memberId) {
