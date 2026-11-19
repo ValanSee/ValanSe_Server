@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import com.valanse.valanse.domain.Vote;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -17,7 +18,7 @@ public class VoteResponseDto {
     private String content; // 투표 상세 내용
     private String category;
     private int totalVoteCount;
-    private String createdAt;
+    private LocalDateTime createdAt;
     private String creatorTitle;
     private Boolean isBot;
     private List<OptionDto> options;
@@ -38,7 +39,7 @@ public class VoteResponseDto {
         this.content = vote.getContent(); // content 필드 추가
         this.category = vote.getCategory().name(); // enum to string
         this.totalVoteCount = vote.getTotalVoteCount();
-        this.createdAt = vote.getCreatedAt().toLocalDate().toString();
+        this.createdAt = vote.getCreatedAt();
         this.creatorTitle = creatorTitle;
         this.isBot = vote.getMember() != null && vote.getMember().isBot();
         this.options = vote.getVoteOptions()

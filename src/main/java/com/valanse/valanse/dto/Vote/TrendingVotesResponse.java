@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Getter
@@ -14,8 +14,8 @@ import java.util.List;
 @AllArgsConstructor
 public class TrendingVotesResponse {
     private int requestedDays;
-    private LocalDateTime from;
-    private LocalDateTime to;
+    private OffsetDateTime from;
+    private OffsetDateTime to;
     private TrendingScoreType scoreType;
     private boolean fallbackApplied;
     private List<TrendingVoteItemResponse> votes;
