@@ -3,6 +3,7 @@ package com.valanse.valanse.dto.Report;
 import com.valanse.valanse.domain.Vote;
 import lombok.Getter;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
@@ -16,7 +17,7 @@ public class ReportedVoteResponse {
     private String content; // 투표 상세 내용
     private String category;
     private int totalVoteCount;
-    private String createdAt;
+    private LocalDateTime createdAt;
 
     /**
      * ReportedVoteResponse 의존성을 주입하거나 객체를 초기화하는 생성자입니다.
@@ -24,7 +25,7 @@ public class ReportedVoteResponse {
     public ReportedVoteResponse(Vote vote) {
         this.category = vote.getCategory().name();
         this.content = vote.getContent();
-        this.createdAt = vote.getCreatedAt().toString();
+        this.createdAt = vote.getCreatedAt();
         this.title = vote.getTitle();
         this.totalVoteCount = vote.getTotalVoteCount();
         this.voteId = vote.getId();

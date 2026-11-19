@@ -9,8 +9,6 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import com.fasterxml.jackson.annotation.JsonFormat;
-
 
 
 @Data
@@ -39,7 +37,6 @@ public class VoteListResponse {
         private String nickname;
         private Boolean isBot;
         private String member_title;
-        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
         private LocalDateTime created_at;
         private Integer total_vote_count;
         private Integer total_comment_count; // 댓글 그룹의 총 댓글 수
