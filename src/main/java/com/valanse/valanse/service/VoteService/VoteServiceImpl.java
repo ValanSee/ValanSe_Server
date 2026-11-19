@@ -30,6 +30,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDateTime; // 기존 코드에 있었으므로 유지
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -147,8 +148,12 @@ public class VoteServiceImpl implements VoteService {
     public TrendingVotesResponse getTrendingVotes(int days, Long blockerId) {
         validateTrendingDays(days);
 
-        LocalDateTime to = LocalDateTime.now(clock);
-        LocalDateTime from = to.minusDays(days);
+        LocalDateTime toInKorea = LocalDateTime.now(clock);
+        LocalDateTime fromInKorea = toInKorea.minusDays(days);
+        // DB의 created_at은 UTC로 저장되어 있으므로, 한국 시간으로 만든 경계값을
+        // UTC로 바꿔서 조회해야 조회 기간이 응답의 표시 시각과 어긋나지 않는다.
+        LocalDateTime to = toUtc(toInKorea);
+        LocalDateTime from = toUtc(fromInKorea);
         List<TrendingVoteScore> periodScores = voteRepository
                 .findTopTrendingVotes(from, to, TRENDING_LIMIT, blockerId);
 
@@ -174,10 +179,10 @@ public class VoteServiceImpl implements VoteService {
         List<TrendingVoteItemResponse> voteItems = buildTrendingVoteItems(selectedVotes);
         return TrendingVotesResponse.builder()
                 .requestedDays(days)
-                // from·to는 clock(Asia/Seoul)으로 만든 한국 시간이므로, UTC로 간주해 변환하는
-                // 전역 LocalDateTime 직렬화기를 타지 않도록 OffsetDateTime으로 바꿔서 응답한다.
-                .from(from.atZone(clock.getZone()).toOffsetDateTime())
-                .to(to.atZone(clock.getZone()).toOffsetDateTime())
+                // 응답에는 DB 조회용으로 바꾼 UTC 값이 아니라, 사용자가 보던 한국 시간
+                // 그대로에 오프셋만 붙여서 보여준다.
+                .from(fromInKorea.atZone(clock.getZone()).toOffsetDateTime())
+                .to(toInKorea.atZone(clock.getZone()).toOffsetDateTime())
                 .scoreType(scoreType)
                 .fallbackApplied(fallbackApplied)
                 .votes(voteItems)
@@ -189,6 +194,12 @@ public class VoteServiceImpl implements VoteService {
             return false;
         }
         return memberBlockRepository.existsByBlockerIdAndBlockedId(blockerId, vote.getMember().getId());
+    }
+
+    private LocalDateTime toUtc(LocalDateTime koreaWallClock) {
+        return koreaWallClock.atZone(clock.getZone())
+                .withZoneSameInstant(ZoneOffset.UTC)
+                .toLocalDateTime();
     }
 
     private void validateTrendingDays(int days) {

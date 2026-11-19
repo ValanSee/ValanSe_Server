@@ -44,6 +44,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 
 import static org.assertj.core.api.Assertions.*;
@@ -102,6 +104,30 @@ class VoteServiceImplTest {
         assertThat(response.getScoreType()).isEqualTo(TrendingScoreType.ALL_TIME);
         assertThat(response.getVotes()).extracting("voteId").containsExactly(1L, 2L);
         assertThat(response.getVotes()).extracting("reactivityScore").containsExactly(8L, 3L);
+    }
+
+    @Test
+    @DisplayName("DB 조회 경계는 UTC로 바꾸고, 응답의 조회 기간은 한국 시간 그대로 내려준다 (#344)")
+    void getTrendingVotes_QueriesUtcButRespondsInKoreaTime() {
+        stubClock();
+        when(voteRepository.findTopTrendingVotes(any(), any(), eq(5), isNull())).thenReturn(List.of());
+        when(voteRepository.findTopAllTimeTrendingVotes(5, null)).thenReturn(List.of());
+        when(voteRepository.findByPinType(PinType.TRENDING)).thenReturn(Optional.empty());
+
+        TrendingVotesResponse response = voteService.getTrendingVotes(7);
+
+        ArgumentCaptor<LocalDateTime> fromCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+        ArgumentCaptor<LocalDateTime> toCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+        verify(voteRepository).findTopTrendingVotes(fromCaptor.capture(), toCaptor.capture(), eq(5), isNull());
+
+        // clock.instant()는 UTC 2026-07-20T00:00:00Z. DB의 created_at도 UTC이므로
+        // 조회 경계는 이 값과 같아야 한다(한국 시간으로 9시간 밀려 있으면 안 된다).
+        assertThat(toCaptor.getValue()).isEqualTo(LocalDateTime.of(2026, 7, 20, 0, 0, 0));
+        assertThat(fromCaptor.getValue()).isEqualTo(LocalDateTime.of(2026, 7, 13, 0, 0, 0));
+
+        // 응답에는 사용자가 보던 한국 시간(+09:00)이 그대로 나와야 한다.
+        assertThat(response.getTo()).isEqualTo(OffsetDateTime.parse("2026-07-20T09:00:00+09:00"));
+        assertThat(response.getFrom()).isEqualTo(OffsetDateTime.parse("2026-07-13T09:00:00+09:00"));
     }
 
     @Test
