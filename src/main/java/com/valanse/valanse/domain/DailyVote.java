@@ -41,20 +41,26 @@ public class DailyVote {
     @Column(columnDefinition = "TEXT")
     private String questionSnapshot;
 
+    @Column(name = "option_a_snapshot")
     private String optionASnapshot;
 
+    @Column(name = "option_b_snapshot")
     private String optionBSnapshot;
 
+    @Column(name = "option_a_id")
     private Long optionAId;
 
+    @Column(name = "option_b_id")
     private Long optionBId;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 10)
     private DailyVoteWinner winner;
 
+    @Column(name = "settled_a_count")
     private Integer settledACount;
 
+    @Column(name = "settled_b_count")
     private Integer settledBCount;
 
     private LocalDateTime settledAt;
