@@ -1,5 +1,6 @@
 package com.valanse.valanse.dto.Comment;
 
+import com.valanse.valanse.domain.Member;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -81,7 +82,7 @@ public class CommentResponseDto {
         this.commentId = commentId;
         this.voteId = voteId;
         this.authorId = authorId;
-        this.nickname = nickname != null ? nickname : "탈퇴한 사용자";
+        this.nickname = nickname != null ? nickname : Member.WITHDRAWN_NICKNAME;
         this.isBot = isBot != null && isBot;
         this.title = title;
         this.commentCreatedAt = commentCreatedAt;
