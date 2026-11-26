@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,7 +45,7 @@ public class DailyVoteSettlementServiceImpl implements DailyVoteSettlementServic
             return Optional.empty();
         }
         DailyVote dv = found.get();
-        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime now = LocalDateTime.now(clock.withZone(ZoneOffset.UTC)); // 다른 timestamp 컬럼과 같은 UTC
 
         // 게임이 삭제돼 voteId 가 비었으면 표 0:0 으로 정산(승자 없음, 보너스 없음)만 기록한다
         if (dv.getVoteId() == null) {

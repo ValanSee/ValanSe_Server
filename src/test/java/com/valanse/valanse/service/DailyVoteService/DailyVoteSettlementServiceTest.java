@@ -139,7 +139,7 @@ class DailyVoteSettlementServiceTest {
         assertThat(dv.getSettledACount()).isEqualTo(1);
         assertThat(dv.getSettledBCount()).isEqualTo(4);
         assertThat(dv.getWinner()).isEqualTo(DailyVoteWinner.B);
-        assertThat(dv.getSettledAt()).isEqualTo(LocalDateTime.of(2026, 11, 26, 0, 0, 5));
+        assertThat(dv.getSettledAt()).isEqualTo(LocalDateTime.of(2026, 11, 25, 15, 0, 5));
     }
 
     @Test
