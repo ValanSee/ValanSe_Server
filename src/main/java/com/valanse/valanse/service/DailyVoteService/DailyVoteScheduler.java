@@ -26,7 +26,6 @@ public class DailyVoteScheduler {
 
     public static final String SELECT_LOCK_NAME = "dailyVoteSelect";
     public static final String SETTLE_LOCK_NAME = "dailyVoteSettle";
-    public static final String SAFETY_NET_LOCK_NAME = "dailyVoteSafetyNet";
 
     private final DailyVoteSelector selector;
     private final DailyVoteSettlementService settlementService;
@@ -54,9 +53,10 @@ public class DailyVoteScheduler {
         settleAllPastAndEnsureToday();
     }
 
-    // 자정 크론이 실패하거나 누락돼도 매시 복구한다
+    // 자정 크론이 실패하거나 누락돼도 매시 복구한다.
+    // 자정 정산과 같은 락을 써서, 자정 잡이 길어져도 같은 날짜를 동시에 정산(보너스 이중 지급)하지 않게 한다.
     @Scheduled(cron = "${daily-vote.safety-cron:0 5 * * * *}", zone = "${daily-vote.zone:Asia/Seoul}")
-    @SchedulerLock(name = SAFETY_NET_LOCK_NAME, lockAtMostFor = "PT30M")
+    @SchedulerLock(name = SETTLE_LOCK_NAME, lockAtMostFor = "PT30M")
     public void hourlySafetyNet() {
         if (!properties.isEnabled()) return;
         settleAllPastAndEnsureToday();
