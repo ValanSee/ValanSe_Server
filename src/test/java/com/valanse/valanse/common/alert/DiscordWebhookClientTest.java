@@ -304,6 +304,29 @@ class DiscordWebhookClientTest {
         server.verify();
     }
 
+    @Test
+    @DisplayName("정산 실패는 빨간색 embed로 전송한다")
+    void DailyVoteEvent_SETTLE_FAILED는_빨간색이다() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+
+        DiscordAlertProperties properties = new DiscordAlertProperties();
+        properties.setWebhookUrl("https://discord.test/api/webhooks/1/token");
+        DiscordWebhookClient client = new DiscordWebhookClient(builder.build(), properties);
+
+        server.expect(once(), requestTo("https://discord.test/api/webhooks/1/token?wait=true"))
+                .andExpect(content().json("""
+                        {"embeds": [{"title": "오늘의 밸런스 정산 실패", "color": 15158332,
+                          "fields": [{"name": "날짜", "value": "2026-11-25", "inline": true},
+                                     {"name": "상세", "value": "IllegalStateException: boom", "inline": false}]}]}
+                        """, false))
+                .andRespond(withNoContent());
+
+        client.send(DailyVoteEvent.settleFailed(java.time.LocalDate.of(2026, 11, 25), "IllegalStateException: boom"));
+
+        server.verify();
+    }
+
     private TestClient testClient() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

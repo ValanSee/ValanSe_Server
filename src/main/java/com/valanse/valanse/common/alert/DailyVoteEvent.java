@@ -14,7 +14,7 @@ public record DailyVoteEvent(
         String source,
         String detail
 ) {
-    public enum Type { SELECTED, NO_CANDIDATE, REPLACED, RESERVATION_CANCELLED, SETTLED }
+    public enum Type { SELECTED, NO_CANDIDATE, REPLACED, RESERVATION_CANCELLED, SETTLED, SETTLE_FAILED }
 
     public static DailyVoteEvent selected(LocalDate date, Long voteId, String question, String source) {
         return new DailyVoteEvent(Type.SELECTED, date, voteId, question, source, null);
@@ -34,5 +34,9 @@ public record DailyVoteEvent(
 
     public static DailyVoteEvent settled(LocalDate date, Long voteId, String question, String source, String detail) {
         return new DailyVoteEvent(Type.SETTLED, date, voteId, question, source, detail);
+    }
+
+    public static DailyVoteEvent settleFailed(LocalDate date, String detail) {
+        return new DailyVoteEvent(Type.SETTLE_FAILED, date, null, null, null, detail);
     }
 }

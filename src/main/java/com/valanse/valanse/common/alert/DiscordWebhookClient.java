@@ -225,6 +225,7 @@ public class DiscordWebhookClient {
             case REPLACED -> "오늘의 밸런스 교체";
             case RESERVATION_CANCELLED -> "오늘의 밸런스 예약 취소";
             case NO_CANDIDATE -> "오늘의 밸런스 후보 없음";
+            case SETTLE_FAILED -> "오늘의 밸런스 정산 실패";
         };
     }
 
@@ -232,7 +233,7 @@ public class DiscordWebhookClient {
         return switch (type) {
             case SELECTED, SETTLED -> 0x2ECC71;
             case REPLACED, RESERVATION_CANCELLED -> 0xF1C40F;
-            case NO_CANDIDATE -> 0xE74C3C;
+            case NO_CANDIDATE, SETTLE_FAILED -> 0xE74C3C;
         };
     }
 

@@ -26,5 +26,9 @@ public class DailyVoteProperties {
     private String settleCron = "0 0 0 * * *";
 
     @NotBlank
+    private String safetyCron = "0 5 * * * *";
+
+    // ClockConfig 의 Clock(Asia/Seoul)과 반드시 같은 값이어야 한다
+    @NotBlank
     private String zone = "Asia/Seoul";
 }

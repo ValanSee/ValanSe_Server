@@ -22,5 +22,8 @@ public interface DailyVoteRepository extends JpaRepository<DailyVote, LocalDate>
 
     Slice<DailyVote> findByVoteDateLessThanAndSettledAtIsNotNullOrderByVoteDateDesc(LocalDate date, Pageable pageable);
 
+    // 아직 정산되지 않은 지난 날짜(오늘 미포함)를 오래된 순으로 조회한다 (정산 누락 복구용)
+    List<DailyVote> findByVoteDateLessThanAndSettledAtIsNullOrderByVoteDateAsc(LocalDate today);
+
     List<DailyVote> findByVoteIdAndVoteDateGreaterThanEqual(Long voteId, LocalDate from);
 }
