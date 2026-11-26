@@ -19,6 +19,7 @@ import com.valanse.valanse.dto.Vote.TrendingScoreType;
 import com.valanse.valanse.dto.Vote.TrendingVoteScore;
 import com.valanse.valanse.dto.Vote.TrendingVotesResponse;
 import com.valanse.valanse.repository.*;
+import com.valanse.valanse.service.DailyVoteService.DailyVoteParticipationService;
 import com.valanse.valanse.service.PointService.PointService;
 import com.valanse.valanse.service.StorageService.StorageService;
 import org.junit.jupiter.api.BeforeEach;
@@ -70,6 +71,7 @@ class VoteServiceImplTest {
     @Mock private PointService pointService;
     @Mock private StorageService storageService;
     @Mock private Clock clock;
+    @Mock private DailyVoteParticipationService dailyVoteParticipationService;
 
     @Test
     @DisplayName("트렌딩 기간이 허용 범위를 벗어나면 예외가 발생한다")
