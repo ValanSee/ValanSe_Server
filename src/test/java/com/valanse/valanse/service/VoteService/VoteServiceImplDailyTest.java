@@ -11,6 +11,7 @@ import com.valanse.valanse.dto.DailyVote.DailyVoteStatus;
 import com.valanse.valanse.dto.DailyVote.DailyVoteTally;
 import com.valanse.valanse.dto.Vote.VoteCancleResponseDto;
 import com.valanse.valanse.repository.*;
+import com.valanse.valanse.service.DailyVoteService.DailyVoteLifecycleService;
 import com.valanse.valanse.service.DailyVoteService.DailyVoteParticipationService;
 import com.valanse.valanse.service.PointService.PointService;
 import com.valanse.valanse.service.StorageService.StorageService;
@@ -50,6 +51,7 @@ class VoteServiceImplDailyTest {
     @Mock private StorageService storageService;
     @Mock private Clock clock;
     @Mock private DailyVoteParticipationService dailyVoteParticipationService;
+    @Mock private DailyVoteLifecycleService dailyVoteLifecycleService;
 
     private static final Long MEMBER_ID = 1L;
     private static final Long VOTE_ID = 10L;

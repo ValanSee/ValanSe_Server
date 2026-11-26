@@ -16,6 +16,7 @@ import com.valanse.valanse.dto.DailyVote.DailyVoteReward;
 import com.valanse.valanse.dto.DailyVote.DailyVoteStatus;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.repository.*;
+import com.valanse.valanse.service.DailyVoteService.DailyVoteLifecycleService;
 import com.valanse.valanse.service.DailyVoteService.DailyVoteParticipationService;
 import com.valanse.valanse.service.PointService.PointService;
 import com.valanse.valanse.service.StorageService.StorageService;
@@ -64,6 +65,7 @@ public class VoteServiceImpl implements VoteService {
     private final StorageService storageService;
     private final Clock clock;
     private final DailyVoteParticipationService dailyVoteParticipationService;
+    private final DailyVoteLifecycleService dailyVoteLifecycleService;
 
     private static final int TRENDING_LIMIT = 5;
     private static final int MIN_TRENDING_DAYS = 1;
@@ -877,6 +879,8 @@ public class VoteServiceImpl implements VoteService {
         // BaseEntity의 softDelete() 메서드 사용
         vote.softDelete();
         voteRepository.save(vote);
+        // 오늘의 밸런스로 쓰이던 게임이면 교체/예약 해제
+        dailyVoteLifecycleService.onVoteDeleted(voteId);
     }
 
     @Override
