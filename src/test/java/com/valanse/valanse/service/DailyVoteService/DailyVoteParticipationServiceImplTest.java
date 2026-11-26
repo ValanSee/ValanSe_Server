@@ -1,5 +1,6 @@
 package com.valanse.valanse.service.DailyVoteService;
 
+import com.valanse.valanse.common.api.ApiException;
 import com.valanse.valanse.domain.DailyVote;
 import com.valanse.valanse.domain.DailyVoteParticipation;
 import com.valanse.valanse.domain.Member;
@@ -17,6 +18,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -25,6 +28,7 @@ import java.time.ZoneId;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -69,7 +73,7 @@ class DailyVoteParticipationServiceImplTest {
         assertThat(reward).isEqualTo(new DailyVoteReward(3, false));
         verify(pointService).givePoint(1L, PointType.DAILY_VOTE);
         ArgumentCaptor<DailyVoteParticipation> cap = ArgumentCaptor.forClass(DailyVoteParticipation.class);
-        verify(participationRepository).save(cap.capture());
+        verify(participationRepository).saveAndFlush(cap.capture());
         DailyVoteParticipation saved = cap.getValue();
         assertThat(saved.getFirstOptionId()).isEqualTo(100L);
         assertThat(saved.getCurrentOptionId()).isEqualTo(100L);
@@ -88,7 +92,7 @@ class DailyVoteParticipationServiceImplTest {
         assertThat(reward).isEqualTo(new DailyVoteReward(0, true));
         verify(pointService, never()).givePoint(anyLong(), any());
         ArgumentCaptor<DailyVoteParticipation> cap = ArgumentCaptor.forClass(DailyVoteParticipation.class);
-        verify(participationRepository).save(cap.capture());
+        verify(participationRepository).saveAndFlush(cap.capture());
         assertThat(cap.getValue().getParticipationPoint()).isZero();
     }
 
@@ -102,8 +106,21 @@ class DailyVoteParticipationServiceImplTest {
         assertThat(reward).isEqualTo(new DailyVoteReward(0, false));
         verify(pointService, never()).givePoint(anyLong(), any());
         ArgumentCaptor<DailyVoteParticipation> cap = ArgumentCaptor.forClass(DailyVoteParticipation.class);
-        verify(participationRepository).save(cap.capture());
+        verify(participationRepository).saveAndFlush(cap.capture());
         assertThat(cap.getValue().getParticipationPoint()).isZero();
+    }
+
+    @Test
+    @DisplayName("참여 저장이 유니크 위반이면 400으로 바꾸고 포인트를 주지 않는다")
+    void 참여_저장이_유니크_위반이면_400으로_바꾸고_포인트를_주지_않는다() {
+        when(participationRepository.existsByVoteDateAndMember_IdAndParticipationPointGreaterThan(DATE, 1L, 0)).thenReturn(false);
+        when(participationRepository.saveAndFlush(any(DailyVoteParticipation.class)))
+                .thenThrow(new DataIntegrityViolationException("duplicate"));
+
+        ApiException ex = assertThrows(ApiException.class, () -> service.participate(today, member(false), 100L));
+
+        assertThat(ex.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verify(pointService, never()).givePoint(anyLong(), any());
     }
 
     @Test
@@ -148,7 +165,7 @@ class DailyVoteParticipationServiceImplTest {
         assertThat(reward).isEqualTo(new DailyVoteReward(0, false));
         verify(pointService, never()).givePoint(anyLong(), any());
         ArgumentCaptor<DailyVoteParticipation> cap = ArgumentCaptor.forClass(DailyVoteParticipation.class);
-        verify(participationRepository).save(cap.capture());
+        verify(participationRepository).saveAndFlush(cap.capture());
         assertThat(cap.getValue().getParticipationPoint()).isZero();
     }
 }

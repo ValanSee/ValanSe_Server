@@ -1,5 +1,7 @@
 package com.valanse.valanse.service.DailyVoteService;
 
+import com.valanse.valanse.common.api.ApiException;
+import com.valanse.valanse.common.message.VoteErrorMessage;
 import com.valanse.valanse.domain.DailyVote;
 import com.valanse.valanse.domain.DailyVoteParticipation;
 import com.valanse.valanse.domain.Member;
@@ -10,6 +12,8 @@ import com.valanse.valanse.repository.DailyVoteParticipationRepository;
 import com.valanse.valanse.repository.DailyVoteRepository;
 import com.valanse.valanse.service.PointService.PointService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,19 +56,24 @@ public class DailyVoteParticipationServiceImpl implements DailyVoteParticipation
                 .existsByVoteDateAndMember_IdAndParticipationPointGreaterThan(today.getVoteDate(), member.getId(), 0);
         // 봇·탈퇴·프로필 없는 회원은 givePoint 가 지급하지 않거나 예외를 내므로 지급·기록 모두 0으로 남긴다
         boolean give = !alreadyRewarded && pointEligibility.canReceive(member);
+        int point = give ? PARTICIPATION_POINT : 0;
+
+        // 동시 더블탭으로 유니크 위반이 나면 포인트 지급 전에 여기서 걸러낸다 (flush 후에 지급)
+        try {
+            participationRepository.saveAndFlush(DailyVoteParticipation.builder()
+                    .voteDate(today.getVoteDate())
+                    .voteId(today.getVoteId())
+                    .member(member)
+                    .firstOptionId(chosenOptionId)
+                    .currentOptionId(chosenOptionId)
+                    .participationPoint(point)
+                    .build());
+        } catch (DataIntegrityViolationException e) {
+            throw new ApiException(VoteErrorMessage.VOTE_ALREADY_PROCESSED.message(), HttpStatus.BAD_REQUEST);
+        }
         if (give) {
             pointService.givePoint(member.getId(), PointType.DAILY_VOTE);
         }
-        int point = give ? PARTICIPATION_POINT : 0;
-
-        participationRepository.save(DailyVoteParticipation.builder()
-                .voteDate(today.getVoteDate())
-                .voteId(today.getVoteId())
-                .member(member)
-                .firstOptionId(chosenOptionId)
-                .currentOptionId(chosenOptionId)
-                .participationPoint(point)
-                .build());
         return new DailyVoteReward(point, alreadyRewarded);
     }
 
