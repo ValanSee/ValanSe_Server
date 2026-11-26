@@ -33,6 +33,7 @@ public class DailyVoteSettlementServiceImpl implements DailyVoteSettlementServic
     private final DailyVoteParticipationRepository participationRepository;
     private final DailyVoteParticipationService participationService;
     private final PointService pointService;
+    private final DailyVotePointEligibility pointEligibility;
     private final Clock clock;
 
     @Override
@@ -74,8 +75,8 @@ public class DailyVoteSettlementServiceImpl implements DailyVoteSettlementServic
 
     private void grantBonus(DailyVote dv, DailyVoteWinner winner, DailyVoteParticipation p) {
         PointType type = bonusType(dv, winner, p.getFirstOptionId());
-        // 봇은 givePoint 가 지급하지 않으므로 기록도 0으로 남긴다
-        if (type == null || p.getMember().isBot()) {
+        // 봇·탈퇴·프로필 없는 회원은 지급 대상이 아니다. givePoint 예외는 정산 트랜잭션 전체를 롤백시키므로 미리 걸러 0으로 기록한다
+        if (type == null || !pointEligibility.canReceive(p.getMember())) {
             p.recordBonus(0);
             return;
         }

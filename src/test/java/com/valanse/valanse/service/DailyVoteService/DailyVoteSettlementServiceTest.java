@@ -8,6 +8,7 @@ import com.valanse.valanse.domain.enums.PointType;
 import com.valanse.valanse.dto.DailyVote.DailyVoteTally;
 import com.valanse.valanse.repository.DailyVoteParticipationRepository;
 import com.valanse.valanse.repository.DailyVoteRepository;
+import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.service.PointService.PointService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,7 +28,9 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -41,6 +44,7 @@ class DailyVoteSettlementServiceTest {
     @Mock DailyVoteParticipationRepository participationRepository;
     @Mock DailyVoteParticipationService participationService;
     @Mock PointService pointService;
+    @Mock MemberProfileRepository memberProfileRepository;
 
     DailyVoteSettlementServiceImpl service;
     DailyVote dv;
@@ -49,7 +53,9 @@ class DailyVoteSettlementServiceTest {
     void setUp() {
         Clock clock = Clock.fixed(Instant.parse("2026-11-25T15:00:05Z"), ZoneId.of("Asia/Seoul"));
         service = new DailyVoteSettlementServiceImpl(
-                dailyVoteRepository, participationRepository, participationService, pointService, clock);
+                dailyVoteRepository, participationRepository, participationService, pointService,
+                new DailyVotePointEligibility(memberProfileRepository), clock);
+        lenient().when(memberProfileRepository.existsByMemberId(anyLong())).thenReturn(true);
         dv = DailyVote.builder().voteDate(DATE).voteId(10L).optionAId(100L).optionBId(200L).build();
         when(dailyVoteRepository.findById(DATE)).thenReturn(Optional.of(dv));
     }
@@ -176,5 +182,38 @@ class DailyVoteSettlementServiceTest {
         assertThat(purgedDv.getWinner()).isEqualTo(DailyVoteWinner.NONE);
         assertThat(purgedDv.getSettledAt()).isNotNull();
         verifyNoInteractions(pointService, participationService);
+    }
+
+    @Test
+    @DisplayName("탈퇴한_참여자가_있어도_정산은_완료되고_정상회원만_지급된다")
+    void 탈퇴한_참여자가_있어도_정산은_완료되고_정상회원만_지급된다() {
+        when(participationService.tally(dv)).thenReturn(new DailyVoteTally(2, 0));
+        DailyVoteParticipation withdrawn = part(1, 100L, 100L, false);
+        withdrawn.getMember().softDelete();
+        DailyVoteParticipation normal = part(2, 100L, 100L, false);
+        when(participationRepository.findByVoteDateAndVoteId(DATE, 10L)).thenReturn(List.of(withdrawn, normal));
+
+        service.settle(DATE);
+
+        assertThat(dv.getSettledAt()).isNotNull();
+        assertThat(normal.getBonusPoint()).isEqualTo(5);
+        assertThat(withdrawn.getBonusPoint()).isZero();
+        verify(pointService, times(1)).givePoint(anyLong(), any());
+        verify(pointService).givePoint(2L, PointType.DAILY_WIN);
+    }
+
+    @Test
+    @DisplayName("프로필이_없는_참여자는_보너스_0")
+    void 프로필이_없는_참여자는_보너스_0() {
+        when(participationService.tally(dv)).thenReturn(new DailyVoteTally(1, 0));
+        DailyVoteParticipation noProfile = part(1, 100L, 100L, false);
+        when(memberProfileRepository.existsByMemberId(1L)).thenReturn(false);
+        when(participationRepository.findByVoteDateAndVoteId(DATE, 10L)).thenReturn(List.of(noProfile));
+
+        service.settle(DATE);
+
+        assertThat(noProfile.getBonusPoint()).isZero();
+        assertThat(dv.getSettledAt()).isNotNull();
+        verifyNoInteractions(pointService);
     }
 }

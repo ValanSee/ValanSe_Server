@@ -30,6 +30,7 @@ public class DailyVoteParticipationServiceImpl implements DailyVoteParticipation
     private final DailyVoteRepository dailyVoteRepository;
     private final DailyVoteParticipationRepository participationRepository;
     private final PointService pointService;
+    private final DailyVotePointEligibility pointEligibility;
     private final Clock clock;
 
     @Override
@@ -49,8 +50,8 @@ public class DailyVoteParticipationServiceImpl implements DailyVoteParticipation
     public DailyVoteReward participate(DailyVote today, Member member, Long chosenOptionId) {
         boolean alreadyRewarded = participationRepository
                 .existsByVoteDateAndMember_IdAndParticipationPointGreaterThan(today.getVoteDate(), member.getId(), 0);
-        // 봇은 givePoint 가 지급하지 않으므로 기록도 0으로 남긴다
-        boolean give = !alreadyRewarded && !member.isBot();
+        // 봇·탈퇴·프로필 없는 회원은 givePoint 가 지급하지 않거나 예외를 내므로 지급·기록 모두 0으로 남긴다
+        boolean give = !alreadyRewarded && pointEligibility.canReceive(member);
         if (give) {
             pointService.givePoint(member.getId(), PointType.DAILY_VOTE);
         }

@@ -8,6 +8,7 @@ import com.valanse.valanse.dto.DailyVote.DailyVoteReward;
 import com.valanse.valanse.dto.DailyVote.DailyVoteTally;
 import com.valanse.valanse.repository.DailyVoteParticipationRepository;
 import com.valanse.valanse.repository.DailyVoteRepository;
+import com.valanse.valanse.repository.MemberProfileRepository;
 import com.valanse.valanse.service.PointService.PointService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,6 +41,7 @@ class DailyVoteParticipationServiceImplTest {
     @Mock DailyVoteRepository dailyVoteRepository;
     @Mock DailyVoteParticipationRepository participationRepository;
     @Mock PointService pointService;
+    @Mock MemberProfileRepository memberProfileRepository;
 
     DailyVoteParticipationServiceImpl service;
     DailyVote today;
@@ -46,7 +49,9 @@ class DailyVoteParticipationServiceImplTest {
     @BeforeEach
     void setUp() {
         Clock clock = Clock.fixed(Instant.parse("2026-11-25T15:00:05Z"), ZoneId.of("Asia/Seoul"));
-        service = new DailyVoteParticipationServiceImpl(dailyVoteRepository, participationRepository, pointService, clock);
+        service = new DailyVoteParticipationServiceImpl(dailyVoteRepository, participationRepository, pointService,
+                new DailyVotePointEligibility(memberProfileRepository), clock);
+        lenient().when(memberProfileRepository.existsByMemberId(anyLong())).thenReturn(true);
         today = DailyVote.builder().voteDate(DATE).voteId(10L).optionAId(100L).optionBId(200L).build();
     }
 
@@ -130,5 +135,20 @@ class DailyVoteParticipationServiceImplTest {
 
         assertThat(p.getCurrentOptionId()).isNull();
         assertThat(p.getFirstOptionId()).isEqualTo(100L);
+    }
+
+    @Test
+    @DisplayName("프로필이_없는_회원은_참여포인트_0")
+    void 프로필이_없는_회원은_참여포인트_0() {
+        when(memberProfileRepository.existsByMemberId(1L)).thenReturn(false);
+        when(participationRepository.existsByVoteDateAndMember_IdAndParticipationPointGreaterThan(DATE, 1L, 0)).thenReturn(false);
+
+        DailyVoteReward reward = service.participate(today, member(false), 100L);
+
+        assertThat(reward).isEqualTo(new DailyVoteReward(0, false));
+        verify(pointService, never()).givePoint(anyLong(), any());
+        ArgumentCaptor<DailyVoteParticipation> cap = ArgumentCaptor.forClass(DailyVoteParticipation.class);
+        verify(participationRepository).save(cap.capture());
+        assertThat(cap.getValue().getParticipationPoint()).isZero();
     }
 }

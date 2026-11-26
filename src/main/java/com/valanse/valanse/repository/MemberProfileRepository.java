@@ -27,6 +27,8 @@ public interface MemberProfileRepository extends JpaRepository<MemberProfile, Lo
     @Query("update MemberProfile mp set mp.point = mp.point + :amount where mp.member.id = :memberId")
     int addPointAtomically(@Param("memberId") Long memberId, @Param("amount") long amount);
 
+    boolean existsByMemberId(Long memberId);
+
     boolean existsByNicknameAndDeletedAtIsNull(String nickname);
 
     boolean existsByNicknameAndDeletedAtIsNullAndMemberIdNot(String nickname, Long memberId);
