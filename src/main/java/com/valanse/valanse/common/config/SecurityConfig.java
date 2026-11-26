@@ -111,6 +111,7 @@ public class SecurityConfig {
 
                         // GET - 공개 (모든 사람이 볼 수 있음)
                         .requestMatchers(HttpMethod.GET, "/votes/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/daily-votes", "/daily-votes/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/comments/**").permitAll()
 
                         // POST - 인증 필요 (로그인해야 가능)

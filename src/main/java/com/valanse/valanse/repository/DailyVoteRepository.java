@@ -20,5 +20,7 @@ public interface DailyVoteRepository extends JpaRepository<DailyVote, LocalDate>
 
     Slice<DailyVote> findByVoteDateLessThanEqualOrderByVoteDateDesc(LocalDate date, Pageable pageable);
 
+    Slice<DailyVote> findByVoteDateLessThanAndSettledAtIsNotNullOrderByVoteDateDesc(LocalDate date, Pageable pageable);
+
     List<DailyVote> findByVoteIdAndVoteDateGreaterThanEqual(Long voteId, LocalDate from);
 }
