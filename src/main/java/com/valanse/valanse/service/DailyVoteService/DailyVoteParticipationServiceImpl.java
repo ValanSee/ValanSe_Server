@@ -1,0 +1,86 @@
+package com.valanse.valanse.service.DailyVoteService;
+
+import com.valanse.valanse.domain.DailyVote;
+import com.valanse.valanse.domain.DailyVoteParticipation;
+import com.valanse.valanse.domain.Member;
+import com.valanse.valanse.domain.enums.PointType;
+import com.valanse.valanse.dto.DailyVote.DailyVoteReward;
+import com.valanse.valanse.dto.DailyVote.DailyVoteTally;
+import com.valanse.valanse.repository.DailyVoteParticipationRepository;
+import com.valanse.valanse.repository.DailyVoteRepository;
+import com.valanse.valanse.service.PointService.PointService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Clock;
+import java.time.LocalDate;
+import java.util.Optional;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+/**
+ * 오늘의 밸런스 참여 기록 저장, 날짜당 1회 참여 포인트 지급, 오늘 표 집계를 처리하는 서비스 코드입니다.
+ */
+public class DailyVoteParticipationServiceImpl implements DailyVoteParticipationService {
+
+    private static final int PARTICIPATION_POINT = 3;
+
+    private final DailyVoteRepository dailyVoteRepository;
+    private final DailyVoteParticipationRepository participationRepository;
+    private final PointService pointService;
+    private final Clock clock;
+
+    @Override
+    public Optional<DailyVote> findTodayFor(Long voteId) {
+        return dailyVoteRepository.findByVoteDateAndVoteId(LocalDate.now(clock), voteId);
+    }
+
+    @Override
+    public boolean hasParticipated(DailyVote today, Long memberId) {
+        return participationRepository
+                .findByVoteDateAndVoteIdAndMember_Id(today.getVoteDate(), today.getVoteId(), memberId)
+                .isPresent();
+    }
+
+    @Override
+    @Transactional
+    public DailyVoteReward participate(DailyVote today, Member member, Long chosenOptionId) {
+        boolean alreadyRewarded = participationRepository
+                .existsByVoteDateAndMember_IdAndParticipationPointGreaterThan(today.getVoteDate(), member.getId(), 0);
+        // 봇은 givePoint 가 지급하지 않으므로 기록도 0으로 남긴다
+        boolean give = !alreadyRewarded && !member.isBot();
+        if (give) {
+            pointService.givePoint(member.getId(), PointType.DAILY_VOTE);
+        }
+        int point = give ? PARTICIPATION_POINT : 0;
+
+        participationRepository.save(DailyVoteParticipation.builder()
+                .voteDate(today.getVoteDate())
+                .voteId(today.getVoteId())
+                .member(member)
+                .firstOptionId(chosenOptionId)
+                .currentOptionId(chosenOptionId)
+                .participationPoint(point)
+                .build());
+        return new DailyVoteReward(point, alreadyRewarded);
+    }
+
+    @Override
+    @Transactional
+    public void updateCurrentOption(DailyVote today, Long memberId, Long optionIdOrNull) {
+        participationRepository
+                .findByVoteDateAndVoteIdAndMember_Id(today.getVoteDate(), today.getVoteId(), memberId)
+                .ifPresent(p -> p.changeCurrentOption(optionIdOrNull));
+    }
+
+    @Override
+    public DailyVoteTally tally(DailyVote dv) {
+        long a = participationRepository.countByVoteDateAndVoteIdAndCurrentOptionId(
+                dv.getVoteDate(), dv.getVoteId(), dv.getOptionAId());
+        long b = participationRepository.countByVoteDateAndVoteIdAndCurrentOptionId(
+                dv.getVoteDate(), dv.getVoteId(), dv.getOptionBId());
+        return new DailyVoteTally(a, b);
+    }
+}

@@ -56,4 +56,11 @@ public class DailyVoteParticipation {
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
+
+    /**
+     * 현재 선택을 바꿉니다. null 이면 투표를 취소한 상태입니다(첫 선택은 유지).
+     */
+    public void changeCurrentOption(Long optionIdOrNull) {
+        this.currentOptionId = optionIdOrNull;
+    }
 }
