@@ -17,6 +17,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -86,4 +87,20 @@ public interface VoteRepository extends JpaRepository<Vote, Long>, VoteRepositor
     // 삭제되지 않은 모든 게임 제목 (검색 키워드 겹침 판정용)
     @Query("select v.title from Vote v where v.deletedAt is null")
     List<String> findAllActiveTitles();
+
+    // 오늘의 밸런스 자동 선정 후보: 최근 생성(createdAfterUtc 이후) 최신순
+    @Query("select v from Vote v where v.deletedAt is null and v.createdAt >= :createdAfterUtc " +
+            "and size(v.voteOptions) = 2 " +
+            "and not exists (select 1 from DailyVote dv where dv.voteId = v.id) " +
+            "and not exists (select 1 from Report r where r.reportType = com.valanse.valanse.domain.enums.ReportType.VOTE and r.targetId = v.id) " +
+            "order by v.createdAt desc, v.id desc")
+    List<Vote> findDailyCandidatesRecent(@Param("createdAfterUtc") LocalDateTime createdAfterUtc, Pageable pageable);
+
+    // 오늘의 밸런스 자동 선정 후보: 기간 제한 없이 반응성 점수 내림차순
+    @Query("select v from Vote v where v.deletedAt is null " +
+            "and size(v.voteOptions) = 2 " +
+            "and not exists (select 1 from DailyVote dv where dv.voteId = v.id) " +
+            "and not exists (select 1 from Report r where r.reportType = com.valanse.valanse.domain.enums.ReportType.VOTE and r.targetId = v.id) " +
+            "order by v.reactivityScore desc, v.id desc")
+    List<Vote> findDailyCandidatesByReactivity(Pageable pageable);
 }
