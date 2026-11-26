@@ -651,6 +651,20 @@ class VoteServiceImplTest {
     }
 
     @Test
+    @DisplayName("투표를 삭제하면 오늘의 게임 처리를 호출한다")
+    void 투표를_삭제하면_오늘의_게임_처리를_호출한다() {
+        Member member = Member.builder().id(1L).role(Role.USER).build();
+        Vote vote = Vote.builder().id(10L).member(member).build();
+
+        when(voteRepository.findById(any())).thenReturn(Optional.of(vote));
+        when(memberRepository.findByIdAndDeletedAtIsNull(any())).thenReturn(Optional.of(member));
+
+        voteService.deleteVote(1L, 10L);
+
+        verify(dailyVoteLifecycleService).onVoteDeleted(10L);
+    }
+
+    @Test
     @DisplayName("관리자는 다른 사용자의 투표를 삭제할 수 있다")
     void 관리자_타인투표_삭제성공() {
         Member admin = Member.builder().id(1L).role(Role.ADMIN).build();
@@ -688,6 +702,21 @@ class VoteServiceImplTest {
         verify(voteRepository).save(captor.capture());
         assertThat(captor.getValue().getDeletedAt()).isNotNull();
         verify(memberRepository, never()).findByIdAndDeletedAtIsNull(any());
+    }
+
+    @Test
+    @DisplayName("관리자가 삭제해도 오늘의 게임 처리를 호출한다")
+    void 관리자가_삭제해도_오늘의_게임_처리를_호출한다() {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("0", "", List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
+        Member writer = Member.builder().id(2L).role(Role.USER).build();
+        Vote vote = Vote.builder().id(10L).member(writer).build();
+
+        when(voteRepository.findById(any())).thenReturn(Optional.of(vote));
+
+        voteService.deleteVote(0L, 10L);
+
+        verify(dailyVoteLifecycleService).onVoteDeleted(10L);
     }
 
     @Test
