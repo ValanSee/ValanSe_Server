@@ -95,6 +95,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/admin/content-seed/run").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/admin/content-seed/comments/run").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/admin/search-keywords/collect").hasRole("ADMIN")
+                        .requestMatchers("/admin/daily-votes", "/admin/daily-votes/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/report").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/report/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/member/titles/admin").hasRole("ADMIN")
