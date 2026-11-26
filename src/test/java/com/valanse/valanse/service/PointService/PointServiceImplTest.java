@@ -288,4 +288,45 @@ class PointServiceImplTest {
         verify(memberProfileRepository, never()).addPointAtomically(eq(botMemberId), anyLong());
         verify(pointHistoryRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("오늘의 밸런스 참여 포인트는 3점 지급된다")
+    void DAILY_VOTE는_3포인트() {
+        assertDailyPointGiven(PointType.DAILY_VOTE, 3L);
+    }
+
+    @Test
+    @DisplayName("오늘의 밸런스 승리 포인트는 5점 지급된다")
+    void DAILY_WIN은_5포인트() {
+        assertDailyPointGiven(PointType.DAILY_WIN, 5L);
+    }
+
+    @Test
+    @DisplayName("오늘의 밸런스 무승부 포인트는 10점 지급된다")
+    void DAILY_TIE는_10포인트() {
+        assertDailyPointGiven(PointType.DAILY_TIE, 10L);
+    }
+
+    private void assertDailyPointGiven(PointType type, long expectedAmount) {
+        // Given
+        Long memberId = 4L;
+        Member member = Member.builder().id(memberId).isBot(false).build();
+        MemberProfile profileBeforeUpdate = MemberProfile.builder().member(member).point(0L).build();
+        MemberProfile profileAfterUpdate = MemberProfile.builder().member(member).point(expectedAmount).build();
+
+        when(memberRepository.findByIdAndDeletedAtIsNull(memberId)).thenReturn(Optional.of(member));
+        when(memberProfileRepository.findByMemberIdForUpdate(memberId)).thenReturn(Optional.of(profileBeforeUpdate));
+        when(memberProfileRepository.findByMemberId(memberId)).thenReturn(Optional.of(profileAfterUpdate));
+
+        // When
+        pointService.givePoint(memberId, type);
+
+        // Then
+        verify(memberProfileRepository).addPointAtomically(memberId, expectedAmount);
+        verify(pointHistoryRepository).save(argThat(history ->
+            history.getAmount().equals(expectedAmount) &&
+                history.getRemainingPoint().equals(expectedAmount) &&
+                history.getType() == type
+        ));
+    }
 }

@@ -9,5 +9,8 @@ public enum PointType {
     POST_VOTED,
     HOT_ISSUE,
     SIGN_UP,
-    TITLE_PURCHASE
+    TITLE_PURCHASE,
+    DAILY_VOTE,
+    DAILY_WIN,
+    DAILY_TIE
 }
