@@ -63,4 +63,11 @@ public class DailyVoteParticipation {
     public void changeCurrentOption(Long optionIdOrNull) {
         this.currentOptionId = optionIdOrNull;
     }
+
+    /**
+     * 정산 시 지급한 보너스 포인트를 기록합니다(실제로 지급한 값과 같아야 합니다).
+     */
+    public void recordBonus(int bonusPoint) {
+        this.bonusPoint = bonusPoint;
+    }
 }
