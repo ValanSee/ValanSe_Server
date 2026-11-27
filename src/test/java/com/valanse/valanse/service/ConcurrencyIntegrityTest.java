@@ -34,6 +34,8 @@ import com.valanse.valanse.repository.VoteOptionRepository;
 import com.valanse.valanse.repository.VoteRepository;
 import com.valanse.valanse.service.CommentLikeService.CommentLikeService;
 import com.valanse.valanse.service.CommentService.CommentService;
+import com.valanse.valanse.service.ContentSeedService.ContentSeedPersistenceService;
+import com.valanse.valanse.service.ContentSeedService.GeneratedInteraction;
 import com.valanse.valanse.service.PointService.PointService;
 import com.valanse.valanse.service.TitleService.TitleService;
 import com.valanse.valanse.service.VoteService.VoteService;
@@ -67,6 +69,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ConcurrencyIntegrityTest {
 
     @Autowired private VoteService voteService;
+    @Autowired private ContentSeedPersistenceService persistenceService;
     @Autowired private CommentService commentService;
     @Autowired private CommentLikeService commentLikeService;
     @Autowired private PointService pointService;
@@ -145,6 +148,54 @@ class ConcurrencyIntegrityTest {
         assertThat(reloadedOption.getVoteCount()).isEqualTo((int) voteRows);
         assertThat(reloadedVote.getTotalVoteCount()).isGreaterThanOrEqualTo(0);
         assertThat(reloadedOption.getVoteCount()).isGreaterThanOrEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("사용자 투표와 봇 상호작용 저장이 동시에 실행돼도 카운트에 Lost Update가 발생하지 않는다")
+    void concurrentUserVoteAndBotInteractionKeepCountsConsistent() throws Exception {
+        Member creator = saveMember("race-creator");
+        saveProfile(creator, 0L);
+        Vote vote = saveVoteWithOptions(creator);
+        VoteOption option = vote.getVoteOptions().get(0);
+
+        int userCount = 4;
+        int botCount = 4;
+
+        // ContentSeedPersistenceService.saveBotInteraction()을 직접 호출해야
+        // 실제 운영 경로(Vote를 먼저 잠금 없이 읽은 뒤 saveVote를 같은 트랜잭션
+        // 안에서 호출하는 순서)를 그대로 검증한다. ContentSeedVotePersister
+        // .saveVote()를 테스트에서 바로 호출하면 매번 새 트랜잭션에서 시작해
+        // Vote가 영속성 컨텍스트에 미리 캐시돼 있지 않으므로, saveBotInteraction
+        // 쪽의 "먼저 읽은 캐시가 락을 무력화하는" 버그를 잡아내지 못한다(#351).
+        List<Callable<Void>> tasks = new ArrayList<>();
+        for (int i = 0; i < userCount; i++) {
+            Member user = saveMember("race-user-" + i);
+            tasks.add(() -> {
+                voteService.processVote(user.getId(), vote.getId(), option.getId());
+                return null;
+            });
+        }
+        for (int i = 0; i < botCount; i++) {
+            Member bot = saveBotMember("race-bot-" + i);
+            GeneratedInteraction interaction = new GeneratedInteraction(
+                    vote.getId(), GeneratedInteraction.SelectedOption.A, "저는 A가 좋아요");
+            tasks.add(() -> {
+                persistenceService.saveBotInteraction(bot.getId(), interaction);
+                return null;
+            });
+        }
+
+        runConcurrently(tasks);
+
+        long rowCount = memberVoteOptionRepository.findAll().stream()
+                .filter(row -> row.getVote().getId().equals(vote.getId()))
+                .count();
+        Vote reloadedVote = voteRepository.findById(vote.getId()).orElseThrow();
+        VoteOption reloadedOption = voteOptionRepository.findById(option.getId()).orElseThrow();
+
+        assertThat(rowCount).isEqualTo(userCount + botCount);
+        assertThat(reloadedVote.getTotalVoteCount()).isEqualTo(userCount + botCount);
+        assertThat(reloadedOption.getVoteCount()).isEqualTo(userCount + botCount);
     }
 
     @Test
@@ -325,6 +376,31 @@ class ConcurrencyIntegrityTest {
         executor.shutdownNow();
     }
 
+    // 사용자 투표(processVote)와 봇 투표(saveVote)처럼 서로 다른 작업을 한 번에
+    // 동시 실행해야 할 때 쓰는 버전. 위 runConcurrently(int, Callable)는 같은
+    // 작업을 N번 반복할 때만 쓸 수 있어 따로 둔다.
+    private void runConcurrently(List<Callable<Void>> tasks) throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(tasks.size());
+        CountDownLatch ready = new CountDownLatch(tasks.size());
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<Void>> futures = new ArrayList<>();
+
+        for (Callable<Void> task : tasks) {
+            futures.add(executor.submit(() -> {
+                ready.countDown();
+                start.await();
+                return task.call();
+            }));
+        }
+
+        ready.await();
+        start.countDown();
+        for (Future<Void> future : futures) {
+            future.get();
+        }
+        executor.shutdownNow();
+    }
+
     private Member saveMember(String socialId) {
         return inTransaction(() -> memberRepository.save(Member.builder()
                 .socialId(socialId)
@@ -333,6 +409,18 @@ class ConcurrencyIntegrityTest {
                 .nickname(socialId)
                 .role(Role.USER)
                 .socialType(SocialType.KAKAO)
+                .build()));
+    }
+
+    private Member saveBotMember(String socialId) {
+        return inTransaction(() -> memberRepository.save(Member.builder()
+                .socialId(socialId)
+                .email(socialId + "@example.com")
+                .name(socialId)
+                .nickname(socialId)
+                .role(Role.USER)
+                .socialType(SocialType.KAKAO)
+                .isBot(true)
                 .build()));
     }
 
