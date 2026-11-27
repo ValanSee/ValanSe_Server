@@ -7,6 +7,7 @@ import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.dto.Comment.CommentPostRequest;
 import com.valanse.valanse.dto.Vote.VoteCreateRequest;
 import com.valanse.valanse.repository.MemberRepository;
+import com.valanse.valanse.repository.VoteOptionRepository;
 import com.valanse.valanse.repository.VoteRepository;
 import com.valanse.valanse.service.CommentService.CommentService;
 import com.valanse.valanse.service.VoteService.VoteService;
@@ -30,6 +31,7 @@ public class ContentSeedPersistenceService {
     private final CommentService commentService;
     private final ContentSeedVotePersister votePersister;
     private final VoteRepository voteRepository;
+    private final VoteOptionRepository voteOptionRepository;
     private final MemberRepository memberRepository;
 
     // 봇 게시글 1건 저장. 기존 VoteService.createVote를 재사용한다(작성 포인트는
@@ -41,13 +43,20 @@ public class ContentSeedPersistenceService {
 
     // 봇 상호작용(투표 1건 + 댓글 1건) 저장. 투표는 ContentSeedVotePersister로
     // 부작용 없이, 댓글은 기존 CommentService.createComment로 저장한다.
+    //
+    // Vote/VoteOption을 이 트랜잭션에서 처음 읽을 때부터 findByIdForUpdate /
+    // findByVoteIdAndLabelForUpdate로 잠궈야 한다. 먼저 findById로 잠금 없이
+    // 읽어버리면 그 엔티티가 영속성 컨텍스트에 캐시되고, 이후 votePersister
+    // .saveVote() 안에서 findByIdForUpdate를 다시 호출해도 Hibernate는 DB
+    // 락만 잡을 뿐 이미 캐시된(옛 카운트) 엔티티를 그대로 돌려준다 - 그 결과
+    // 락을 기다린 뒤에도 오래된 카운트로 증가시키는 Lost Update가 남는다(#351).
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Long saveBotInteraction(Long botMemberId, GeneratedInteraction interaction) {
         Member bot = memberRepository.findById(botMemberId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 봇 회원입니다: " + botMemberId));
-        Vote vote = voteRepository.findById(interaction.targetPostId())
+        Vote vote = voteRepository.findByIdForUpdate(interaction.targetPostId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다: " + interaction.targetPostId()));
-        VoteOption selectedOption = findOption(vote, interaction.selectedOption());
+        VoteOption selectedOption = findOptionForUpdate(vote.getId(), interaction.selectedOption());
 
         votePersister.saveVote(bot, vote, selectedOption);
 
@@ -55,13 +64,11 @@ public class ContentSeedPersistenceService {
                 CommentPostRequest.builder().content(interaction.comment()).build());
     }
 
-    private VoteOption findOption(Vote vote, GeneratedInteraction.SelectedOption selected) {
+    private VoteOption findOptionForUpdate(Long voteId, GeneratedInteraction.SelectedOption selected) {
         VoteLabel label = selected == GeneratedInteraction.SelectedOption.A ? VoteLabel.A : VoteLabel.B;
-        return vote.getVoteOptions().stream()
-                .filter(option -> option.getLabel() == label)
-                .findFirst()
+        return voteOptionRepository.findByVoteIdAndLabelForUpdate(voteId, label)
                 .orElseThrow(() -> new IllegalStateException(
-                        "게시글 " + vote.getId() + "에 " + label + " 선택지가 없습니다."));
+                        "게시글 " + voteId + "에 " + label + " 선택지가 없습니다."));
     }
 
     private VoteCreateRequest toVoteCreateRequest(GeneratedPost post) {
