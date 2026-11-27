@@ -25,21 +25,28 @@ public class ContentSeedVotePersister {
     private final VoteRepository voteRepository;
     private final VoteOptionRepository voteOptionRepository;
 
-    // VoteServiceImpl.processVote와 마찬가지로, 카운트를 바꾼 뒤 명시적으로 save한다 -
-    // 넘어온 vote/selectedOption이 (호출자에 따라) 이미 detach된 엔티티일 수 있어,
-    // 필드만 바꾸고 flush에 기대면 반영되지 않을 수 있기 때문이다.
+    // VoteServiceImpl.processVote와 동일하게 Vote -> VoteOption 순서로 비관적 락을
+    // 걸고 엔티티를 다시 조회한다. 호출자가 넘긴 vote/selectedOption은 트랜잭션
+    // 시작 전에 잠금 없이 읽힌 값일 수 있어, 그 값을 그대로 증가시키면 사용자 투표
+    // 경로(processVote)와 동시에 실행될 때 두 트랜잭션이 같은 옛 카운트를 읽고
+    // 써서 한쪽 증가분이 사라지는 Lost Update가 발생할 수 있다(#351).
     @Transactional
     public void saveVote(Member bot, Vote vote, VoteOption selectedOption) {
+        Vote lockedVote = voteRepository.findByIdForUpdate(vote.getId())
+                .orElseThrow(() -> new IllegalStateException("존재하지 않는 투표입니다: " + vote.getId()));
+        VoteOption lockedOption = voteOptionRepository.findByIdForUpdate(selectedOption.getId())
+                .orElseThrow(() -> new IllegalStateException("존재하지 않는 투표 선택지입니다: " + selectedOption.getId()));
+
         memberVoteOptionRepository.save(MemberVoteOption.builder()
                 .member(bot)
-                .vote(vote)
-                .voteOption(selectedOption)
+                .vote(lockedVote)
+                .voteOption(lockedOption)
                 .build());
 
-        selectedOption.setVoteCount(incrementCount(selectedOption.getVoteCount()));
-        vote.setTotalVoteCount(incrementCount(vote.getTotalVoteCount()));
-        voteOptionRepository.save(selectedOption);
-        voteRepository.save(vote);
+        lockedOption.setVoteCount(incrementCount(lockedOption.getVoteCount()));
+        lockedVote.setTotalVoteCount(incrementCount(lockedVote.getTotalVoteCount()));
+        voteOptionRepository.save(lockedOption);
+        voteRepository.save(lockedVote);
     }
 
     private int incrementCount(Integer count) {
