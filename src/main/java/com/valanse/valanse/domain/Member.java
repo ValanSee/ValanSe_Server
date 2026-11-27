@@ -24,6 +24,11 @@ import java.util.List;
  */
 public class Member extends BaseEntity {
 
+    /**
+     * 탈퇴한 회원(soft delete 직후 ~ 퍼지 이후)이 작성한 콘텐츠의 작성자 닉네임으로 노출하는 문구입니다.
+     */
+    public static final String WITHDRAWN_NICKNAME = "탈퇴한 사용자";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id; // uuid
@@ -79,6 +84,21 @@ public class Member extends BaseEntity {
 
     public void updateProfileImageUrl(String profileImageUrl) {
         this.profile_image_url = profileImageUrl;
+    }
+
+    /**
+     * 탈퇴(soft delete)한 회원인지 판별하는 메서드입니다.
+     */
+    public boolean isWithdrawn() {
+        return getDeletedAt() != null;
+    }
+
+    /**
+     * 콘텐츠 작성자로 노출해도 되는 회원이면 그대로, 탈퇴했거나(soft delete) 퍼지돼 없으면 null을 반환합니다.
+     * 탈퇴 직후부터 퍼지 이후와 똑같이 "탈퇴한 사용자"로 익명화해 보여주기 위해 사용합니다.
+     */
+    public static Member visibleAuthorOrNull(Member member) {
+        return member == null || member.isWithdrawn() ? null : member;
     }
 
     public void revokeCredentials() {

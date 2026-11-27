@@ -1,6 +1,7 @@
 package com.valanse.valanse.dto.Report;
 
 import com.valanse.valanse.domain.Comment;
+import com.valanse.valanse.domain.Member;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
@@ -26,7 +27,7 @@ public class ReportedCommentResponse {
         this.commentId = comment.getId();
         this.content = comment.getContent();
         this.likeCount = comment.getLikeCount();
-        this.nickname = comment.getMember() != null ? comment.getMember().getNickname() : "탈퇴한 사용자";
+        this.nickname = comment.getMember() != null ? comment.getMember().getNickname() : Member.WITHDRAWN_NICKNAME;
         this.isBot = comment.getMember() != null && comment.getMember().isBot();
         this.replyCount = comment.getReplyCount();
         this.voteId = comment.getCommentGroup().getVote().getId();

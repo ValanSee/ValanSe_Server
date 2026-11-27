@@ -124,7 +124,7 @@ public class VoteServiceImpl implements VoteService {
 
     private PagedVoteResponse toPagedVoteResponse(Slice<Vote> votes, Pageable pageable) {
         List<Long> creatorMemberIds = votes.getContent().stream()
-                .map(Vote::getMember)
+                .map(vote -> Member.visibleAuthorOrNull(vote.getMember()))
                 .filter(member -> member != null && member.getId() != null)
                 .map(Member::getId)
                 .distinct()
@@ -133,10 +133,13 @@ public class VoteServiceImpl implements VoteService {
 
         return PagedVoteResponse.builder()
                 .votes(votes.getContent().stream()
-                        .map(vote -> new VoteResponseDto(
-                                vote,
-                                vote.getMember() == null ? null : titleNamesByMemberId.get(vote.getMember().getId())
-                        ))
+                        .map(vote -> {
+                            Member author = Member.visibleAuthorOrNull(vote.getMember());
+                            return new VoteResponseDto(
+                                    vote,
+                                    author == null ? null : titleNamesByMemberId.get(author.getId())
+                            );
+                        })
                         .collect(Collectors.toList()))
                 .page(pageable.getPageNumber())
                 .size(pageable.getPageSize())
@@ -269,7 +272,7 @@ public class VoteServiceImpl implements VoteService {
                 .collect(Collectors.toMap(Vote::getId, vote -> vote));
 
         List<Long> memberIds = votesById.values().stream()
-                .map(Vote::getMember)
+                .map(vote -> Member.visibleAuthorOrNull(vote.getMember()))
                 .filter(member -> member != null && member.getId() != null)
                 .map(Member::getId)
                 .distinct()
@@ -302,8 +305,9 @@ public class VoteServiceImpl implements VoteService {
             Map<Long, String> nicknamesByMemberId
     ) {
         TrendingVoteScore score = selectedVote.score();
-        Member creator = vote.getMember();
-        String createdBy = "익명";
+        // 탈퇴(soft delete)한 작성자도 퍼지된 작성자(null)와 똑같이 익명화해서 보여준다.
+        Member creator = Member.visibleAuthorOrNull(vote.getMember());
+        String createdBy = Member.WITHDRAWN_NICKNAME;
         String creatorTitle = null;
         Boolean creatorIsBot = creator != null && creator.isBot();
         if (creator != null) {
@@ -506,12 +510,13 @@ public class VoteServiceImpl implements VoteService {
         Vote vote = voteRepository.findById(voteId)
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.VOTE_DETAIL_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
 
-        // MemberProfile의 nickname을 가져오도록 수정
-        String creatorNickname = "탈퇴한 사용자";
-        String creatorTitle = getEquippedTitleName(vote.getMember());
-        Boolean creatorIsBot = vote.getMember() != null && vote.getMember().isBot();
-        if (vote.getMember() != null && vote.getMember().getProfile() != null) {
-            creatorNickname = vote.getMember().getProfile().getNickname();
+        // 탈퇴(soft delete)한 작성자도 퍼지된 작성자(null)와 똑같이 "탈퇴한 사용자"로 익명화한다.
+        Member creator = Member.visibleAuthorOrNull(vote.getMember());
+        String creatorNickname = Member.WITHDRAWN_NICKNAME;
+        String creatorTitle = getEquippedTitleName(creator);
+        Boolean creatorIsBot = creator != null && creator.isBot();
+        if (creator != null && creator.getProfile() != null) {
+            creatorNickname = creator.getProfile().getNickname();
         }
 
         List<VoteDetailResponse.VoteOptionDto> optionDtos = vote.getVoteOptions().stream()
@@ -554,7 +559,7 @@ public class VoteServiceImpl implements VoteService {
 
         return VoteDetailResponse.builder()
                 .voteId(vote.getId())
-                .authorId(vote.getMember() != null ? vote.getMember().getId() : null)
+                .authorId(creator != null ? creator.getId() : null)
                 .title(vote.getTitle())
                 .content(vote.getContent())
                 .category(vote.getCategory())
@@ -694,7 +699,7 @@ public class VoteServiceImpl implements VoteService {
         }
 
         List<Long> creatorMemberIds = votes.stream()
-                .map(Vote::getMember)
+                .map(vote -> Member.visibleAuthorOrNull(vote.getMember()))
                 .filter(member -> member != null && member.getId() != null)
                 .map(Member::getId)
                 .distinct()
@@ -703,11 +708,14 @@ public class VoteServiceImpl implements VoteService {
 
         List<VoteListResponse.VoteDto> voteDtos = votes.stream()
                 .map(vote -> {
-                    String creatorNickname = "탈퇴한 사용자";
-                    if (vote.getMember() != null && vote.getMember().getProfile() != null) {
-                        creatorNickname = vote.getMember().getProfile().getNickname();
-                    } else if (vote.getMember() != null && vote.getMember().getName() != null) {
-                        creatorNickname = vote.getMember().getName();
+                    // 탈퇴(soft delete)한 작성자도 퍼지된 작성자(null)와 똑같이 "탈퇴한 사용자"로 익명화한다.
+                    // (삭제 권한 canDelete는 작성자 노출이 아니므로 실제 작성자 기준을 유지한다.)
+                    Member author = Member.visibleAuthorOrNull(vote.getMember());
+                    String creatorNickname = Member.WITHDRAWN_NICKNAME;
+                    if (author != null && author.getProfile() != null) {
+                        creatorNickname = author.getProfile().getNickname();
+                    } else if (author != null && author.getName() != null) {
+                        creatorNickname = author.getName();
                     }
 
                     List<VoteListResponse.VoteOptionListDto> optionListDtos = vote.getVoteOptions().stream()
@@ -735,12 +743,12 @@ public class VoteServiceImpl implements VoteService {
                             .title(vote.getTitle())
                             .content(vote.getContent())
                             .category(vote.getCategory().name())
-                            .member_id(vote.getMember() != null ? vote.getMember().getId() : null)
-                            .authorId(vote.getMember() != null ? vote.getMember().getId() : null)
+                            .member_id(author != null ? author.getId() : null)
+                            .authorId(author != null ? author.getId() : null)
                             .nickname(creatorNickname)
-                            .isBot(vote.getMember() != null && vote.getMember().isBot())
-                            .member_title(vote.getMember() != null
-                                    ? equippedTitleNamesByMemberId.get(vote.getMember().getId())
+                            .isBot(author != null && author.isBot())
+                            .member_title(author != null
+                                    ? equippedTitleNamesByMemberId.get(author.getId())
                                     : null)
                             .created_at(vote.getCreatedAt())
                             .total_vote_count(vote.getTotalVoteCount())
