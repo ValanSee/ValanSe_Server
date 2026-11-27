@@ -19,6 +19,8 @@ import com.valanse.valanse.dto.Vote.TrendingScoreType;
 import com.valanse.valanse.dto.Vote.TrendingVoteScore;
 import com.valanse.valanse.dto.Vote.TrendingVotesResponse;
 import com.valanse.valanse.repository.*;
+import com.valanse.valanse.service.DailyVoteService.DailyVoteLifecycleService;
+import com.valanse.valanse.service.DailyVoteService.DailyVoteParticipationService;
 import com.valanse.valanse.service.PointService.PointService;
 import com.valanse.valanse.service.StorageService.StorageService;
 import org.junit.jupiter.api.BeforeEach;
@@ -70,6 +72,8 @@ class VoteServiceImplTest {
     @Mock private PointService pointService;
     @Mock private StorageService storageService;
     @Mock private Clock clock;
+    @Mock private DailyVoteParticipationService dailyVoteParticipationService;
+    @Mock private DailyVoteLifecycleService dailyVoteLifecycleService;
 
     @Test
     @DisplayName("트렌딩 기간이 허용 범위를 벗어나면 예외가 발생한다")
@@ -647,6 +651,20 @@ class VoteServiceImplTest {
     }
 
     @Test
+    @DisplayName("투표를 삭제하면 오늘의 게임 처리를 호출한다")
+    void 투표를_삭제하면_오늘의_게임_처리를_호출한다() {
+        Member member = Member.builder().id(1L).role(Role.USER).build();
+        Vote vote = Vote.builder().id(10L).member(member).build();
+
+        when(voteRepository.findById(any())).thenReturn(Optional.of(vote));
+        when(memberRepository.findByIdAndDeletedAtIsNull(any())).thenReturn(Optional.of(member));
+
+        voteService.deleteVote(1L, 10L);
+
+        verify(dailyVoteLifecycleService).onVoteDeleted(10L);
+    }
+
+    @Test
     @DisplayName("관리자는 다른 사용자의 투표를 삭제할 수 있다")
     void 관리자_타인투표_삭제성공() {
         Member admin = Member.builder().id(1L).role(Role.ADMIN).build();
@@ -684,6 +702,21 @@ class VoteServiceImplTest {
         verify(voteRepository).save(captor.capture());
         assertThat(captor.getValue().getDeletedAt()).isNotNull();
         verify(memberRepository, never()).findByIdAndDeletedAtIsNull(any());
+    }
+
+    @Test
+    @DisplayName("관리자가 삭제해도 오늘의 게임 처리를 호출한다")
+    void 관리자가_삭제해도_오늘의_게임_처리를_호출한다() {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("0", "", List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
+        Member writer = Member.builder().id(2L).role(Role.USER).build();
+        Vote vote = Vote.builder().id(10L).member(writer).build();
+
+        when(voteRepository.findById(any())).thenReturn(Optional.of(vote));
+
+        voteService.deleteVote(0L, 10L);
+
+        verify(dailyVoteLifecycleService).onVoteDeleted(10L);
     }
 
     @Test

@@ -95,6 +95,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/admin/content-seed/run").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/admin/content-seed/comments/run").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/admin/search-keywords/collect").hasRole("ADMIN")
+                        .requestMatchers("/admin/daily-votes", "/admin/daily-votes/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/report").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/report/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/member/titles/admin").hasRole("ADMIN")
@@ -111,6 +112,7 @@ public class SecurityConfig {
 
                         // GET - 공개 (모든 사람이 볼 수 있음)
                         .requestMatchers(HttpMethod.GET, "/votes/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/daily-votes", "/daily-votes/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/comments/**").permitAll()
 
                         // POST - 인증 필요 (로그인해야 가능)

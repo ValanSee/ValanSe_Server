@@ -12,8 +12,12 @@ import com.valanse.valanse.domain.enums.Role;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import com.valanse.valanse.domain.enums.VoteLabel;
 import com.valanse.valanse.domain.mapping.MemberVoteOption;
+import com.valanse.valanse.dto.DailyVote.DailyVoteReward;
+import com.valanse.valanse.dto.DailyVote.DailyVoteStatus;
 import com.valanse.valanse.dto.Vote.*;
 import com.valanse.valanse.repository.*;
+import com.valanse.valanse.service.DailyVoteService.DailyVoteLifecycleService;
+import com.valanse.valanse.service.DailyVoteService.DailyVoteParticipationService;
 import com.valanse.valanse.service.PointService.PointService;
 import com.valanse.valanse.service.StorageService.StorageService;
 import lombok.RequiredArgsConstructor;
@@ -60,6 +64,8 @@ public class VoteServiceImpl implements VoteService {
     private final PointService pointService;
     private final StorageService storageService;
     private final Clock clock;
+    private final DailyVoteParticipationService dailyVoteParticipationService;
+    private final DailyVoteLifecycleService dailyVoteLifecycleService;
 
     private static final int TRENDING_LIMIT = 5;
     private static final int MIN_TRENDING_DAYS = 1;
@@ -393,6 +399,10 @@ public class VoteServiceImpl implements VoteService {
         // 2. 사용자가 이 투표에 대해 이전에 투표한 선택지가 있는지 확인합니다.
         Optional<MemberVoteOption> existingVote = memberVoteOptionRepository.findByMemberIdAndVoteId(userId, voteId);
 
+        // 오늘의 밸런스 게임이면 오늘 참여 여부를 먼저 확인합니다. (아니면 today = null, 기존 동작 그대로)
+        DailyVote today = dailyVoteParticipationService.findTodayFor(voteId).orElse(null);
+        boolean participatedToday = today != null && dailyVoteParticipationService.hasParticipated(today, userId);
+
         boolean isVoted; // 최종적으로 투표가 되어 있는지 여부 (응답 DTO에 사용)
         Integer updatedTotalVoteCount; // 업데이트된 총 투표 수 (응답 DTO에 사용)
         Integer updatedVoteOptionCount; // 업데이트된 선택지별 투표 수 (응답 DTO에 사용)
@@ -402,7 +412,13 @@ public class VoteServiceImpl implements VoteService {
             MemberVoteOption oldMemberVoteOption = existingVote.get();
             VoteOption oldVoteOption = oldMemberVoteOption.getVoteOption(); // 이전에 투표했던 선택지
 
-            if (oldVoteOption.getId().equals(voteOptionId)) {
+            if (today != null && !participatedToday && oldVoteOption.getId().equals(voteOptionId)) {
+                // 3-0. 예전에 같은 쪽을 골랐던 사람이 오늘의 게임에 처음 누른 경우: 취소하지 않고 오늘 참여로만 기록
+                isVoted = true;
+                updatedTotalVoteCount = vote.getTotalVoteCount();
+                updatedVoteOptionCount = oldVoteOption.getVoteCount();
+
+            } else if (oldVoteOption.getId().equals(voteOptionId)) {
                 // 3-1. 동일한 선택지를 다시 클릭한 경우: 투표 취소
                 // member_vote_option에서 해당 기록을 삭제
                 memberVoteOptionRepository.delete(oldMemberVoteOption);
@@ -462,12 +478,33 @@ public class VoteServiceImpl implements VoteService {
         }
 
         // 6. 결과 DTO를 구성하여 반환합니다.
-        return new VoteCancleResponseDto(
+        VoteCancleResponseDto response = new VoteCancleResponseDto(
                 isVoted,
                 updatedTotalVoteCount,
                 voteOptionId, // 현재 작업의 대상이 된 voteOptionId
                 updatedVoteOptionCount
         );
+        if (today != null) {
+            response.setDaily(handleDailyVote(today, member, participatedToday, isVoted, voteOptionId));
+        }
+        return response;
+    }
+
+    /**
+     * 오늘의 밸런스 게임 투표를 참여 기록에 반영하고 보상과 이번 요청이 반영된 오늘 표를 돌려주는 메서드입니다.
+     * 오늘 처음이면 참여(날짜당 1회 포인트), 이미 참여했으면 현재 선택만 바꿉니다(취소면 null).
+     */
+    private DailyVoteStatus handleDailyVote(DailyVote today, Member member, boolean participatedToday,
+                                            boolean isVoted, Long voteOptionId) {
+        DailyVoteReward reward;
+        if (!participatedToday) {
+            reward = dailyVoteParticipationService.participate(today, member, voteOptionId);
+        } else {
+            dailyVoteParticipationService.updateCurrentOption(today, member.getId(), isVoted ? voteOptionId : null);
+            reward = new DailyVoteReward(0, true);
+        }
+        // 참여/변경 이후에 집계해야 이번 요청이 오늘 표에 반영됩니다.
+        return new DailyVoteStatus(reward, dailyVoteParticipationService.tally(today));
     }
 
     private Optional<Vote> findVoteForUpdate(Long voteId) {
@@ -850,6 +887,8 @@ public class VoteServiceImpl implements VoteService {
         // BaseEntity의 softDelete() 메서드 사용
         vote.softDelete();
         voteRepository.save(vote);
+        // 오늘의 밸런스로 쓰이던 게임이면 교체/예약 해제
+        dailyVoteLifecycleService.onVoteDeleted(voteId);
     }
 
     @Override

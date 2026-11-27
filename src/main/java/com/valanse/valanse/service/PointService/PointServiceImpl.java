@@ -44,6 +44,9 @@ public class PointServiceImpl implements PointService {
     private static final long COMMENT_CREATE_POINT = 1L;
     private static final long POST_VOTED_POINT = 1L;
     private static final long HOT_ISSUE_POINT = 50L;
+    private static final long DAILY_VOTE_POINT = 3L;
+    private static final long DAILY_WIN_POINT = 5L;
+    private static final long DAILY_TIE_POINT = 10L;
 
     // 댓글 포인트 일일 최대 획득 횟수
     private static final long COMMENT_DAILY_LIMIT = 3L;
@@ -81,6 +84,9 @@ public class PointServiceImpl implements PointService {
             }
             case POST_VOTED -> POST_VOTED_POINT;
             case HOT_ISSUE -> HOT_ISSUE_POINT;
+            case DAILY_VOTE -> DAILY_VOTE_POINT;
+            case DAILY_WIN -> DAILY_WIN_POINT;
+            case DAILY_TIE -> DAILY_TIE_POINT;
             case TITLE_PURCHASE -> throw new ApiException(PointErrorMessage.INVALID_REWARD_TYPE.message(), HttpStatus.BAD_REQUEST);
         };
 
@@ -201,6 +207,9 @@ public class PointServiceImpl implements PointService {
             case COMMENT_CREATE -> "댓글 작성";
             case POST_VOTED -> "투표 참여";
             case HOT_ISSUE -> "핫이슈";
+            case DAILY_VOTE -> "오늘의 밸런스 참여";
+            case DAILY_WIN -> "오늘의 밸런스 승리";
+            case DAILY_TIE -> "오늘의 밸런스 무승부";
             case TITLE_PURCHASE -> "칭호 구매";
         };
     }

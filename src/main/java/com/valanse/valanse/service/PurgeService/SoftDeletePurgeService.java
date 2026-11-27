@@ -73,6 +73,9 @@ public class SoftDeletePurgeService {
             jdbcTemplate.update("update comment c set parent_id = null where c.comment_group_id in (select cg.id from comment_group cg where cg.vote_id = ?)", voteId);
             jdbcTemplate.update("delete from comment where comment_group_id in (select cg.id from comment_group cg where cg.vote_id = ?)", voteId);
             jdbcTemplate.update("delete from member_vote_option where vote_id = ?", voteId);
+            // 오늘의 밸런스 기록은 스냅샷을 남기고 원본 참조만 끊는다
+            jdbcTemplate.update("update daily_vote set vote_id = null where vote_id = ?", voteId);
+            jdbcTemplate.update("update daily_vote_participation set vote_id = null, first_option_id = null, current_option_id = null where vote_id = ?", voteId);
             jdbcTemplate.update("delete from vote_option where vote_id = ?", voteId);
             jdbcTemplate.update("delete from comment_group where vote_id = ?", voteId);
             jdbcTemplate.update("delete from report where report_type = 'VOTE' and target_id = ?", voteId);

@@ -42,6 +42,10 @@ public class DiscordWebhookClient {
         sendWithRetry(correlationId(event), payload(event));
     }
 
+    public void send(DailyVoteEvent event) {
+        sendWithRetry("daily-vote:" + event.type() + ":" + event.date(), payload(event));
+    }
+
     private void sendWithRetry(String correlationId, Map<String, Object> payload) {
         if (!StringUtils.hasText(properties.getWebhookUrl())) {
             throw new IllegalStateException("Discord webhook URL is not configured.");
@@ -187,6 +191,50 @@ public class DiscordWebhookClient {
                 "embeds", List.of(embed),
                 "allowed_mentions", Map.of("parse", List.of())
         );
+    }
+
+    private Map<String, Object> payload(DailyVoteEvent event) {
+        List<Map<String, Object>> fields = new ArrayList<>();
+        fields.add(field("날짜", event.date().toString(), true));
+        if (StringUtils.hasText(event.question())) {
+            fields.add(field("질문", event.question(), false));
+        }
+        if (StringUtils.hasText(event.source())) {
+            fields.add(field("출처", event.source(), true));
+        }
+        if (StringUtils.hasText(event.detail())) {
+            fields.add(field("상세", event.detail(), false));
+        }
+
+        Map<String, Object> embed = Map.of(
+                "title", dailyVoteTitle(event.type()),
+                "color", dailyVoteColor(event.type()),
+                "fields", fields
+        );
+        return Map.of(
+                "username", "ValanSe Daily Vote",
+                "embeds", List.of(embed),
+                "allowed_mentions", Map.of("parse", List.of())
+        );
+    }
+
+    private String dailyVoteTitle(DailyVoteEvent.Type type) {
+        return switch (type) {
+            case SELECTED -> "오늘의 밸런스 선정";
+            case SETTLED -> "오늘의 밸런스 정산";
+            case REPLACED -> "오늘의 밸런스 교체";
+            case RESERVATION_CANCELLED -> "오늘의 밸런스 예약 취소";
+            case NO_CANDIDATE -> "오늘의 밸런스 후보 없음";
+            case SETTLE_FAILED -> "오늘의 밸런스 정산 실패";
+        };
+    }
+
+    private int dailyVoteColor(DailyVoteEvent.Type type) {
+        return switch (type) {
+            case SELECTED, SETTLED -> 0x2ECC71;
+            case REPLACED, RESERVATION_CANCELLED -> 0xF1C40F;
+            case NO_CANDIDATE, SETTLE_FAILED -> 0xE74C3C;
+        };
     }
 
     private Map<String, Object> fatalEmbed(ContentSeedRunEvent event) {
