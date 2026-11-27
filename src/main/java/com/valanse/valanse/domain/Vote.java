@@ -7,9 +7,7 @@ import com.valanse.valanse.domain.enums.VoteCategory;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
-import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.Where;
-import org.hibernate.type.SqlTypes;
 import org.springframework.security.core.parameters.P;
 
 import java.util.ArrayList;
@@ -53,8 +51,7 @@ public class Vote extends BaseEntity {
 
     @Builder.Default
     @Convert(converter = PinTypeConverter.class)
-    @JdbcTypeCode(SqlTypes.CHAR)
-    @Column(name = "pin_type")
+    @Column(name = "pin_type", columnDefinition = "enum('TRENDING')")
     private PinType pinType = PinType.NONE;
 
 
