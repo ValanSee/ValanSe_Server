@@ -3,6 +3,7 @@ package com.valanse.valanse.dto.Vote;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import com.valanse.valanse.domain.Member;
 import com.valanse.valanse.domain.Vote;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -41,7 +42,8 @@ public class VoteResponseDto {
         this.totalVoteCount = vote.getTotalVoteCount();
         this.createdAt = vote.getCreatedAt();
         this.creatorTitle = creatorTitle;
-        this.isBot = vote.getMember() != null && vote.getMember().isBot();
+        Member author = Member.visibleAuthorOrNull(vote.getMember());
+        this.isBot = author != null && author.isBot();
         this.options = vote.getVoteOptions()
                 .stream()
                 .map(option -> new OptionDto(option.getContent(), option.getImageUrl()))

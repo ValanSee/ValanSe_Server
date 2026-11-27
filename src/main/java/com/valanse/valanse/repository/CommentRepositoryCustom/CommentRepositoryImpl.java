@@ -97,12 +97,15 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                         canDelete
                         ))
                 .from(comment)
-                .leftJoin(comment.member, member)
+                // 탈퇴(soft delete)한 작성자는 조인하지 않아 퍼지된 댓글(member null)과 똑같이
+                // 닉네임 "탈퇴한 사용자", authorId/칭호 null, isBot false로 익명화된다.
+                .leftJoin(comment.member, member).on(member.deletedAt.isNull())
                 .leftJoin(member.profile, profile)
                 .leftJoin(profile.memberProfileTitles, memberProfileTitle).on(memberProfileTitle.equipped.isTrue())
                 .leftJoin(memberProfileTitle.title, title)
                 .join(comment.commentGroup.vote, vote)
-                .leftJoin(mvo).on(mvo.member.eq(member).and(mvo.vote.eq(vote)))
+                // 작성자가 고른 선택지 라벨은 작성자 익명화와 무관하게 유지한다.
+                .leftJoin(mvo).on(mvo.member.id.eq(comment.member.id).and(mvo.vote.eq(vote)))
                 .leftJoin(mvo.voteOption, voteOption)
                 .where(
                         vote.id.eq(voteId),
@@ -225,12 +228,14 @@ public class CommentRepositoryImpl implements CommentRepositoryCustom {
                         canDelete
                 ))
                 .from(reply)
-                .leftJoin(reply.member, member)
+                // 탈퇴(soft delete)한 작성자는 조인하지 않아 퍼지된 대댓글(member null)과 똑같이 익명화된다.
+                .leftJoin(reply.member, member).on(member.deletedAt.isNull())
                 .leftJoin(member.profile, profile)
                 .leftJoin(profile.memberProfileTitles, memberProfileTitle).on(memberProfileTitle.equipped.isTrue())
                 .leftJoin(memberProfileTitle.title, title)
                 .join(reply.commentGroup.vote, vote)
-                .leftJoin(mvo).on(mvo.member.eq(member).and(mvo.vote.eq(vote)))
+                // 작성자가 고른 선택지 라벨은 작성자 익명화와 무관하게 유지한다.
+                .leftJoin(mvo).on(mvo.member.id.eq(reply.member.id).and(mvo.vote.eq(vote)))
                 .leftJoin(mvo.voteOption, voteOption)
                 .where(
                         vote.id.eq(voteId),

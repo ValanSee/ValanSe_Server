@@ -1,5 +1,6 @@
 package com.valanse.valanse.dto.Comment;
 
+import com.valanse.valanse.domain.Member;
 import com.querydsl.core.annotations.QueryProjection;
 import lombok.Getter;
 
@@ -36,7 +37,7 @@ public class AdminCommentResponseDto {
     ) {
         this.commentId = commentId;
         this.content = content;
-        this.nickname = nickname != null ? nickname : "탈퇴한 사용자";
+        this.nickname = nickname != null ? nickname : Member.WITHDRAWN_NICKNAME;
         this.isBot = isBot != null && isBot;
         this.createdAt = createdAt;
         this.isReply = Boolean.TRUE.equals(isReply);

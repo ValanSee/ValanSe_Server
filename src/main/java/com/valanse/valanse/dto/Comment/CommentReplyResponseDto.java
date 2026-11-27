@@ -1,5 +1,6 @@
 package com.valanse.valanse.dto.Comment;
 
+import com.valanse.valanse.domain.Member;
 import com.querydsl.core.annotations.QueryProjection;
 import com.valanse.valanse.domain.enums.VoteLabel;
 import lombok.Builder;
@@ -76,7 +77,7 @@ public class CommentReplyResponseDto {
                                    Long daysAgo, Long hoursAgo, Boolean canDelete, boolean liked) {
         this.id = id;
         this.authorId = authorId;
-        this.nickname = nickname != null ? nickname : "탈퇴한 사용자";
+        this.nickname = nickname != null ? nickname : Member.WITHDRAWN_NICKNAME;
         this.isBot = isBot != null && isBot;
         this.title = title;
         this.createdAt = createdAt;
