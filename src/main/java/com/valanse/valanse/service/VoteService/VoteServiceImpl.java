@@ -884,6 +884,9 @@ public class VoteServiceImpl implements VoteService {
             throw new ApiException(VoteErrorMessage.DELETE_PERMISSION_DENIED.message(), HttpStatus.FORBIDDEN);
         }
 
+        // 고정된 투표가 삭제되면 핀을 해제해, 삭제된 행이 pin_type UNIQUE 슬롯을
+        // 계속 점유해 새 고정을 막는 일이 없게 한다.
+        vote.unpin();
         // BaseEntity의 softDelete() 메서드 사용
         vote.softDelete();
         voteRepository.save(vote);
@@ -906,20 +909,30 @@ public class VoteServiceImpl implements VoteService {
         }
         Vote vote = voteRepository.findById(voteId)
                 .orElseThrow(() -> new ApiException(VoteErrorMessage.POST_NOT_FOUND.message(), HttpStatus.NOT_FOUND));
-        if (pinType != PinType.NONE) {
-            // 이미 고정된 다른 게시물이 존재한다면 해당 게시물의 고정 해제
-            voteRepository.findByPinType(pinType).ifPresent(existing ->
-                    {if (!existing.getId().equals(voteId))
-                    {
-                        existing.unpin();
-                        voteRepository.save(existing);
-                    }});
-            vote.pin(pinType);
-        }
-        else {
+
+        if (pinType == PinType.NONE) {
             vote.unpin();
+            voteRepository.save(vote);
+            return;
         }
-        voteRepository.save(vote);
+
+        try {
+            // 이미 고정된 다른 게시물이 존재한다면 먼저 해제해 DB에 반영한다.
+            // 이 단계는 NULL로 바뀌므로 UNIQUE 제약과 충돌하지 않는다.
+            voteRepository.findByPinType(pinType).ifPresent(existing -> {
+                if (!existing.getId().equals(voteId)) {
+                    existing.unpin();
+                    voteRepository.saveAndFlush(existing);
+                }
+            });
+            // 대상 투표를 고정하는 이 flush에서만 UNIQUE 제약 위반이 날 수 있다.
+            // 동시에 다른 투표를 같은 pinType으로 고정하려는 요청이 먼저 커밋되면
+            // 이 지점에서 DataIntegrityViolationException이 발생해 충돌을 잡아낸다.
+            vote.pin(pinType);
+            voteRepository.saveAndFlush(vote);
+        } catch (DataIntegrityViolationException e) {
+            throw new ApiException(VoteErrorMessage.PIN_CONFLICT.message(), HttpStatus.CONFLICT);
+        }
     }
 
     private String getEquippedTitleName(Member member) {

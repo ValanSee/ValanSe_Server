@@ -76,7 +76,7 @@ class DailyVoteMigrationTest {
 
     private long insertVote(Statement st) throws SQLException {
         st.execute("INSERT INTO vote (created_at, updated_at, title, pin_type, total_vote_count, reactivity_score) "
-                + "VALUES (NOW(6), NOW(6), 'Q', 'NONE', 0, 0)");
+                + "VALUES (NOW(6), NOW(6), 'Q', NULL, 0, 0)");
         return lastInsertId(st);
     }
 
