@@ -39,6 +39,7 @@ import com.valanse.valanse.service.ContentSeedService.GeneratedInteraction;
 import com.valanse.valanse.service.PointService.PointService;
 import com.valanse.valanse.service.TitleService.TitleService;
 import com.valanse.valanse.service.VoteService.VoteService;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -46,6 +47,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
@@ -55,6 +57,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -87,6 +90,7 @@ class ConcurrencyIntegrityTest {
     @Autowired private TitleRepository titleRepository;
     @Autowired private MemberProfileTitleRepository memberProfileTitleRepository;
     @Autowired private PlatformTransactionManager transactionManager;
+    @Autowired private EntityManager entityManager;
 
     @BeforeEach
     void cleanUpBefore() {
@@ -121,6 +125,60 @@ class ConcurrencyIntegrityTest {
         saveMemberProfileTitle(profile.getId(), title.getId());
         assertThatThrownBy(() -> saveMemberProfileTitle(profile.getId(), title.getId()))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("서로 다른 투표를 동시에 TRENDING으로 고정해도 최종적으로 하나만 고정된다 (#352)")
+    void concurrentPinRequestsKeepAtMostOneTrendingVote() throws Exception {
+        Member admin = saveAdminMember("pin-admin");
+        Member creator = saveMember("pin-creator");
+        Vote voteA = saveVoteWithOptions(creator);
+        Vote voteB = saveVoteWithOptions(creator);
+
+        List<ApiException> conflicts = new CopyOnWriteArrayList<>();
+        List<Callable<Void>> tasks = List.of(
+                pinTask(admin, voteA.getId(), conflicts),
+                pinTask(admin, voteB.getId(), conflicts)
+        );
+
+        runConcurrently(tasks);
+
+        long trendingCount = voteRepository.findAll().stream()
+                .filter(vote -> vote.getPinType() == PinType.TRENDING)
+                .count();
+
+        assertThat(trendingCount).isEqualTo(1);
+        assertThat(conflicts).hasSize(1);
+        assertThat(conflicts.get(0).getStatus()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    @DisplayName("고정된 투표를 삭제하면 핀이 해제되어 다른 투표를 고정할 수 있다 (#352)")
+    void deletingPinnedVoteReleasesTheUniquePinSlot() {
+        Member admin = saveAdminMember("delete-pin-admin");
+        Member creator = saveMember("delete-pin-creator");
+        Vote pinnedVote = saveVoteWithOptions(creator);
+        Vote otherVote = saveVoteWithOptions(creator);
+
+        voteService.updatePinStatus(admin, pinnedVote.getId(), PinType.TRENDING);
+        voteService.deleteVote(creator.getId(), pinnedVote.getId());
+
+        // 삭제된 행이 pin_type UNIQUE 슬롯을 계속 점유하면 여기서 충돌이 난다.
+        voteService.updatePinStatus(admin, otherVote.getId(), PinType.TRENDING);
+
+        Vote reloadedOther = voteRepository.findById(otherVote.getId()).orElseThrow();
+        assertThat(reloadedOther.getPinType()).isEqualTo(PinType.TRENDING);
+    }
+
+    private Callable<Void> pinTask(Member admin, Long voteId, List<ApiException> conflicts) {
+        return () -> {
+            try {
+                voteService.updatePinStatus(admin, voteId, PinType.TRENDING);
+            } catch (ApiException e) {
+                conflicts.add(e);
+            }
+            return null;
+        };
     }
 
     @Test
@@ -412,6 +470,17 @@ class ConcurrencyIntegrityTest {
                 .build()));
     }
 
+    private Member saveAdminMember(String socialId) {
+        return inTransaction(() -> memberRepository.save(Member.builder()
+                .socialId(socialId)
+                .email(socialId + "@example.com")
+                .name(socialId)
+                .nickname(socialId)
+                .role(Role.ADMIN)
+                .socialType(SocialType.KAKAO)
+                .build()));
+    }
+
     private Member saveBotMember(String socialId) {
         return inTransaction(() -> memberRepository.save(Member.builder()
                 .socialId(socialId)
@@ -543,7 +612,10 @@ class ConcurrencyIntegrityTest {
             commentRepository.deleteAllInBatch();
             commentGroupRepository.deleteAllInBatch();
             voteOptionRepository.deleteAllInBatch();
-            voteRepository.deleteAllInBatch();
+            // Vote의 @Where(deleted_at IS NULL)이 deleteAllInBatch()의 벌크 삭제에도
+            // 적용돼 소프트 삭제된 행을 남긴다(#352 핀 해제 테스트에서 발견). 네이티브
+            // 쿼리로 우회해 소프트 삭제 여부와 무관하게 모두 지운다.
+            entityManager.createNativeQuery("DELETE FROM vote").executeUpdate();
             titleRepository.deleteAllInBatch();
             memberProfileRepository.deleteAllInBatch();
             memberRepository.deleteAllInBatch();
