@@ -2,6 +2,7 @@ package com.valanse.valanse.domain;
 
 import com.valanse.valanse.domain.common.BaseEntity;
 import com.valanse.valanse.domain.enums.PinType;
+import com.valanse.valanse.domain.enums.PinTypeConverter;
 import com.valanse.valanse.domain.enums.VoteCategory;
 import jakarta.persistence.*;
 import lombok.*;
@@ -13,7 +14,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(indexes = @Index(name = "idx_vote_deleted_at", columnList = "deleted_at"))
+@Table(
+        indexes = @Index(name = "idx_vote_deleted_at", columnList = "deleted_at"),
+        uniqueConstraints = @UniqueConstraint(name = "uq_vote_pin_type", columnNames = "pin_type")
+)
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -46,8 +50,8 @@ public class Vote extends BaseEntity {
     private LocalDateTime reactivityUpdatedAt;// 반응성 마지막 계산 시점
 
     @Builder.Default
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Convert(converter = PinTypeConverter.class)
+    @Column(name = "pin_type")
     private PinType pinType = PinType.NONE;
 
 
