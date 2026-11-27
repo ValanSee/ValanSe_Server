@@ -31,6 +31,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -765,7 +766,25 @@ class VoteServiceImplTest {
 
         assertThat(existingTrending.getPinType()).isEqualTo(PinType.NONE);
         assertThat(newVote.getPinType()).isEqualTo(PinType.TRENDING);
-        verify(voteRepository, times(2)).save(any(Vote.class));
+        // 기존 핀 해제를 먼저 flush해 DB에 반영한 뒤 대상 투표를 고정해야
+        // UNIQUE 제약이 최종 중재자 역할을 할 수 있다 (#352).
+        verify(voteRepository, times(2)).saveAndFlush(any(Vote.class));
+    }
+
+    @Test
+    @DisplayName("동시 고정 요청이 UNIQUE 제약을 위반하면 409로 변환된다 (#352)")
+    void 트렌딩핀설정_동시충돌시_409() {
+        Member admin = Member.builder().id(1L).role(Role.ADMIN).build();
+        Vote newVote = Vote.builder().id(10L).build();
+
+        when(voteRepository.findById(10L)).thenReturn(Optional.of(newVote));
+        when(voteRepository.findByPinType(PinType.TRENDING)).thenReturn(Optional.empty());
+        when(voteRepository.saveAndFlush(newVote)).thenThrow(new DataIntegrityViolationException("duplicate"));
+
+        ApiException ex = assertThrows(ApiException.class,
+                () -> voteService.updatePinStatus(admin, 10L, PinType.TRENDING));
+        assertThat(ex.getMessage()).isEqualTo("다른 요청이 먼저 고정을 처리했습니다. 다시 시도해주세요.");
+        assertThat(ex.getStatus()).isEqualTo(HttpStatus.CONFLICT);
     }
 
     @Test

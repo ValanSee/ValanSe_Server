@@ -21,6 +21,7 @@ public enum VoteErrorMessage {
     SORT_INVALID("sort는 latest 또는 popular 중 하나여야 합니다."),
     CURSOR_INVALID("cursor 형식이 올바르지 않습니다."),
     PIN_TYPE_REQUIRED("pinType은 필수입니다."),
+    PIN_CONFLICT("다른 요청이 먼저 고정을 처리했습니다. 다시 시도해주세요."),
     DELETE_PERMISSION_DENIED("삭제 권한이 없습니다."),
     PERMISSION_DENIED("권한이 없습니다."),
     POST_NOT_FOUND("게시물이 존재하지 않습니다.");
