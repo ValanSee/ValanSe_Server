@@ -34,7 +34,8 @@ import com.valanse.valanse.repository.VoteOptionRepository;
 import com.valanse.valanse.repository.VoteRepository;
 import com.valanse.valanse.service.CommentLikeService.CommentLikeService;
 import com.valanse.valanse.service.CommentService.CommentService;
-import com.valanse.valanse.service.ContentSeedService.ContentSeedVotePersister;
+import com.valanse.valanse.service.ContentSeedService.ContentSeedPersistenceService;
+import com.valanse.valanse.service.ContentSeedService.GeneratedInteraction;
 import com.valanse.valanse.service.PointService.PointService;
 import com.valanse.valanse.service.TitleService.TitleService;
 import com.valanse.valanse.service.VoteService.VoteService;
@@ -68,7 +69,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ConcurrencyIntegrityTest {
 
     @Autowired private VoteService voteService;
-    @Autowired private ContentSeedVotePersister votePersister;
+    @Autowired private ContentSeedPersistenceService persistenceService;
     @Autowired private CommentService commentService;
     @Autowired private CommentLikeService commentLikeService;
     @Autowired private PointService pointService;
@@ -150,8 +151,8 @@ class ConcurrencyIntegrityTest {
     }
 
     @Test
-    @DisplayName("사용자 투표와 봇 투표가 동시에 같은 선택지에 들어가도 카운트에 Lost Update가 발생하지 않는다")
-    void concurrentUserAndBotVotesKeepCountsConsistent() throws Exception {
+    @DisplayName("사용자 투표와 봇 상호작용 저장이 동시에 실행돼도 카운트에 Lost Update가 발생하지 않는다")
+    void concurrentUserVoteAndBotInteractionKeepCountsConsistent() throws Exception {
         Member creator = saveMember("race-creator");
         saveProfile(creator, 0L);
         Vote vote = saveVoteWithOptions(creator);
@@ -160,6 +161,12 @@ class ConcurrencyIntegrityTest {
         int userCount = 4;
         int botCount = 4;
 
+        // ContentSeedPersistenceService.saveBotInteraction()을 직접 호출해야
+        // 실제 운영 경로(Vote를 먼저 잠금 없이 읽은 뒤 saveVote를 같은 트랜잭션
+        // 안에서 호출하는 순서)를 그대로 검증한다. ContentSeedVotePersister
+        // .saveVote()를 테스트에서 바로 호출하면 매번 새 트랜잭션에서 시작해
+        // Vote가 영속성 컨텍스트에 미리 캐시돼 있지 않으므로, saveBotInteraction
+        // 쪽의 "먼저 읽은 캐시가 락을 무력화하는" 버그를 잡아내지 못한다(#351).
         List<Callable<Void>> tasks = new ArrayList<>();
         for (int i = 0; i < userCount; i++) {
             Member user = saveMember("race-user-" + i);
@@ -170,8 +177,10 @@ class ConcurrencyIntegrityTest {
         }
         for (int i = 0; i < botCount; i++) {
             Member bot = saveBotMember("race-bot-" + i);
+            GeneratedInteraction interaction = new GeneratedInteraction(
+                    vote.getId(), GeneratedInteraction.SelectedOption.A, "저는 A가 좋아요");
             tasks.add(() -> {
-                votePersister.saveVote(bot, vote, option);
+                persistenceService.saveBotInteraction(bot.getId(), interaction);
                 return null;
             });
         }
