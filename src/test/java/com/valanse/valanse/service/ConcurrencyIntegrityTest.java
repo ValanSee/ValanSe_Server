@@ -147,9 +147,14 @@ class ConcurrencyIntegrityTest {
                 .filter(vote -> vote.getPinType() == PinType.TRENDING)
                 .count();
 
+        // 스레드 스케줄링에 따라 두 요청이 실제로 겹치지 않고 순차적으로
+        // 처리될 수도 있다(두 번째 요청이 첫 번째가 커밋한 핀을 그대로 보고
+        // 정상적으로 해제 후 재고정). 그 경우 충돌은 발생하지 않는다. 두 요청이
+        // 겹쳐서 UNIQUE 제약 위반이 나더라도 패자는 409로만 끝나야 한다. 어느
+        // 경로든 최종적으로 TRENDING은 하나만 남아야 한다(#352 핵심 불변식).
         assertThat(trendingCount).isEqualTo(1);
-        assertThat(conflicts).hasSize(1);
-        assertThat(conflicts.get(0).getStatus()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(conflicts.size()).isLessThanOrEqualTo(1);
+        conflicts.forEach(e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.CONFLICT));
     }
 
     @Test
